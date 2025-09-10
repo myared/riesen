@@ -149,10 +149,20 @@
   border-bottom: 1px solid #e1e4e8;
 }
 
+.patients-table th:last-child {
+  text-align: left;
+  min-width: 200px;
+}
+
 .patients-table td {
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   border-bottom: 1px solid #f0f2f5;
   vertical-align: middle;
+  line-height: 1.5;
+}
+
+.patients-table td:last-child {
+  min-width: 200px;
 }
 
 .patient-row {
@@ -265,25 +275,28 @@
 
 /* Patient Actions */
 .patient-actions {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
-  justify-content: flex-end;
+  white-space: nowrap;
 }
 
-.btn-sm {
-  padding: 0.25rem 0.5rem;
-  font-size: 0.75rem;
+.patients-table .btn,
+.patients-table .btn-sm {
+  padding: 0.3rem 0.6rem !important;
+  font-size: 0.75rem !important;
+  white-space: nowrap;
+  margin-right: 0.4rem;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  display: inline-block;
+  vertical-align: middle;
+  line-height: 1.2;
 }
 
-.btn-assess {
-  background: #0969da;
-  color: white;
-}
-
+.btn-assess,
 .btn-send-ed {
   background: #0969da;
   color: white;
+  margin: 0;
+  vertical-align: middle;
 }
 
 /* Empty State */
