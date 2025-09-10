@@ -1,0 +1,226 @@
+<div class="care-pathway-modal" data-patient-id="<%= @patient.id %>" data-pathway-id="<%= @care_pathway.id %>">
+  <div class="modal-header">
+    <h2>Care Pathway</h2>
+    <p class="patient-info">
+      <%= @patient.full_name %> • Patient ID: <%= @patient.mrn %>
+    </p>
+    <button class="modal-close" onclick="closeCarePathwayModal()">×</button>
+  </div>
+  
+  <% if @care_pathway.pathway_type_triage? %>
+    <!-- Triage Pathway -->
+    <div class="pathway-progress">
+      <% @steps.each do |step| %>
+        <div class="pathway-step <%= step.status_class %>" data-step-id="<%= step.id %>">
+          <div class="step-icon">
+            <% if step.completed? %>
+              <span class="checkmark">✓</span>
+            <% elsif step.current? %>
+              <span class="current-indicator"></span>
+            <% else %>
+              <span class="pending-indicator"></span>
+            <% end %>
+          </div>
+          <div class="step-label"><%= step.name %></div>
+          <% if step.completed_at %>
+            <div class="step-time"><%= step.completed_at.strftime("%l:%M %p") %></div>
+          <% end %>
+        </div>
+        <% unless step == @steps.last %>
+          <div class="step-connector <%= 'completed' if step.completed? %>"></div>
+        <% end %>
+      <% end %>
+    </div>
+    
+    <div class="progress-indicator">
+      <h3><%= @care_pathway.progress_percentage %>% Complete</h3>
+    </div>
+    
+    <% current_step = @care_pathway.current_triage_step %>
+    <% if current_step %>
+      <div class="current-step-content">
+        <% if current_step.name == 'Intake' %>
+          <%= render 'care_pathways/intake_assessment', patient: @patient, step: current_step %>
+        <% elsif current_step.name == 'Bed Assignment' %>
+          <%= render 'care_pathways/bed_assignment', patient: @patient, step: current_step %>
+        <% else %>
+          <div class="step-action">
+            <button class="btn btn-primary btn-complete-step" 
+                    data-step-id="<%= current_step.id %>"
+                    onclick="completeTriageStep(<%= @patient.id %>, <%= @care_pathway.id %>, <%= current_step.id %>)">
+              Complete <%= current_step.name %>
+            </button>
+          </div>
+        <% end %>
+      </div>
+    <% elsif @care_pathway.complete? %>
+      <div class="pathway-complete">
+        <h3>✓ Triage Complete</h3>
+        <p>Patient is ready for transfer to <%= @patient.rp_eligible? ? 'Results Pending (RP)' : 'Emergency Department (ED)' %></p>
+      </div>
+    <% end %>
+    
+  <% elsif @care_pathway.pathway_type_emergency_room? %>
+    <!-- Emergency Room Pathway -->
+    <div class="er-pathway-header">
+      <h3>Care Pathway</h3>
+      <p>Active Clinical Management</p>
+      <div class="progress-indicator">
+        <span class="progress-percentage"><%= @care_pathway.progress_percentage %>%</span>
+        <span class="progress-label">Complete</span>
+      </div>
+    </div>
+    
+    <div class="er-pathway-summary">
+      <div class="summary-item">
+        <span class="summary-icon">📋</span>
+        <span class="summary-label">Orders:</span>
+        <span class="summary-value"><%= @orders.completed.count %>/<%= @orders.count %></span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-icon">🔧</span>
+        <span class="summary-label">Procedures:</span>
+        <span class="summary-value"><%= @procedures.completed.count %>/<%= @procedures.count %></span>
+      </div>
+      <div class="summary-item">
+        <span class="summary-icon">🎯</span>
+        <span class="summary-label">Goals:</span>
+        <span class="summary-value"><%= @clinical_endpoints.achieved.count %>/<%= @clinical_endpoints.count %></span>
+      </div>
+    </div>
+    
+    <div class="er-pathway-tabs">
+      <button class="tab-button active" data-tab="orders">Orders</button>
+      <button class="tab-button" data-tab="procedures">Procedures</button>
+      <button class="tab-button" data-tab="endpoints">Clinical Endpoints</button>
+    </div>
+    
+    <div class="er-pathway-content">
+      <!-- Orders Tab -->
+      <div class="tab-content active" id="orders">
+        <div class="section-header">
+          <h4>Orders (Labs, Meds, Imaging)</h4>
+          <button class="btn btn-primary btn-add" onclick="showAddOrderModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+            + Add Order
+          </button>
+        </div>
+        
+        <% if @orders.any? %>
+          <div class="orders-list">
+            <% @orders.each do |order| %>
+              <div class="order-item" data-order-id="<%= order.id %>">
+                <div class="order-icon"><%= order.type_icon %></div>
+                <div class="order-info">
+                  <div class="order-name"><%= order.name %></div>
+                  <div class="order-meta">
+                    <span class="order-type"><%= order.order_type.humanize %></span>
+                    <span class="order-time">Ordered by <%= order.ordered_by %> at <%= order.ordered_at&.strftime("%l:%M %p") %></span>
+                  </div>
+                </div>
+                <div class="order-status-tracker">
+                  <% %w[ordered collected in_lab resulted].each do |status| %>
+                    <div class="status-step <%= 'completed' if order.status_value >= order.class.statuses[status] %>">
+                      <%= status.humanize %>
+                    </div>
+                    <% unless status == 'resulted' %>
+                      <div class="status-connector <%= 'completed' if order.status_value > order.class.statuses[status] %>"></div>
+                    <% end %>
+                  <% end %>
+                </div>
+                <% unless order.resulted? %>
+                  <button class="btn btn-sm btn-advance" 
+                          onclick="advanceOrderStatus(<%= @patient.id %>, <%= @care_pathway.id %>, <%= order.id %>)">
+                    Advance →
+                  </button>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="empty-state">No orders placed yet</div>
+        <% end %>
+      </div>
+      
+      <!-- Procedures Tab -->
+      <div class="tab-content" id="procedures">
+        <div class="section-header">
+          <h4>Procedures</h4>
+          <button class="btn btn-primary btn-add" onclick="showAddProcedureModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+            + Add Procedure
+          </button>
+        </div>
+        
+        <% if @procedures.any? %>
+          <div class="procedures-list">
+            <% @procedures.each do |procedure| %>
+              <div class="procedure-item <%= procedure.status_class %>" data-procedure-id="<%= procedure.id %>">
+                <div class="procedure-icon">🔧</div>
+                <div class="procedure-info">
+                  <div class="procedure-name"><%= procedure.name %></div>
+                  <% if procedure.description.present? %>
+                    <div class="procedure-description"><%= procedure.description %></div>
+                  <% end %>
+                  <% if procedure.completed? %>
+                    <div class="procedure-meta">
+                      Completed by <%= procedure.completed_by %> at <%= procedure.completed_at&.strftime("%l:%M %p") %>
+                    </div>
+                  <% end %>
+                </div>
+                <% unless procedure.completed? %>
+                  <button class="btn btn-sm btn-complete" 
+                          onclick="completeProcedure(<%= @patient.id %>, <%= @care_pathway.id %>, <%= procedure.id %>)">
+                    Mark Complete
+                  </button>
+                <% else %>
+                  <span class="status-badge completed">✓ Complete</span>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="empty-state">No procedures added yet</div>
+        <% end %>
+      </div>
+      
+      <!-- Clinical Endpoints Tab -->
+      <div class="tab-content" id="endpoints">
+        <div class="section-header">
+          <h4>Clinical Endpoints</h4>
+          <button class="btn btn-primary btn-add" onclick="showAddEndpointModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+            + Add Goal
+          </button>
+        </div>
+        
+        <% if @clinical_endpoints.any? %>
+          <div class="endpoints-list">
+            <% @clinical_endpoints.each do |endpoint| %>
+              <div class="endpoint-item <%= endpoint.status_class %>" data-endpoint-id="<%= endpoint.id %>">
+                <div class="endpoint-icon">🎯</div>
+                <div class="endpoint-info">
+                  <div class="endpoint-name"><%= endpoint.name %></div>
+                  <div class="endpoint-description"><%= endpoint.description %></div>
+                  <% if endpoint.achieved? %>
+                    <div class="endpoint-meta">
+                      Achieved by <%= endpoint.achieved_by %> at <%= endpoint.achieved_at&.strftime("%l:%M %p") %>
+                    </div>
+                  <% end %>
+                </div>
+                <% unless endpoint.achieved? %>
+                  <button class="btn btn-sm btn-achieve" 
+                          onclick="achieveEndpoint(<%= @patient.id %>, <%= @care_pathway.id %>, <%= endpoint.id %>)">
+                    Mark Achieved
+                  </button>
+                <% else %>
+                  <span class="status-badge achieved">✓ Achieved</span>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="empty-state">No clinical endpoints added yet</div>
+        <% end %>
+      </div>
+    </div>
+    
+  <% end %>
+</div>

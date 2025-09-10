@@ -10,9 +10,85 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_10_190243) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_10_192908) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "care_pathway_clinical_endpoints", force: :cascade do |t|
+    t.bigint "care_pathway_id", null: false
+    t.string "name", null: false
+    t.text "description", null: false
+    t.boolean "achieved", default: false
+    t.datetime "achieved_at"
+    t.string "achieved_by"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["achieved"], name: "index_care_pathway_clinical_endpoints_on_achieved"
+    t.index ["care_pathway_id"], name: "index_care_pathway_clinical_endpoints_on_care_pathway_id"
+  end
+
+  create_table "care_pathway_orders", force: :cascade do |t|
+    t.bigint "care_pathway_id", null: false
+    t.string "name", null: false
+    t.integer "order_type", null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "ordered_at"
+    t.string "ordered_by"
+    t.datetime "status_updated_at"
+    t.string "status_updated_by"
+    t.text "notes"
+    t.jsonb "results"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["care_pathway_id"], name: "index_care_pathway_orders_on_care_pathway_id"
+    t.index ["order_type"], name: "index_care_pathway_orders_on_order_type"
+    t.index ["status"], name: "index_care_pathway_orders_on_status"
+  end
+
+  create_table "care_pathway_procedures", force: :cascade do |t|
+    t.bigint "care_pathway_id", null: false
+    t.string "name", null: false
+    t.text "description"
+    t.boolean "completed", default: false
+    t.datetime "completed_at"
+    t.string "completed_by"
+    t.text "notes"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["care_pathway_id"], name: "index_care_pathway_procedures_on_care_pathway_id"
+    t.index ["completed"], name: "index_care_pathway_procedures_on_completed"
+  end
+
+  create_table "care_pathway_steps", force: :cascade do |t|
+    t.bigint "care_pathway_id", null: false
+    t.string "name", null: false
+    t.integer "sequence", null: false
+    t.boolean "completed", default: false
+    t.datetime "completed_at"
+    t.string "completed_by"
+    t.jsonb "data"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["care_pathway_id", "sequence"], name: "index_care_pathway_steps_on_care_pathway_id_and_sequence"
+    t.index ["care_pathway_id"], name: "index_care_pathway_steps_on_care_pathway_id"
+    t.index ["completed"], name: "index_care_pathway_steps_on_completed"
+  end
+
+  create_table "care_pathways", force: :cascade do |t|
+    t.bigint "patient_id", null: false
+    t.integer "pathway_type", default: 0, null: false
+    t.integer "status", default: 0, null: false
+    t.datetime "started_at"
+    t.datetime "completed_at"
+    t.string "started_by"
+    t.string "completed_by"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["pathway_type"], name: "index_care_pathways_on_pathway_type"
+    t.index ["patient_id"], name: "index_care_pathways_on_patient_id"
+    t.index ["status"], name: "index_care_pathways_on_status"
+  end
 
   create_table "events", force: :cascade do |t|
     t.bigint "patient_id", null: false
@@ -61,6 +137,11 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_10_190243) do
     t.index ["patient_id"], name: "index_vitals_on_patient_id"
   end
 
+  add_foreign_key "care_pathway_clinical_endpoints", "care_pathways"
+  add_foreign_key "care_pathway_orders", "care_pathways"
+  add_foreign_key "care_pathway_procedures", "care_pathways"
+  add_foreign_key "care_pathway_steps", "care_pathways"
+  add_foreign_key "care_pathways", "patients"
   add_foreign_key "events", "patients"
   add_foreign_key "vitals", "patients"
 end

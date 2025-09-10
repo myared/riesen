@@ -313,13 +313,33 @@
   gap: 0.25rem;
 }
 
+.btn-pathway {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #eff6ff;
+  border: 1px solid #3b82f6;
+  color: #3b82f6;
+  padding: 4px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.875rem;
+}
+
+.btn-pathway:hover {
+  background: #3b82f6;
+  color: white;
+}
+
 .pathway-icon {
   font-size: 1rem;
 }
 
 .pathway-value {
-  color: #586069;
+  color: inherit;
   font-size: 0.875rem;
+  font-weight: 600;
 }
 
 /* Chief Complaint */

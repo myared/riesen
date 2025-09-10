@@ -19,6 +19,7 @@
 
     <%# Includes all stylesheet files in app/assets/stylesheets %>
     <%= stylesheet_link_tag :app, "data-turbo-track": "reload" %>
+    <%= stylesheet_link_tag "care_pathways", "data-turbo-track": "reload" %>
     <%= javascript_importmap_tags %>
   </head>
 
@@ -42,5 +43,8 @@
         <%= yield %>
       </main>
     </div>
+    
+    <!-- Care Pathway Modal Container -->
+    <div id="care-pathway-modal-container" style="display: none;"></div>
   </body>
 </html>

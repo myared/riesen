@@ -44,8 +44,10 @@
           </td>
           <td>
             <div class="care-pathway">
-              <span class="pathway-icon">🏥</span>
-              <span class="pathway-value"><%= patient.care_pathway || "0%" %></span>
+              <button class="btn btn-sm btn-pathway" onclick="openCarePathway(<%= patient.id %>)">
+                <span class="pathway-icon">🏥</span>
+                <span class="pathway-value"><%= patient.active_care_pathway&.progress_percentage || 0 %>%</span>
+              </button>
             </div>
           </td>
           <td>

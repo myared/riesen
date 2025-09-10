@@ -1,0 +1,47 @@
+<div class="bed-assignment-form">
+  <h3>Bed Assignment</h3>
+  
+  <%= form_with url: complete_step_patient_care_pathway_path(patient, step.care_pathway, step_id: step.id),
+                method: :post,
+                local: true,
+                data: { turbo: false },
+                class: "assignment-form" do |f| %>
+    
+    <div class="form-section">
+      <h4>Select Destination</h4>
+      <div class="destination-options">
+        <label class="radio-option">
+          <%= radio_button_tag "destination", "rp", patient.rp_eligible?, class: "destination-radio" %>
+          <div class="option-content">
+            <span class="option-title">Results Pending (RP) Area</span>
+            <span class="option-description">For stable patients awaiting test results</span>
+          </div>
+        </label>
+        
+        <label class="radio-option">
+          <%= radio_button_tag "destination", "ed", !patient.rp_eligible?, class: "destination-radio" %>
+          <div class="option-content">
+            <span class="option-title">Emergency Department (ED) Bed</span>
+            <span class="option-description">For patients requiring immediate care</span>
+          </div>
+        </label>
+      </div>
+    </div>
+    
+    <% if patient.rp_eligible? %>
+      <div class="eligibility-notice success">
+        <span class="notice-icon">✓</span>
+        <span>Patient is eligible for Results Pending area</span>
+      </div>
+    <% else %>
+      <div class="eligibility-notice warning">
+        <span class="notice-icon">⚠</span>
+        <span>Patient requires Emergency Department bed based on triage assessment</span>
+      </div>
+    <% end %>
+    
+    <div class="form-actions">
+      <%= submit_tag "Confirm Assignment", class: "btn btn-primary btn-lg" %>
+    </div>
+  <% end %>
+</div>

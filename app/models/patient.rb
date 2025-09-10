@@ -32,6 +32,8 @@ class Patient < ApplicationRecord
   
   has_many :vitals, dependent: :destroy
   has_many :events, dependent: :destroy
+  has_many :care_pathways, dependent: :destroy
+  has_one :active_care_pathway, -> { where(status: [:not_started, :in_progress]) }, class_name: 'CarePathway'
   
   validates :first_name, presence: true
   validates :last_name, presence: true

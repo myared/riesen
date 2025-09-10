@@ -1,0 +1,843 @@
+/* Care Pathway Styles */
+
+#care-pathway-modal-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.care-pathway-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 900px;
+  margin: 20px auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  
+  .modal-header {
+    padding: 24px;
+    border-bottom: 1px solid #e5e7eb;
+    position: relative;
+    
+    h2 {
+      margin: 0 0 8px 0;
+      font-size: 24px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    
+    .patient-info {
+      color: #6b7280;
+      font-size: 14px;
+      margin: 0;
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: none;
+      border: none;
+      font-size: 28px;
+      color: #6b7280;
+      cursor: pointer;
+      line-height: 1;
+      padding: 0;
+      width: 32px;
+      height: 32px;
+      
+      &:hover {
+        color: #1f2937;
+      }
+    }
+  }
+}
+
+// Triage Pathway Styles
+.pathway-progress {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  
+  .pathway-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: relative;
+    
+    .step-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #e5e7eb;
+      border: 3px solid #e5e7eb;
+      margin-bottom: 8px;
+      transition: all 0.3s ease;
+      
+      .checkmark {
+        color: white;
+        font-size: 20px;
+      }
+      
+      .current-indicator {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #3b82f6;
+        animation: pulse 2s infinite;
+      }
+      
+      .pending-indicator {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #d1d5db;
+      }
+    }
+    
+    .step-label {
+      font-size: 14px;
+      font-weight: 500;
+      color: #6b7280;
+      text-align: center;
+    }
+    
+    .step-time {
+      font-size: 12px;
+      color: #9ca3af;
+      margin-top: 4px;
+    }
+    
+    &.step-completed {
+      .step-icon {
+        background: #10b981;
+        border-color: #10b981;
+      }
+      
+      .step-label {
+        color: #1f2937;
+      }
+    }
+    
+    &.step-current {
+      .step-icon {
+        background: white;
+        border-color: #3b82f6;
+      }
+      
+      .step-label {
+        color: #3b82f6;
+        font-weight: 600;
+      }
+    }
+  }
+  
+  .step-connector {
+    width: 120px;
+    height: 3px;
+    background: #e5e7eb;
+    margin: 0 12px;
+    margin-bottom: 40px;
+    
+    &.completed {
+      background: #10b981;
+    }
+  }
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
+}
+
+.progress-indicator {
+  text-align: center;
+  padding: 20px;
+  
+  h3 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+  }
+}
+
+// Intake Assessment Form
+.intake-assessment-form {
+  padding: 24px;
+  
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 24px 0;
+  }
+  
+  .form-section {
+    margin-bottom: 32px;
+    
+    h4 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #374151;
+      margin: 0 0 16px 0;
+    }
+  }
+  
+  .symptoms-grid, .risk-factors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      padding: 8px 12px;
+      background: #f9fafb;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.2s;
+      
+      &:hover {
+        background: #f3f4f6;
+      }
+      
+      input[type="checkbox"] {
+        margin-right: 8px;
+        cursor: pointer;
+      }
+      
+      span {
+        font-size: 14px;
+        color: #4b5563;
+      }
+    }
+  }
+  
+  .vitals-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    
+    .vital-input {
+      label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: #374151;
+        margin-bottom: 6px;
+      }
+      
+      .form-control {
+        width: 100%;
+        padding: 8px 12px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 14px;
+        
+        &:focus {
+          outline: none;
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+      }
+    }
+  }
+  
+  .form-actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 32px;
+    
+    .btn-lg {
+      padding: 12px 32px;
+      font-size: 16px;
+    }
+  }
+}
+
+// Bed Assignment Form
+.bed-assignment-form {
+  padding: 24px;
+  
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 24px 0;
+  }
+  
+  .destination-options {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    
+    .radio-option {
+      display: flex;
+      align-items: center;
+      padding: 16px;
+      background: #f9fafb;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      
+      &:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
+      }
+      
+      &:has(input:checked) {
+        background: #eff6ff;
+        border-color: #3b82f6;
+      }
+      
+      .destination-radio {
+        margin-right: 12px;
+      }
+      
+      .option-content {
+        display: flex;
+        flex-direction: column;
+        
+        .option-title {
+          font-size: 16px;
+          font-weight: 500;
+          color: #1f2937;
+          margin-bottom: 4px;
+        }
+        
+        .option-description {
+          font-size: 14px;
+          color: #6b7280;
+        }
+      }
+    }
+  }
+  
+  .eligibility-notice {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 20px 0;
+    
+    .notice-icon {
+      margin-right: 8px;
+      font-size: 18px;
+    }
+    
+    &.success {
+      background: #d1fae5;
+      color: #065f46;
+      
+      .notice-icon {
+        color: #10b981;
+      }
+    }
+    
+    &.warning {
+      background: #fed7aa;
+      color: #92400e;
+      
+      .notice-icon {
+        color: #f59e0b;
+      }
+    }
+  }
+}
+
+// Emergency Room Pathway Styles
+.er-pathway-header {
+  padding: 24px;
+  border-bottom: 1px solid #e5e7eb;
+  
+  h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0 0 4px 0;
+  }
+  
+  p {
+    color: #6b7280;
+    font-size: 14px;
+    margin: 0 0 16px 0;
+  }
+  
+  .progress-indicator {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    
+    .progress-percentage {
+      font-size: 32px;
+      font-weight: 700;
+      color: #3b82f6;
+    }
+    
+    .progress-label {
+      font-size: 16px;
+      color: #6b7280;
+    }
+  }
+}
+
+.er-pathway-summary {
+  display: flex;
+  justify-content: space-around;
+  padding: 20px;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    
+    .summary-icon {
+      font-size: 20px;
+    }
+    
+    .summary-label {
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .summary-value {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+  }
+}
+
+.er-pathway-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+  
+  .tab-button {
+    flex: 1;
+    padding: 16px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: #6b7280;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    
+    &:hover {
+      color: #374151;
+      background: #f3f4f6;
+    }
+    
+    &.active {
+      color: #3b82f6;
+      background: white;
+      
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: -1px;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: #3b82f6;
+      }
+    }
+  }
+}
+
+.er-pathway-content {
+  padding: 24px;
+  min-height: 400px;
+  
+  .tab-content {
+    display: none;
+    
+    &.active {
+      display: block;
+    }
+  }
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    
+    h4 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1f2937;
+      margin: 0;
+    }
+    
+    .btn-add {
+      padding: 8px 16px;
+      font-size: 14px;
+    }
+  }
+}
+
+// Orders List
+.orders-list {
+  .order-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    
+    .order-icon {
+      font-size: 24px;
+    }
+    
+    .order-info {
+      flex: 1;
+      
+      .order-name {
+        font-size: 16px;
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 4px;
+      }
+      
+      .order-meta {
+        display: flex;
+        gap: 16px;
+        font-size: 12px;
+        color: #6b7280;
+        
+        .order-type {
+          background: #e5e7eb;
+          padding: 2px 8px;
+          border-radius: 4px;
+        }
+      }
+    }
+    
+    .order-status-tracker {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      
+      .status-step {
+        padding: 4px 8px;
+        background: #e5e7eb;
+        color: #6b7280;
+        font-size: 12px;
+        border-radius: 4px;
+        transition: all 0.2s;
+        
+        &.completed {
+          background: #10b981;
+          color: white;
+        }
+      }
+      
+      .status-connector {
+        width: 16px;
+        height: 2px;
+        background: #e5e7eb;
+        
+        &.completed {
+          background: #10b981;
+        }
+      }
+    }
+    
+    .btn-advance {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+  }
+}
+
+// Procedures List
+.procedures-list {
+  .procedure-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    
+    &.procedure-completed {
+      background: #f0fdf4;
+      
+      .procedure-name {
+        text-decoration: line-through;
+        color: #6b7280;
+      }
+    }
+    
+    .procedure-icon {
+      font-size: 24px;
+    }
+    
+    .procedure-info {
+      flex: 1;
+      
+      .procedure-name {
+        font-size: 16px;
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 4px;
+      }
+      
+      .procedure-description {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 4px;
+      }
+      
+      .procedure-meta {
+        font-size: 12px;
+        color: #6b7280;
+      }
+    }
+    
+    .btn-complete {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      
+      &.completed {
+        background: #d1fae5;
+        color: #065f46;
+      }
+    }
+  }
+}
+
+// Clinical Endpoints List
+.endpoints-list {
+  .endpoint-item {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: #f9fafb;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    
+    &.endpoint-achieved {
+      background: #f0fdf4;
+      
+      .endpoint-name {
+        text-decoration: line-through;
+        color: #6b7280;
+      }
+    }
+    
+    .endpoint-icon {
+      font-size: 24px;
+    }
+    
+    .endpoint-info {
+      flex: 1;
+      
+      .endpoint-name {
+        font-size: 16px;
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 4px;
+      }
+      
+      .endpoint-description {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 4px;
+      }
+      
+      .endpoint-meta {
+        font-size: 12px;
+        color: #6b7280;
+      }
+    }
+    
+    .btn-achieve {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+    
+    .status-badge {
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      
+      &.achieved {
+        background: #d1fae5;
+        color: #065f46;
+      }
+    }
+  }
+}
+
+// Empty State
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+// Modal Overlay for Add Modals
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  
+  .modal-content {
+    background: white;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    
+    h3 {
+      margin: 0 0 20px 0;
+      font-size: 20px;
+      font-weight: 600;
+      color: #1f2937;
+    }
+    
+    .order-type-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      
+      .tab-btn {
+        flex: 1;
+        padding: 8px 16px;
+        background: #f3f4f6;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        color: #6b7280;
+        cursor: pointer;
+        transition: all 0.2s;
+        
+        &:hover {
+          background: #e5e7eb;
+        }
+        
+        &.active {
+          background: #3b82f6;
+          color: white;
+        }
+      }
+    }
+    
+    #order-select, #procedure-select, #endpoint-select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      margin-bottom: 16px;
+    }
+    
+    textarea {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      min-height: 80px;
+      resize: vertical;
+    }
+    
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      
+      .btn {
+        padding: 8px 20px;
+      }
+    }
+  }
+}
+
+// Button Styles
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+  
+  &.btn-primary {
+    background: #3b82f6;
+    color: white;
+    
+    &:hover {
+      background: #2563eb;
+    }
+  }
+  
+  &.btn-secondary {
+    background: #6b7280;
+    color: white;
+    
+    &:hover {
+      background: #4b5563;
+    }
+  }
+  
+  &.btn-sm {
+    padding: 6px 12px;
+    font-size: 14px;
+  }
+  
+  &.btn-lg {
+    padding: 12px 32px;
+    font-size: 16px;
+  }
+}
