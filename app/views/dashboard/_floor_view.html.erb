@@ -1,0 +1,64 @@
+<div class="floor-view">
+  <div class="real-time-metrics">
+    <h3>Real-time Metrics</h3>
+    <div class="metrics-grid">
+      <div class="metric">
+        <label>Current ED Census</label>
+        <div class="value"><%= @current_ed_census %></div>
+      </div>
+      <div class="metric">
+        <label>RP Utilization</label>
+        <div class="value"><%= @rp_utilization %>/12</div>
+      </div>
+      <div class="metric">
+        <label>Avg Door-to-Provider</label>
+        <div class="value"><%= @avg_door_to_provider %>m</div>
+      </div>
+      <div class="metric">
+        <label>Avg ED LOS</label>
+        <div class="value"><%= @avg_ed_los %>m</div>
+      </div>
+      <div class="metric">
+        <label>Longest Wait</label>
+        <div class="value danger"><%= @longest_wait %>m</div>
+      </div>
+      <div class="metric">
+        <label>LWBS Rate</label>
+        <div class="value"><%= @lwbs_rate %>%</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="floor-layout">
+    <div class="room-grid-section">
+      <h3>Room Status Grid</h3>
+      <div class="room-grid">
+        <% @ed_rooms.each do |room| %>
+          <div class="room-card <%= room.status_available? ? 'available' : 'occupied' %> 
+                      <%= room.current_patient&.esi_level ? "esi-#{room.current_patient.esi_level}" : '' %>">
+            <div class="room-number"><%= room.number %></div>
+            <% if room.current_patient %>
+              <div class="patient-name"><%= room.current_patient.full_name %></div>
+              <div class="esi-tag">ESI-<%= room.current_patient.esi_level %></div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="rp-area-section">
+      <h3>RP Area</h3>
+      <div class="rp-grid">
+        <% @rp_rooms.each do |room| %>
+          <div class="room-card rp-room <%= room.status_available? ? 'available' : 'occupied' %>">
+            <div class="room-number"><%= room.number %></div>
+            <% if room.current_patient %>
+              <div class="patient-name"><%= room.current_patient.full_name %></div>
+              <div class="time-in-room"><%= room.time_in_room || 0 %>m</div>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

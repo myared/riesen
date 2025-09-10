@@ -31,11 +31,11 @@ class CarePathwayProcedure < ApplicationRecord
   scope :completed, -> { where(completed: true) }
   
   # Mark procedure as complete
-  def complete!(user = nil)
+  def complete!(user_name = nil)
     update!(
       completed: true,
       completed_at: Time.current,
-      completed_by: user&.name || 'System'
+      completed_by: user_name || 'System'
     )
   end
   

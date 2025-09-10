@@ -24,10 +24,11 @@ class Patient < ApplicationRecord
   enum :location_status, {
     waiting_room: 0,
     triage: 1,
-    results_pending: 2,
-    ed_room: 3,
-    treatment: 4,
-    discharged: 5
+    needs_room_assignment: 2,
+    results_pending: 3,
+    ed_room: 4,
+    treatment: 5,
+    discharged: 6
   }, prefix: :location
   
   has_many :vitals, dependent: :destroy

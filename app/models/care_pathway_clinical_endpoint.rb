@@ -32,11 +32,11 @@ class CarePathwayClinicalEndpoint < ApplicationRecord
   scope :achieved, -> { where(achieved: true) }
   
   # Mark endpoint as achieved
-  def achieve!(user = nil)
+  def achieve!(user_name = nil)
     update!(
       achieved: true,
       achieved_at: Time.current,
-      achieved_by: user&.name || 'System'
+      achieved_by: user_name || 'System'
     )
   end
   

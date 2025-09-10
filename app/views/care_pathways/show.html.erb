@@ -1,11 +1,15 @@
-<div class="care-pathway-modal" data-patient-id="<%= @patient.id %>" data-pathway-id="<%= @care_pathway.id %>">
-  <div class="modal-header">
-    <h2>Care Pathway</h2>
-    <p class="patient-info">
-      <%= @patient.full_name %> • Patient ID: <%= @patient.mrn %>
-    </p>
-    <button class="modal-close" onclick="closeCarePathwayModal()">×</button>
-  </div>
+<%= turbo_frame_tag "care-pathway-modal-container" do %>
+  <div class="modal-overlay">
+    <div class="care-pathway-modal" data-patient-id="<%= @patient.id %>" data-pathway-id="<%= @care_pathway.id %>">
+      <div class="modal-header">
+        <div class="header-left">
+          <h2>Care Pathway</h2>
+        </div>
+        <div class="patient-info">
+          <%= @patient.full_name %> • Patient ID: <%= @patient.mrn %>
+        </div>
+        <button class="modal-close" data-controller="modal" data-action="click->modal#close">×</button>
+      </div>
   
   <% if @care_pathway.pathway_type_triage? %>
     <!-- Triage Pathway -->
@@ -45,11 +49,11 @@
           <%= render 'care_pathways/bed_assignment', patient: @patient, step: current_step %>
         <% else %>
           <div class="step-action">
-            <button class="btn btn-primary btn-complete-step" 
-                    data-step-id="<%= current_step.id %>"
-                    onclick="completeTriageStep(<%= @patient.id %>, <%= @care_pathway.id %>, <%= current_step.id %>)">
-              Complete <%= current_step.name %>
-            </button>
+            <%= button_to "Complete #{current_step.name}", 
+                          complete_step_patient_care_pathway_path(@patient, @care_pathway, current_step),
+                          method: :post,
+                          class: "btn btn-primary btn-complete-step",
+                          data: { step_id: current_step.id } %>
           </div>
         <% end %>
       </div>
@@ -223,4 +227,6 @@
     </div>
     
   <% end %>
-</div>
+    </div>
+  </div>
+<% end %>

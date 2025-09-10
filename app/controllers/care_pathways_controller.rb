@@ -1,17 +1,33 @@
 class CarePathwaysController < ApplicationController
   before_action :set_patient
-  before_action :set_care_pathway, only: [:show, :update, :destroy]
+  before_action :set_care_pathway, only: [:show, :update]
   
   def index
-    @care_pathway = @patient.active_care_pathway
+    # Find the most recent care pathway (including completed ones)
+    @care_pathway = @patient.care_pathways.order(created_at: :desc).first
     
     if @care_pathway
       respond_to do |format|
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
         format.json { render json: { id: @care_pathway.id, pathway_type: @care_pathway.pathway_type } }
       end
     else
-      respond_to do |format|
-        format.json { render json: { error: 'No active care pathway' }, status: :not_found }
+      # Create a new triage pathway if none exists
+      @care_pathway = @patient.care_pathways.build(pathway_type: 'triage')
+      @care_pathway.started_at = Time.current
+      @care_pathway.started_by = current_user_name
+      
+      if @care_pathway.save
+        create_triage_steps
+        respond_to do |format|
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+          format.json { render json: @care_pathway, status: :created }
+        end
+      else
+        respond_to do |format|
+          format.html { redirect_to root_path, alert: 'Failed to create care pathway' }
+          format.json { render json: { error: 'Failed to create care pathway' }, status: :unprocessable_entity }
+        end
       end
     end
   end
@@ -67,24 +83,57 @@ class CarePathwaysController < ApplicationController
   
   # Complete a triage step
   def complete_step
-    @care_pathway = @patient.care_pathways.find(params[:care_pathway_id])
+    @care_pathway = @patient.care_pathways.find(params[:id])
     @step = @care_pathway.care_pathway_steps.find(params[:step_id])
     
     if @step.complete!(current_user_name)
+      # Record event for step completion
+      Event.create!(
+        patient: @patient,
+        action: "#{@step.name} completed",
+        details: "Care pathway step completed",
+        performed_by: 'Triage RN',
+        time: Time.current,
+        category: 'triage'
+      )
+      
       # Check if pathway is complete
       if @care_pathway.complete?
         @care_pathway.update(status: :completed, completed_at: Time.current, completed_by: current_user_name)
+        
+        # Record pathway completion event
+        Event.create!(
+          patient: @patient,
+          action: "Triage pathway completed",
+          details: "Patient ready for #{@patient.rp_eligible? ? 'RP' : 'ED'} placement",
+          performed_by: 'Triage RN',
+          time: Time.current,
+          category: 'triage'
+        )
+        
+        # Update patient location status and create nursing task
+        @patient.update(location_status: :needs_room_assignment, triage_completed_at: Time.current)
+        
+        # Create nursing task for room assignment
+        NursingTask.create_room_assignment_task(@patient)
       else
         @care_pathway.update(status: :in_progress) if @care_pathway.status_not_started?
       end
       
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.html { 
+          redirect_to patient_care_pathway_path(@patient, @care_pathway),
+                      status: :see_other # Important for Turbo to handle the redirect properly
+        }
         format.json { render json: { success: true, progress: @care_pathway.progress_percentage } }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway), alert: 'Failed to complete step' }
+        format.html { 
+          redirect_to patient_care_pathway_path(@patient, @care_pathway), 
+                      alert: 'Failed to complete step',
+                      status: :see_other 
+        }
         format.json { render json: { success: false }, status: :unprocessable_entity }
       end
     end
@@ -92,7 +141,7 @@ class CarePathwaysController < ApplicationController
   
   # Add an order
   def add_order
-    @care_pathway = @patient.care_pathways.find(params[:care_pathway_id])
+    @care_pathway = @patient.care_pathways.find(params[:id])
     @order = @care_pathway.care_pathway_orders.build(order_params)
     @order.ordered_at = Time.current
     @order.ordered_by = current_user_name
@@ -112,7 +161,7 @@ class CarePathwaysController < ApplicationController
   
   # Update order status
   def update_order_status
-    @care_pathway = @patient.care_pathways.find(params[:care_pathway_id])
+    @care_pathway = @patient.care_pathways.find(params[:id])
     @order = @care_pathway.care_pathway_orders.find(params[:order_id])
     
     if @order.advance_status!
@@ -130,7 +179,7 @@ class CarePathwaysController < ApplicationController
   
   # Add a procedure
   def add_procedure
-    @care_pathway = @patient.care_pathways.find(params[:care_pathway_id])
+    @care_pathway = @patient.care_pathways.find(params[:id])
     @procedure = @care_pathway.care_pathway_procedures.build(procedure_params)
     
     if @procedure.save
@@ -148,7 +197,7 @@ class CarePathwaysController < ApplicationController
   
   # Complete a procedure
   def complete_procedure
-    @care_pathway = @patient.care_pathways.find(params[:care_pathway_id])
+    @care_pathway = @patient.care_pathways.find(params[:id])
     @procedure = @care_pathway.care_pathway_procedures.find(params[:procedure_id])
     
     if @procedure.complete!(current_user_name)
@@ -166,7 +215,7 @@ class CarePathwaysController < ApplicationController
   
   # Add a clinical endpoint
   def add_clinical_endpoint
-    @care_pathway = @patient.care_pathways.find(params[:care_pathway_id])
+    @care_pathway = @patient.care_pathways.find(params[:id])
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.build(endpoint_params)
     
     if @endpoint.save
@@ -184,7 +233,7 @@ class CarePathwaysController < ApplicationController
   
   # Achieve a clinical endpoint
   def achieve_endpoint
-    @care_pathway = @patient.care_pathways.find(params[:care_pathway_id])
+    @care_pathway = @patient.care_pathways.find(params[:id])
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.find(params[:endpoint_id])
     
     if @endpoint.achieve!(current_user_name)

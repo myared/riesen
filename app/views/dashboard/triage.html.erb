@@ -1,27 +1,27 @@
-<div class="dashboard-stats">
-  <div class="stat-card">
-    <div class="stat-icon">👥</div>
-    <div class="stat-label">Total Waiting</div>
-    <div class="stat-value"><%= @total_waiting %></div>
-  </div>
-  
-  <div class="stat-card">
-    <div class="stat-icon">⏱</div>
-    <div class="stat-label">Avg Wait Time</div>
-    <div class="stat-value"><%= @avg_wait_time.round %>m</div>
-  </div>
-  
-  <div class="stat-card">
-    <div class="stat-icon">📊</div>
-    <div class="stat-label">RP Utilization</div>
-    <div class="stat-value"><%= @rp_utilization %>%</div>
+<div class="dashboard-sidebar">
+  <div class="sidebar-stats">
+    <div class="stat-card">
+      <div class="stat-label">Total Waiting</div>
+      <div class="stat-value"><%= @total_waiting %></div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-label">Avg Wait Time</div>
+      <div class="stat-value"><%= @avg_wait_time.round %>m</div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-label">RP Utilization</div>
+      <div class="stat-value"><%= @rp_utilization %>%</div>
+    </div>
   </div>
 </div>
 
-<div class="patients-section">
-  <h2 class="section-title">Waiting Patients</h2>
+<div class="dashboard-main">
+  <h2>Waiting Patients</h2>
   
-  <table class="patients-table">
+  <div class="patient-table">
+    <table>
     <thead>
       <tr>
         <th>Patient</th>
@@ -35,19 +35,20 @@
     </thead>
     <tbody>
       <% @patients.each do |patient| %>
-        <tr class="patient-row" data-patient-id="<%= patient.id %>">
-          <td class="patient-info">
-            <%= link_to patient_path(patient), class: "patient-link", data: { turbo_frame: "patient_modal" } do %>
-              <div class="patient-name"><%= patient.full_name %></div>
-              <div class="patient-details"><%= patient.age %>Y • MRN: <%= patient.mrn %></div>
+        <tr data-patient-id="<%= patient.id %>">
+          <td>
+            <%= link_to patient_path(patient), data: { turbo_frame: "patient_modal" } do %>
+              <div><strong><%= patient.full_name %></strong></div>
+              <div style="font-size: 12px; color: #586069;"><%= patient.age %>Y • MRN: <%= patient.mrn %></div>
             <% end %>
           </td>
           <td>
-            <div class="care-pathway">
-              <button class="btn btn-sm btn-pathway" onclick="openCarePathway(<%= patient.id %>)">
-                <span class="pathway-icon">🏥</span>
-                <span class="pathway-value"><%= patient.active_care_pathway&.progress_percentage || 0 %>%</span>
-              </button>
+            <div class="care-pathway-bar">
+              <%= link_to patient_care_pathways_path(patient), 
+                          class: "btn-action",
+                          data: { turbo_frame: "care-pathway-modal-container" } do %>
+                <%= patient.active_care_pathway&.progress_percentage || 0 %>%
+              <% end %>
             </div>
           </td>
           <td>
@@ -56,40 +57,39 @@
             </span>
           </td>
           <td>
-            <div class="wait-progress">
-              <div class="progress-label">
-                <%= patient.wait_time_minutes %>m
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span><%= patient.wait_time_minutes %>m</span>
+              <div class="progress-bar" style="width: 100px;">
+                <div class="progress-bar-fill" style="width: <%= patient.wait_progress_percentage %>%"></div>
               </div>
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: <%= patient.wait_progress_percentage %>%"></div>
-              </div>
-              <div class="progress-target">
-                <%= patient.esi_target_label %>
-              </div>
+              <span style="font-size: 11px; color: #586069;"><%= patient.esi_target_label %></span>
             </div>
           </td>
-          <td class="chief-complaint">
+          <td>
             <%= patient.chief_complaint %>
           </td>
           <td>
             <% if patient.rp_eligible %>
-              <span class="rp-badge rp-eligible">✓ RP Eligible</span>
+              <span class="rp-eligible">✓ RP Eligible</span>
             <% else %>
-              <span class="rp-badge rp-not-eligible">✗ Not RP Eligible</span>
+              <span class="not-rp-eligible">✗ Not RP Eligible</span>
             <% end %>
           </td>
-          <td class="patient-actions">
-            <button class="btn btn-sm btn-assess" data-patient-id="<%= patient.id %>">
-              🩺 Assess
-            </button>
-            <button class="btn btn-sm btn-send-ed" data-patient-id="<%= patient.id %>">
-              Send to ED
-            </button>
+          <td>
+            <div class="action-buttons">
+              <button class="btn-action" data-patient-id="<%= patient.id %>">
+                Assess
+              </button>
+              <button class="btn-action" data-patient-id="<%= patient.id %>">
+                Send to ED
+              </button>
+            </div>
           </td>
         </tr>
       <% end %>
     </tbody>
-  </table>
+    </table>
+  </div>
   
   <% if @patients.empty? %>
     <div class="empty-state">

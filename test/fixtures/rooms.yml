@@ -1,0 +1,19 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  number: MyString
+  room_type: 1
+  status: 1
+  current_patient: one
+  current_patient_type: Current patient
+  esi_level: 1
+  time_in_room: 1
+
+two:
+  number: MyString
+  room_type: 1
+  status: 1
+  current_patient: two
+  current_patient_type: Current patient
+  esi_level: 1
+  time_in_room: 1
