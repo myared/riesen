@@ -1,12 +1,35 @@
-<div class="charge-rn-dashboard">
+<div class="dashboard-sidebar">
+  <div class="sidebar-stats">
+    <div class="stat-card">
+      <div class="stat-label">ED Census</div>
+      <div class="stat-value"><%= @current_ed_census || @patients.in_ed.count %></div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-label">RP Utilization</div>
+      <div class="stat-value"><%= @rp_utilization %>%</div>
+    </div>
+    
+    <div class="stat-card">
+      <div class="stat-label">Avg Wait</div>
+      <div class="stat-value"><%= @avg_wait_time.round %>m</div>
+    </div>
+    
+    <% if @view_mode == 'staff_tasks' && @overdue_tasks && @overdue_tasks.any? %>
+      <div class="stat-card">
+        <div class="stat-label">Overdue Tasks</div>
+        <div class="stat-value" style="color: #ef4444;"><%= @overdue_tasks.count %></div>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="dashboard-main">
   <div class="view-tabs">
     <%= link_to "Staff Tasks", dashboard_charge_rn_path(view: 'staff_tasks'), 
                 class: "view-tab #{@view_mode == 'staff_tasks' ? 'active' : ''}" %>
     <%= link_to "Floor View", dashboard_charge_rn_path(view: 'floor_view'), 
                 class: "view-tab #{@view_mode == 'floor_view' ? 'active' : ''}" %>
-    <% if @view_mode == 'staff_tasks' && @overdue_tasks && @overdue_tasks.any? %>
-      <span class="badge badge-danger"><%= @overdue_tasks.count %></span>
-    <% end %>
   </div>
 
   <% if @view_mode == 'floor_view' %>

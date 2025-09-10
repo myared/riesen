@@ -118,6 +118,7 @@ button {
   flex: 1;
   display: flex;
   background: #f5f7fa;
+  padding: 0;
 }
 
 .dashboard-sidebar {

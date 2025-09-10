@@ -1,5 +1,5 @@
 Rails.application.routes.draw do
-  root "dashboard#triage"
+  root to: redirect('/dashboard/triage')
   
   namespace :dashboard do
     get "triage"

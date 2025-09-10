@@ -1,9 +1,162 @@
-/* Charge RN Dashboard Styles */
-.charge-rn-dashboard {
+/* General Dashboard Styles */
+.dashboard-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
   padding: 20px;
 }
 
-.charge-rn-dashboard .view-tabs {
+.dashboard-stats .stat-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.dashboard-stats .stat-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.dashboard-stats .stat-label {
+  font-size: 14px;
+  color: #6b7280;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.dashboard-stats .stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.patients-section {
+  padding: 0 20px 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 16px;
+}
+
+.empty-state {
+  background: white;
+  border-radius: 12px;
+  padding: 40px;
+  text-align: center;
+  color: #6b7280;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.patients-table {
+  width: 100%;
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.patients-table thead {
+  background: #f9fafb;
+}
+
+.patients-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  font-size: 14px;
+  color: #6b7280;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.patients-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.patients-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.patient-row {
+  transition: background 0.2s ease;
+}
+
+.patient-info .patient-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.patient-info .patient-name {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+.patient-info .patient-details {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.chief-complaint {
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.patient-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-sm:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
+.btn-assess {
+  background: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.btn-assess:hover {
+  background: #2563eb;
+  border-color: #2563eb;
+}
+
+.btn-send-ed {
+  background: #10b981;
+  color: white;
+  border-color: #10b981;
+}
+
+.btn-send-ed:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+/* View Tabs */
+.view-tabs {
   display: flex;
   gap: 12px;
   margin-bottom: 24px;
@@ -39,6 +192,10 @@
 }
 
 /* Floor View Styles */
+.floor-view {
+  width: 100%;
+}
+
 .floor-view .real-time-metrics {
   background: white;
   border-radius: 12px;
@@ -82,8 +239,9 @@
 
 .floor-layout {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: 3fr 1fr;
   gap: 24px;
+  width: 100%;
 }
 
 .room-grid-section, .rp-area-section {
@@ -101,7 +259,7 @@
 
 .room-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px;
 }
 
@@ -186,7 +344,7 @@
 
 /* Staff Tasks Styles */
 .staff-tasks {
-  padding: 20px;
+  width: 100%;
 }
 
 .staff-tasks h2 {
