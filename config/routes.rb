@@ -13,6 +13,7 @@ Rails.application.routes.draw do
     member do
       post :add_event
       post :update_vitals
+      post :assign_room
     end
     
     resources :care_pathways do

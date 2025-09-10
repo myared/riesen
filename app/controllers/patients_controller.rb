@@ -1,5 +1,5 @@
 class PatientsController < ApplicationController
-  before_action :set_patient, only: [:show, :add_event, :update_vitals]
+  before_action :set_patient, only: [:show, :add_event, :update_vitals, :assign_room]
   
   def show
     @vitals = @patient.latest_vital
@@ -27,6 +27,37 @@ class PatientsController < ApplicationController
       redirect_to patient_path(@patient), notice: 'Vitals updated successfully'
     else
       redirect_to patient_path(@patient), alert: 'Failed to update vitals'
+    end
+  end
+  
+  def assign_room
+    # Determine which type of room to assign based on patient's pathway
+    if @patient.rp_eligible?
+      available_room = Room.rp_rooms.status_available.first
+      room_type = 'RP'
+    else
+      available_room = Room.ed_rooms.status_available.first
+      room_type = 'ED'
+    end
+    
+    if available_room
+      # Use Room model's assign_patient method
+      available_room.assign_patient(@patient)
+      
+      # Update nursing task if exists
+      task = NursingTask.where(patient: @patient, task_type: 'room_assignment', status: 'pending').first
+      task&.update(status: 'completed', completed_at: Time.current)
+      
+      respond_to do |format|
+        format.html { redirect_back(fallback_location: root_path, notice: "Room #{available_room.number} assigned") }
+        format.turbo_stream { redirect_back(fallback_location: root_path, notice: "Room #{available_room.number} assigned") }
+        format.json { render json: { success: true, room: available_room.number } }
+      end
+    else
+      respond_to do |format|
+        format.html { redirect_back(fallback_location: root_path, alert: "No #{room_type} rooms available") }
+        format.json { render json: { success: false, error: "No rooms available" }, status: :unprocessable_entity }
+      end
     end
   end
   

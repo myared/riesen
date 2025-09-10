@@ -6,11 +6,23 @@ class DashboardController < ApplicationController
   end
 
   def rp
-    @patients = Patient.includes(:vitals, :events).location_results_pending
+    # Include both patients in RP and those waiting for RP room assignment
+    @patients = Patient.includes(:vitals, :events)
+                       .where(
+                         location_status: :results_pending
+                       ).or(
+                         Patient.where(location_status: :needs_room_assignment, rp_eligible: true)
+                       )
   end
 
   def ed_rn
-    @patients = Patient.includes(:vitals, :events).in_ed
+    # Include both patients in ED and those waiting for ED room assignment
+    @patients = Patient.includes(:vitals, :events)
+                       .where(
+                         location_status: [:ed_room, :treatment]
+                       ).or(
+                         Patient.where(location_status: :needs_room_assignment, rp_eligible: false)
+                       )
   end
 
   def charge_rn

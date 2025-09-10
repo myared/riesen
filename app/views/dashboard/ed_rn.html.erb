@@ -30,8 +30,8 @@
         <thead>
           <tr>
             <th>Patient</th>
-            <th>Room</th>
             <th>ESI</th>
+            <th>Wait / Progress</th>
             <th>Chief Complaint</th>
             <th>Provider</th>
             <th>Actions</th>
@@ -46,18 +46,37 @@
                   <div style="font-size: 12px; color: #586069;"><%= patient.age %>Y • MRN: <%= patient.mrn %></div>
                 <% end %>
               </td>
-              <td><%= patient.location %></td>
               <td>
                 <span class="esi-badge esi-<%= patient.esi_level %>">
                   ESI <%= patient.esi_level %>
                 </span>
               </td>
+              <td>
+                <div class="wait-progress">
+                  <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
+                  </div>
+                  <span class="wait-time"><%= patient.wait_time_minutes %>m</span>
+                  <span class="wait-target"><%= patient.esi_target_label %></span>
+                </div>
+              </td>
               <td><%= patient.chief_complaint %></td>
               <td><%= patient.provider || 'Not Assigned' %></td>
               <td>
                 <div class="action-buttons">
-                  <button class="btn-action" data-patient-id="<%= patient.id %>">Assess</button>
-                  <button class="btn-action" data-patient-id="<%= patient.id %>">Discharge</button>
+                  <% if patient.location_needs_room_assignment? %>
+                    <%= button_to 'Assign Room', 
+                        assign_room_patient_path(patient), 
+                        method: :post,
+                        class: 'btn-action btn-primary',
+                        data: { 
+                          turbo: false,
+                          patient_id: patient.id 
+                        } %>
+                  <% else %>
+                    <button class="btn-action" data-patient-id="<%= patient.id %>">Assess</button>
+                    <button class="btn-action" data-patient-id="<%= patient.id %>">Discharge</button>
+                  <% end %>
                 </div>
               </td>
             </tr>
