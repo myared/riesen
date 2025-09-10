@@ -1,0 +1,70 @@
+<div class="dashboard-stats">
+  <div class="stat-card">
+    <div class="stat-icon">👥</div>
+    <div class="stat-label">Total Patients</div>
+    <div class="stat-value"><%= @patients.count %></div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon">🚨</div>
+    <div class="stat-label">Critical (ESI 1-2)</div>
+    <div class="stat-value"><%= @patients.where(esi_level: [1, 2]).count %></div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon">📊</div>
+    <div class="stat-label">Department Capacity</div>
+    <div class="stat-value">65%</div>
+  </div>
+</div>
+
+<div class="patients-section">
+  <h2 class="section-title">All Department Patients</h2>
+  
+  <% if @patients.empty? %>
+    <div class="empty-state">
+      <p>No patients currently in the department</p>
+    </div>
+  <% else %>
+    <table class="patients-table">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Location</th>
+          <th>ESI</th>
+          <th>Wait Time</th>
+          <th>Chief Complaint</th>
+          <th>Provider</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @patients.each do |patient| %>
+          <tr class="patient-row" data-patient-id="<%= patient.id %>">
+            <td class="patient-info">
+              <%= link_to patient_path(patient), class: "patient-link" do %>
+                <div class="patient-name"><%= patient.full_name %></div>
+                <div class="patient-details"><%= patient.age %>Y • MRN: <%= patient.mrn %></div>
+              <% end %>
+            </td>
+            <td><%= patient.location %></td>
+            <td>
+              <span class="esi-badge esi-<%= patient.esi_level %>">
+                ESI <%= patient.esi_level %>
+              </span>
+            </td>
+            <td><%= patient.wait_time_minutes %>m</td>
+            <td class="chief-complaint"><%= patient.chief_complaint %></td>
+            <td><%= patient.provider || 'Not Assigned' %></td>
+            <td>
+              <span class="care-pathway">
+                <span class="pathway-icon">🏥</span>
+                <span class="pathway-value"><%= patient.care_pathway %></span>
+              </span>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

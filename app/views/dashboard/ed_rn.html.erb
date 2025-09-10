@@ -1,0 +1,66 @@
+<div class="dashboard-stats">
+  <div class="stat-card">
+    <div class="stat-icon">🏥</div>
+    <div class="stat-label">ED Patients</div>
+    <div class="stat-value"><%= @patients.count %></div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon">⏱</div>
+    <div class="stat-label">Avg Treatment Time</div>
+    <div class="stat-value"><%= @avg_wait_time.round %>m</div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon">🛏️</div>
+    <div class="stat-label">Beds Available</div>
+    <div class="stat-value">8/20</div>
+  </div>
+</div>
+
+<div class="patients-section">
+  <h2 class="section-title">ED RN Patients</h2>
+  
+  <% if @patients.empty? %>
+    <div class="empty-state">
+      <p>No patients currently assigned to ED RN</p>
+    </div>
+  <% else %>
+    <table class="patients-table">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Room</th>
+          <th>ESI</th>
+          <th>Chief Complaint</th>
+          <th>Provider</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @patients.each do |patient| %>
+          <tr class="patient-row" data-patient-id="<%= patient.id %>">
+            <td class="patient-info">
+              <%= link_to patient_path(patient), class: "patient-link" do %>
+                <div class="patient-name"><%= patient.full_name %></div>
+                <div class="patient-details"><%= patient.age %>Y • MRN: <%= patient.mrn %></div>
+              <% end %>
+            </td>
+            <td><%= patient.location %></td>
+            <td>
+              <span class="esi-badge esi-<%= patient.esi_level %>">
+                ESI <%= patient.esi_level %>
+              </span>
+            </td>
+            <td class="chief-complaint"><%= patient.chief_complaint %></td>
+            <td><%= patient.provider || 'Not Assigned' %></td>
+            <td class="patient-actions">
+              <button class="btn btn-sm btn-assess">Assess</button>
+              <button class="btn btn-sm btn-send-ed">Discharge</button>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

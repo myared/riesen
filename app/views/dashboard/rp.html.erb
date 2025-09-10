@@ -1,0 +1,65 @@
+<div class="dashboard-stats">
+  <div class="stat-card">
+    <div class="stat-icon">👥</div>
+    <div class="stat-label">Results Pending</div>
+    <div class="stat-value"><%= @patients.count %></div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon">⏱</div>
+    <div class="stat-label">Avg Wait Time</div>
+    <div class="stat-value"><%= @avg_wait_time.round %>m</div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon">📊</div>
+    <div class="stat-label">RP Utilization</div>
+    <div class="stat-value"><%= @rp_utilization %>%</div>
+  </div>
+</div>
+
+<div class="patients-section">
+  <h2 class="section-title">Results Pending Patients</h2>
+  
+  <% if @patients.empty? %>
+    <div class="empty-state">
+      <p>No patients currently in Results Pending</p>
+    </div>
+  <% else %>
+    <table class="patients-table">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>ESI</th>
+          <th>Wait Time</th>
+          <th>Chief Complaint</th>
+          <th>Provider</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @patients.each do |patient| %>
+          <tr class="patient-row" data-patient-id="<%= patient.id %>">
+            <td class="patient-info">
+              <%= link_to patient_path(patient), class: "patient-link" do %>
+                <div class="patient-name"><%= patient.full_name %></div>
+                <div class="patient-details"><%= patient.age %>Y • MRN: <%= patient.mrn %></div>
+              <% end %>
+            </td>
+            <td>
+              <span class="esi-badge esi-<%= patient.esi_level %>">
+                ESI <%= patient.esi_level %>
+              </span>
+            </td>
+            <td><%= patient.wait_time_minutes %>m</td>
+            <td class="chief-complaint"><%= patient.chief_complaint %></td>
+            <td><%= patient.provider || 'Not Assigned' %></td>
+            <td class="patient-actions">
+              <button class="btn btn-sm btn-assess">View Results</button>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

@@ -1,0 +1,68 @@
+<div class="dashboard-stats">
+  <div class="stat-card">
+    <div class="stat-icon">👨‍⚕️</div>
+    <div class="stat-label">My Patients</div>
+    <div class="stat-value"><%= @patients.count %></div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon">🚑</div>
+    <div class="stat-label">Urgent (ESI 1-2)</div>
+    <div class="stat-value"><%= @patients.where(esi_level: [1, 2]).count %></div>
+  </div>
+  
+  <div class="stat-card">
+    <div class="stat-icon">✅</div>
+    <div class="stat-label">Ready for Discharge</div>
+    <div class="stat-value">0</div>
+  </div>
+</div>
+
+<div class="patients-section">
+  <h2 class="section-title">Provider Patients</h2>
+  
+  <% if @patients.empty? %>
+    <div class="empty-state">
+      <p>No patients currently assigned to providers</p>
+    </div>
+  <% else %>
+    <table class="patients-table">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Provider</th>
+          <th>ESI</th>
+          <th>Time in Care</th>
+          <th>Chief Complaint</th>
+          <th>Location</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% @patients.each do |patient| %>
+          <tr class="patient-row" data-patient-id="<%= patient.id %>">
+            <td class="patient-info">
+              <%= link_to patient_path(patient), class: "patient-link" do %>
+                <div class="patient-name"><%= patient.full_name %></div>
+                <div class="patient-details"><%= patient.age %>Y • MRN: <%= patient.mrn %></div>
+              <% end %>
+            </td>
+            <td><%= patient.provider %></td>
+            <td>
+              <span class="esi-badge esi-<%= patient.esi_level %>">
+                ESI <%= patient.esi_level %>
+              </span>
+            </td>
+            <td><%= patient.wait_time_minutes %>m</td>
+            <td class="chief-complaint"><%= patient.chief_complaint %></td>
+            <td><%= patient.location %></td>
+            <td class="patient-actions">
+              <button class="btn btn-sm btn-assess">Chart</button>
+              <button class="btn btn-sm btn-send-ed">Orders</button>
+            </td>
+          </tr>
+        <% end %>
+      </tbody>
+    </table>
+  <% end %>
+</div>

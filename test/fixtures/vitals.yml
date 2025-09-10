@@ -1,0 +1,23 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  patient: one
+  heart_rate: 1
+  blood_pressure_systolic: 1
+  blood_pressure_diastolic: 1
+  respiratory_rate: 1
+  temperature: 1.5
+  spo2: 1
+  weight: 1.5
+  recorded_at: 2025-09-10 11:20:43
+
+two:
+  patient: two
+  heart_rate: 1
+  blood_pressure_systolic: 1
+  blood_pressure_diastolic: 1
+  respiratory_rate: 1
+  temperature: 1.5
+  spo2: 1
+  weight: 1.5
+  recorded_at: 2025-09-10 11:20:43

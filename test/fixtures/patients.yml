@@ -1,0 +1,31 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  first_name: MyString
+  last_name: MyString
+  age: 1
+  mrn: MyString
+  location: MyString
+  provider: MyString
+  chief_complaint: MyText
+  esi_level: 1
+  pain_score: 1
+  arrival_time: 2025-09-10 11:20:34
+  wait_time_minutes: 1
+  care_pathway: MyString
+  rp_eligible: false
+
+two:
+  first_name: MyString
+  last_name: MyString
+  age: 1
+  mrn: MyString
+  location: MyString
+  provider: MyString
+  chief_complaint: MyText
+  esi_level: 1
+  pain_score: 1
+  arrival_time: 2025-09-10 11:20:34
+  wait_time_minutes: 1
+  care_pathway: MyString
+  rp_eligible: false

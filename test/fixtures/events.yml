@@ -1,0 +1,17 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  patient: one
+  time: 2025-09-10 11:20:49
+  action: MyString
+  details: MyText
+  performed_by: MyString
+  category: MyString
+
+two:
+  patient: two
+  time: 2025-09-10 11:20:49
+  action: MyString
+  details: MyText
+  performed_by: MyString
+  category: MyString

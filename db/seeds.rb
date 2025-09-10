@@ -1,9 +1,67 @@
 # This file should ensure the existence of records required to run the application in every environment (production,
 # development, test). The code here should be idempotent so that it can be executed at any point in every environment.
 # The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
-#
-# Example:
-#
-#   ["Action", "Comedy", "Drama", "Horror"].each do |genre_name|
-#     MovieGenre.find_or_create_by!(name: genre_name)
-#   end
+
+# Clear existing data
+Patient.destroy_all
+
+# Create sample patients
+patients_data = [
+  {
+    first_name: 'Marcus',
+    last_name: 'Thompson',
+    age: 17,
+    mrn: '2001',
+    location: 'Waiting Room',
+    provider: 'Dr. Johnson',
+    chief_complaint: 'Wrist pain after skateboard fall, knee laceration',
+    esi_level: 3,
+    pain_score: 8,
+    arrival_time: Time.current - 12.minutes,
+    wait_time_minutes: 12,
+    care_pathway: '0%',
+    rp_eligible: false
+  },
+  {
+    first_name: 'Sarah',
+    last_name: 'Martinez',
+    age: 35,
+    mrn: '2002',
+    location: 'Waiting Room',
+    provider: nil,
+    chief_complaint: 'LLQ abdominal pain x3 days, vomiting',
+    esi_level: 3,
+    pain_score: 7,
+    arrival_time: Time.current - 9.minutes,
+    wait_time_minutes: 9,
+    care_pathway: '0%',
+    rp_eligible: false
+  }
+]
+
+patients_data.each do |patient_data|
+  patient = Patient.create!(patient_data)
+  
+  # Create initial vitals
+  patient.vitals.create!(
+    heart_rate: rand(70..95),
+    blood_pressure_systolic: 120,
+    blood_pressure_diastolic: 90,
+    respiratory_rate: 18,
+    temperature: 37.1,
+    spo2: 99,
+    weight: 68,
+    recorded_at: patient.arrival_time
+  )
+  
+  # Create initial event
+  patient.events.create!(
+    action: 'Patient arrived',
+    details: "Chief complaint: #{patient.chief_complaint}",
+    performed_by: 'Registration',
+    time: patient.arrival_time,
+    category: 'triage'
+  )
+end
+
+puts "Created #{Patient.count} patients with vitals and events"

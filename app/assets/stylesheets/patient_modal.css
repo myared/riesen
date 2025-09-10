@@ -1,0 +1,264 @@
+/* Patient Detail Modal */
+.patient-detail-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  z-index: 1000;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal Header */
+.modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #e1e4e8;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  background: #f6f8fa;
+}
+
+.patient-header-info {
+  flex: 1;
+}
+
+.patient-header-info h2 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  color: #24292e;
+}
+
+.patient-meta,
+.patient-location {
+  color: #586069;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.patient-meta span,
+.patient-location span {
+  margin-right: 0.5rem;
+}
+
+.patient-badges {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-right: 2rem;
+}
+
+.demo-badge {
+  background: #6f42c1;
+  color: white;
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.modal-close {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #586069;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #24292e;
+}
+
+/* Modal Tabs */
+.modal-tabs {
+  display: flex;
+  border-bottom: 1px solid #e1e4e8;
+  background: white;
+}
+
+.tab-button {
+  padding: 1rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #586069;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-button:hover {
+  color: #24292e;
+}
+
+.tab-button.active {
+  color: #0969da;
+  border-bottom-color: #0969da;
+}
+
+/* Modal Content */
+.modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* Overview Tab */
+.overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.overview-card {
+  background: #f6f8fa;
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.overview-card h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  color: #24292e;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-item.full-width {
+  grid-column: span 2;
+}
+
+.info-item label {
+  color: #586069;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.info-item span {
+  color: #24292e;
+  font-weight: 500;
+}
+
+/* Vitals Grid */
+.vitals-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+}
+
+.vital-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.vital-item label {
+  color: #586069;
+  font-size: 0.875rem;
+  margin-bottom: 0.25rem;
+}
+
+.vital-value {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #24292e;
+}
+
+/* Patient Log Tab */
+.event-log {
+  background: white;
+}
+
+.event-log h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  color: #24292e;
+}
+
+.events-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.events-table thead {
+  background: #f6f8fa;
+}
+
+.events-table th {
+  padding: 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  color: #586069;
+  font-size: 0.875rem;
+  border-bottom: 2px solid #e1e4e8;
+}
+
+.events-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #f0f2f5;
+  font-size: 0.875rem;
+}
+
+.category-badge {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.category-badge.triage {
+  background: #e3d4f2;
+  color: #6f42c1;
+}
+
+.performer-icon {
+  margin-right: 0.25rem;
+}
+
+/* Modal Overlay */
+body.modal-open::after {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 999;
+}

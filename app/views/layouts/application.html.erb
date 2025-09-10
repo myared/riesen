@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title><%= content_for(:title) || "Riesen Rails" %></title>
+    <title><%= content_for(:title) || "Riesen ED Dashboard" %></title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -23,6 +23,24 @@
   </head>
 
   <body>
-    <%= yield %>
+    <div class="ed-dashboard">
+      <header class="dashboard-header">
+        <h1 class="dashboard-title">Riesen ED Dashboard</h1>
+        <nav class="dashboard-nav">
+          <%= link_to "Triage", dashboard_triage_path, class: "nav-tab #{current_page?(dashboard_triage_path) ? 'active' : ''}" %>
+          <%= link_to "RP", dashboard_rp_path, class: "nav-tab #{current_page?(dashboard_rp_path) ? 'active' : ''}" %>
+          <%= link_to "ED RN", dashboard_ed_rn_path, class: "nav-tab #{current_page?(dashboard_ed_rn_path) ? 'active' : ''}" %>
+          <%= link_to "Charge RN", dashboard_charge_rn_path, class: "nav-tab #{current_page?(dashboard_charge_rn_path) ? 'active' : ''}" %>
+          <%= link_to "Provider", dashboard_provider_path, class: "nav-tab #{current_page?(dashboard_provider_path) ? 'active' : ''}" %>
+        </nav>
+        <div class="dashboard-actions">
+          <button class="btn btn-primary" data-action="add-patient">+ Add Patient</button>
+          <button class="btn btn-secondary" data-action="advance-time">⏱ Advance Time</button>
+        </div>
+      </header>
+      <main class="dashboard-content">
+        <%= yield %>
+      </main>
+    </div>
   </body>
 </html>

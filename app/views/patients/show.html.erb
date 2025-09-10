@@ -1,0 +1,174 @@
+<div class="patient-detail-modal">
+  <div class="modal-header">
+    <div class="patient-header-info">
+      <h2 class="patient-name"><%= @patient.full_name %></h2>
+      <div class="patient-meta">
+        <span><%= @patient.age %>yo <%= @patient.age < 18 ? 'Pediatric' : 'Adult' %></span>
+        <span>• MRN: <%= @patient.mrn %></span>
+        <span>• Encounter: ENC-<%= @patient.mrn %>-2025</span>
+      </div>
+      <div class="patient-location">
+        <span>Location: <%= @patient.location || 'Waiting Room' %></span>
+        <span>• Provider: <%= @patient.provider || 'Not Assigned' %></span>
+      </div>
+    </div>
+    <div class="patient-badges">
+      <span class="esi-badge esi-<%= @patient.esi_level %>">ESI-<%= @patient.esi_level %></span>
+      <span class="demo-badge">Demo Case 1</span>
+    </div>
+    <%= link_to "×", @return_path, class: "modal-close", "data-turbo": false %>
+  </div>
+  
+  <div class="modal-tabs">
+    <button class="tab-button active" data-tab="overview">Overview</button>
+    <button class="tab-button" data-tab="patient-log">Patient Log</button>
+  </div>
+  
+  <div class="modal-content">
+    <div class="tab-content active" id="overview">
+      <div class="overview-grid">
+        <div class="overview-card">
+          <h3>⏰ Visit Information</h3>
+          <div class="info-grid">
+            <div class="info-item">
+              <label>Arrival:</label>
+              <span><%= @patient.arrival_time&.strftime("%H:%M:%S") || "09:30:48" %></span>
+            </div>
+            <div class="info-item">
+              <label>Wait Time:</label>
+              <span><%= @patient.wait_time_minutes || 12 %>m</span>
+            </div>
+            <div class="info-item">
+              <label>Pain Score:</label>
+              <span><%= @patient.pain_score || 8 %>/10</span>
+            </div>
+            <div class="info-item full-width">
+              <label>Chief Complaint:</label>
+              <span><%= @patient.chief_complaint || "Wrist pain after skateboard fall, knee laceration" %></span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="overview-card">
+          <h3>🩺 Vitals Snapshot</h3>
+          <div class="vitals-grid">
+            <% if @vitals %>
+              <div class="vital-item">
+                <label>Heart Rate</label>
+                <div class="vital-value"><%= @vitals.heart_rate %> bpm</div>
+              </div>
+              <div class="vital-item">
+                <label>Blood Pressure</label>
+                <div class="vital-value"><%= @vitals.blood_pressure %></div>
+              </div>
+              <div class="vital-item">
+                <label>Respiratory Rate</label>
+                <div class="vital-value"><%= @vitals.respiratory_rate %> /min</div>
+              </div>
+              <div class="vital-item">
+                <label>Temperature</label>
+                <div class="vital-value"><%= @vitals.temperature %>°C (<%= @vitals.temperature_fahrenheit %>°F)</div>
+              </div>
+              <div class="vital-item">
+                <label>SpO2</label>
+                <div class="vital-value"><%= @vitals.spo2 %>%</div>
+              </div>
+              <div class="vital-item">
+                <label>Weight</label>
+                <div class="vital-value"><%= @vitals.weight %> kg</div>
+              </div>
+            <% else %>
+              <div class="vital-item">
+                <label>Heart Rate</label>
+                <div class="vital-value">95 bpm</div>
+              </div>
+              <div class="vital-item">
+                <label>Blood Pressure</label>
+                <div class="vital-value">120/90</div>
+              </div>
+              <div class="vital-item">
+                <label>Respiratory Rate</label>
+                <div class="vital-value">18 /min</div>
+              </div>
+              <div class="vital-item">
+                <label>Temperature</label>
+                <div class="vital-value">37.1°C (98.8°F)</div>
+              </div>
+              <div class="vital-item">
+                <label>SpO2</label>
+                <div class="vital-value">99%</div>
+              </div>
+              <div class="vital-item">
+                <label>Weight</label>
+                <div class="vital-value">68 kg</div>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="tab-content" id="patient-log">
+      <div class="event-log">
+        <h3>📋 Patient Event Log</h3>
+        <table class="events-table">
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Category</th>
+              <th>Action</th>
+              <th>Details</th>
+              <th>Performed By</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% if @events.any? %>
+              <% @events.each do |event| %>
+                <tr>
+                  <td><%= event.time.strftime("%H:%M:%S") %></td>
+                  <td><span class="category-badge <%= event.category&.downcase %>"><%= event.category || 'triage' %></span></td>
+                  <td><%= event.action %></td>
+                  <td><%= event.details %></td>
+                  <td>
+                    <span class="performer-icon">👤</span>
+                    <%= event.performed_by %>
+                  </td>
+                </tr>
+              <% end %>
+            <% else %>
+              <tr>
+                <td>09:30:48</td>
+                <td><span class="category-badge triage">triage</span></td>
+                <td>Patient arrived</td>
+                <td>Chief complaint: Wrist pain after skateboard fall, knee laceration</td>
+                <td>
+                  <span class="performer-icon">👤</span>
+                  Registration
+                </td>
+              </tr>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const tabButtons = document.querySelectorAll('.tab-button');
+  const tabContents = document.querySelectorAll('.tab-content');
+  
+  tabButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const targetTab = this.getAttribute('data-tab');
+      
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabContents.forEach(content => content.classList.remove('active'));
+      
+      this.classList.add('active');
+      document.getElementById(targetTab).classList.add('active');
+    });
+  });
+});
+</script>
