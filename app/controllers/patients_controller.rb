@@ -30,6 +30,38 @@ class PatientsController < ApplicationController
     end
   end
   
+  def generate
+    generator = PatientGenerator.new
+    patient = generator.generate
+    
+    if patient.save
+      # Generate initial vitals for the patient
+      patient.vitals.create(
+        heart_rate: rand(60..120),
+        blood_pressure_systolic: rand(90..160),
+        blood_pressure_diastolic: rand(60..100),
+        respiratory_rate: rand(12..24),
+        temperature: rand(97.0..101.0).round(1),
+        spo2: rand(92..100),
+        weight: rand(50.0..120.0).round(1),
+        recorded_at: Time.current
+      )
+      
+      # Record initial event
+      patient.events.create(
+        time: Time.current,
+        action: 'Arrival',
+        details: "Patient arrived with #{patient.chief_complaint}",
+        performed_by: 'System',
+        category: 'Registration'
+      )
+      
+      redirect_back(fallback_location: root_path, notice: "Patient #{patient.full_name} added successfully")
+    else
+      redirect_back(fallback_location: root_path, alert: 'Failed to generate patient')
+    end
+  end
+  
   private
   
   def set_patient
