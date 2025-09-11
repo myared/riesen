@@ -32,7 +32,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should get charge_rn" do
-    get dashboard_charge_rn_url
+    get dashboard_charge_rn_url(view: 'floor_view')
     assert_response :success
     assert_select "h2", "All Department Patients"
   end
@@ -65,6 +65,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "root path redirects to triage dashboard" do
     get root_url
+    assert_redirected_to dashboard_triage_url
+    follow_redirect!
     assert_response :success
     assert_select "h2", "Waiting Patients"
   end
@@ -146,10 +148,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   test "charge_rn dashboard defaults to staff_tasks view" do
     get dashboard_charge_rn_url
     assert_response :success
-    assert_select "h2", "All Department Patients"
+    assert_select "h2", "Nursing Task Priorities"
     
     # Should show staff tasks section
-    assert_select ".nursing-tasks", count: 1
+    assert_select ".staff-tasks", count: 1
   end
 
   test "charge_rn dashboard with floor_view parameter" do
@@ -162,7 +164,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "h2", "All Department Patients"
     
     # Should show floor view content
-    assert_select ".floor-grid", count: 1
+    assert_select ".floor-view", count: 1
   end
 
   test "charge_rn dashboard calculates room statistics" do

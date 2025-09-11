@@ -219,10 +219,12 @@ class PatientTest < ActiveSupport::TestCase
     assert_includes with_provider_patients, provider_patient
     assert_not_includes with_provider_patients, ed_patient
 
-    # Test critical scope
+    # Test critical scope (ESI 1 and 2)
     critical_patients = Patient.critical
     assert_includes critical_patients, critical_patient
-    assert_not_includes critical_patients, ed_patient
+    assert_includes critical_patients, ed_patient  # ESI 2 is also critical
+    assert_includes critical_patients, provider_patient  # ESI 2 is also critical
+    assert_not_includes critical_patients, waiting_patient  # ESI 3 is not critical
   end
 
   test "esi_target_minutes returns correct targets" do
@@ -421,10 +423,12 @@ class PatientTest < ActiveSupport::TestCase
 
     # Test active care pathway
     pathway.update!(status: :in_progress)
+    @patient.reload # Reload to ensure association is fresh
     assert_equal pathway, @patient.active_care_pathway
 
     # Test completed pathway doesn't show as active
     pathway.update!(status: :completed)
+    @patient.reload # Reload to ensure association is fresh
     assert_nil @patient.active_care_pathway
   end
 end

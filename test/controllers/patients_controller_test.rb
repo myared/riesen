@@ -152,7 +152,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
 
   test "assign_room with JSON format returns success" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    room = Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :available)
+    room = Room.create!(number: "ED01", room_type: :ed, status: :available)
     
     post assign_room_patient_url(@patient), params: {}, as: :json
     
@@ -225,8 +225,8 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     event_params = {
       action: "Test Event",
       details: "Test details",
-      performed_by: "Test User",
-      category: "test"
+      performed_by: "ED RN",
+      category: "clinical"
     }
     
     assert_difference('@patient.events.count') do
@@ -239,8 +239,8 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     event = @patient.events.last
     assert_equal "Test Event", event.action
     assert_equal "Test details", event.details
-    assert_equal "Test User", event.performed_by
-    assert_equal "test", event.category
+    assert_equal "ED RN", event.performed_by
+    assert_equal "clinical", event.category
   end
 
   test "add_event with invalid params shows error" do
@@ -270,7 +270,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     
     assert_difference('@patient.vitals.count') do
       assert_difference('Event.count') do # Should create vitals update event
-        patch update_vitals_patient_url(@patient), params: { vital: vital_params }
+        post update_vitals_patient_url(@patient), params: { vital: vital_params }
       end
     end
     
@@ -296,7 +296,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     
     assert_no_difference('@patient.vitals.count') do
       assert_no_difference('Event.count') do
-        patch update_vitals_patient_url(@patient), params: { vital: vital_params }
+        post update_vitals_patient_url(@patient), params: { vital: vital_params }
       end
     end
     
