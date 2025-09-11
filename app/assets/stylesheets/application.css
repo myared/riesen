@@ -328,12 +328,44 @@ button {
   letter-spacing: 0.5px;
 }
 
-.timer-active {
-  color: #0366d6;
+/* Unified timing states - single source of truth */
+.timing-normal {
+  color: #28a745;
 }
 
-.timer-expired {
+.timing-normal .wait-time {
+  color: #28a745;
+}
+
+.timing-normal .progress-bar-fill {
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+}
+
+.timing-warning {
+  color: #ffc107;
+}
+
+.timing-warning .wait-time {
+  color: #ffc107;
+  font-weight: 700;
+}
+
+.timing-warning .progress-bar-fill {
+  background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+}
+
+.timing-critical {
   color: #dc3545;
+  animation: pulse 1s infinite;
+}
+
+.timing-critical .wait-time {
+  color: #dc3545;
+  font-weight: 700;
+}
+
+.timing-critical .progress-bar-fill {
+  background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
   animation: pulse 1s infinite;
 }
 
@@ -346,11 +378,4 @@ button {
   }
 }
 
-.progress-warning {
-  background: #fd7e14 !important;
-}
-
-.progress-expired {
-  background: #dc3545 !important;
-  animation: pulse 1s infinite;
-}
+/* Legacy classes removed - use timing-* classes instead */

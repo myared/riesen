@@ -20,6 +20,12 @@ class Patient < ApplicationRecord
   # Valid pain score range
   PAIN_SCORE_RANGE = (1..10).freeze
   
+  # Timer thresholds (in minutes)
+  ROOM_ASSIGNMENT_TARGET = 20   # Target time for room assignment
+  TIMER_WARNING_THRESHOLD = 20  # When timer turns yellow
+  TIMER_CRITICAL_THRESHOLD = 40 # When timer turns red
+  TIMER_MAX_DISPLAY = 60        # Max value for progress bar
+  
   # Enum for location status
   enum :location_status, {
     waiting_room: 0,
@@ -48,6 +54,38 @@ class Patient < ApplicationRecord
   scope :in_ed, -> { where(location_status: [:ed_room, :treatment]) }
   scope :with_provider, -> { where.not(provider: nil) }
   scope :critical, -> { where(esi_level: [1, 2]) }
+  
+  # New scopes for dashboard organization
+  scope :by_arrival_time, -> { order(arrival_time: :asc) }
+  
+  scope :by_priority_time, -> {
+    order(
+      Arel.sql(sanitize_sql_array([
+        "CASE 
+          WHEN location_status = ? 
+          THEN COALESCE(triage_completed_at, arrival_time)
+          ELSE arrival_time
+        END ASC",
+        location_statuses[:needs_room_assignment]
+      ]))
+    )
+  }
+  
+  scope :needs_rp_assignment, -> {
+    where(location_status: :needs_room_assignment, rp_eligible: true)
+  }
+  
+  scope :needs_ed_assignment, -> {
+    where(location_status: :needs_room_assignment, rp_eligible: false)
+  }
+  
+  scope :in_results_pending, -> {
+    where(location_status: :results_pending)
+  }
+  
+  scope :in_ed_treatment, -> {
+    where(location_status: [:ed_room, :treatment])
+  }
   
   def full_name
     "#{first_name} #{last_name}"

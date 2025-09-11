@@ -62,24 +62,32 @@
               </td>
               <td>
                 <% if patient.location_needs_room_assignment? %>
-                  <div class="wait-progress" 
-                       data-controller="room-assignment-timer"
-                       data-room-assignment-timer-start-time-value="<%= patient.room_assignment_started_at&.iso8601 || Time.current.iso8601 %>"
-                       data-room-assignment-timer-max-minutes-value="20">
+                  <div class="wait-progress"
+                       data-controller="timer"
+                       data-timer-start-time-value="<%= patient.room_assignment_started_at&.iso8601 %>"
+                       data-timer-target-minutes-value="<%= Patient::ROOM_ASSIGNMENT_TARGET %>"
+                       data-timer-thresholds-value='<%= { warning: Patient::TIMER_WARNING_THRESHOLD, critical: Patient::TIMER_CRITICAL_THRESHOLD, max: Patient::TIMER_MAX_DISPLAY }.to_json %>'>
+                    <span class="wait-time" data-timer-target="display"><%= patient.time_waiting_for_room %>m</span>
                     <div class="progress-bar">
                       <div class="progress-bar-fill" 
-                           data-room-assignment-timer-target="progress"></div>
+                           data-timer-target="progress"
+                           style="width: <%= [(patient.time_waiting_for_room.to_f / Patient::ROOM_ASSIGNMENT_TARGET * 100), 100].min %>%"></div>
                     </div>
-                    <span class="room-timer" data-room-assignment-timer-target="timer">20:00</span>
-                    <span class="timer-label">Room Assignment Timer</span>
+                    <span class="wait-target" data-timer-target="label">ROOM ASSIGNMENT TIMER</span>
                   </div>
                 <% else %>
-                  <div class="wait-progress <%= patient.wait_status_class %>">
-                    <span class="wait-time"><%= patient.wait_time_minutes %>m</span>
+                  <div class="wait-progress <%= patient.wait_status_class %>"
+                       data-controller="timer"
+                       data-timer-start-time-value="<%= patient.arrival_time&.iso8601 %>"
+                       data-timer-target-minutes-value="<%= patient.esi_target_minutes %>"
+                       data-timer-thresholds-value='<%= { useTarget: true }.to_json %>'>
+                    <span class="wait-time" data-timer-target="display"><%= patient.wait_time_minutes %>m</span>
                     <div class="progress-bar">
-                      <div class="progress-bar-fill" style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
+                      <div class="progress-bar-fill" 
+                           data-timer-target="progress"
+                           style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
                     </div>
-                    <span class="wait-target"><%= patient.esi_target_label %></span>
+                    <span class="wait-target" data-timer-target="label"><%= patient.esi_target_label %></span>
                   </div>
                 <% end %>
               </td>

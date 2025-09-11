@@ -2,7 +2,7 @@ class DashboardController < ApplicationController
   before_action :load_dashboard_stats
   
   def triage
-    @patients = Patient.includes(:vitals, :events).in_triage
+    @patients = Patient.includes(:vitals, :events).in_triage.by_arrival_time
     wait_times = @patients.map(&:wait_time_minutes).compact
     @avg_wait_time = wait_times.any? ? (wait_times.sum / wait_times.size.to_f).round : 0
   end
@@ -10,21 +10,17 @@ class DashboardController < ApplicationController
   def rp
     # Include both patients in RP and those waiting for RP room assignment
     @patients = Patient.includes(:vitals, :events)
-                       .where(
-                         location_status: :results_pending
-                       ).or(
-                         Patient.where(location_status: :needs_room_assignment, rp_eligible: true)
-                       )
+                       .in_results_pending
+                       .or(Patient.needs_rp_assignment)
+                       .by_priority_time
   end
 
   def ed_rn
     # Include both patients in ED and those waiting for ED room assignment
     @patients = Patient.includes(:vitals, :events)
-                       .where(
-                         location_status: [:ed_room, :treatment]
-                       ).or(
-                         Patient.where(location_status: :needs_room_assignment, rp_eligible: false)
-                       )
+                       .in_ed_treatment
+                       .or(Patient.needs_ed_assignment)
+                       .by_priority_time
   end
 
   def charge_rn
@@ -49,11 +45,11 @@ class DashboardController < ApplicationController
       @nurses = group_tasks_by_nurse
     end
     
-    @patients = Patient.includes(:vitals, :events).all
+    @patients = Patient.includes(:vitals, :events).all.by_arrival_time
   end
 
   def provider
-    @patients = Patient.includes(:vitals, :events).with_provider
+    @patients = Patient.includes(:vitals, :events).with_provider.by_arrival_time
   end
   
   private
