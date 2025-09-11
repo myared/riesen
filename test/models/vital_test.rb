@@ -6,7 +6,7 @@ class VitalTest < ActiveSupport::TestCase
       first_name: "John",
       last_name: "Doe",
       age: 30,
-      mrn: "1234"
+      mrn: "VT_#{SecureRandom.hex(4)}"
     )
     
     @vital = @patient.vitals.build(

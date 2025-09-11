@@ -6,7 +6,7 @@ class EventTest < ActiveSupport::TestCase
       first_name: "John",
       last_name: "Doe",
       age: 30,
-      mrn: "1234"
+      mrn: "ET_#{SecureRandom.hex(4)}"
     )
     
     @event = @patient.events.build(

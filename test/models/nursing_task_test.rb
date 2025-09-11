@@ -6,7 +6,7 @@ class NursingTaskTest < ActiveSupport::TestCase
       first_name: "Test",
       last_name: "Patient",
       age: 30,
-      mrn: "NURSING_TEST001",
+      mrn: "NT_#{SecureRandom.hex(4)}",
       esi_level: 3,
       location_status: :needs_room_assignment,
       rp_eligible: false
@@ -16,7 +16,7 @@ class NursingTaskTest < ActiveSupport::TestCase
       first_name: "RP",
       last_name: "Patient", 
       age: 25,
-      mrn: "NURSING_TEST002",
+      mrn: "NT_#{SecureRandom.hex(4)}",
       esi_level: 2,
       location_status: :needs_room_assignment,
       rp_eligible: true
@@ -33,7 +33,7 @@ class NursingTaskTest < ActiveSupport::TestCase
     )
     
     @room = Room.create!(
-      number: "NURSING_ED01",
+      number: "NT_#{SecureRandom.hex(4)}",
       room_type: :ed,
       status: :available
     )

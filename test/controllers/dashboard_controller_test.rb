@@ -6,7 +6,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       first_name: "Test",
       last_name: "Patient",
       age: 25,
-      mrn: "TEST001",
+      mrn: "DCT_#{SecureRandom.hex(4)}",
       location: "Waiting Room",
       esi_level: 3,
       wait_time_minutes: 15
@@ -154,8 +154,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "charge_rn dashboard with floor_view parameter" do
     # Create some rooms for floor view
-    Room.create!(number: "ED01", room_type: :ed, status: :available)
-    Room.create!(number: "RP01", room_type: :rp, status: :occupied)
+    Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :available)
+    Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :occupied)
     
     get dashboard_charge_rn_url, params: { view: 'floor_view' }
     assert_response :success
@@ -167,10 +167,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
 
   test "charge_rn dashboard calculates room statistics" do
     # Create rooms with different statuses
-    ed_available = Room.create!(number: "ED01", room_type: :ed, status: :available)
-    ed_occupied = Room.create!(number: "ED02", room_type: :ed, status: :occupied)
-    rp_available = Room.create!(number: "RP01", room_type: :rp, status: :available)
-    rp_occupied = Room.create!(number: "RP02", room_type: :rp, status: :occupied)
+    ed_available = Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :available)
+    ed_occupied = Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :occupied)
+    rp_available = Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :available)
+    rp_occupied = Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :occupied)
     
     get dashboard_charge_rn_url, params: { view: 'floor_view' }
     assert_response :success
@@ -236,8 +236,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     )
     
     # Create rooms for RP utilization calculation
-    Room.create!(number: "RP01", room_type: :rp, status: :available)
-    Room.create!(number: "RP02", room_type: :rp, status: :occupied)
+    Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :available)
+    Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :occupied)
     
     get dashboard_triage_url
     assert_response :success

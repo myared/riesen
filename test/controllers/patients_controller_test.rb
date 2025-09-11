@@ -6,7 +6,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
       first_name: "Test",
       last_name: "Patient",
       age: 25,
-      mrn: "TEST002",
+      mrn: "PCT_#{SecureRandom.hex(4)}",
       location: "ED Room",
       esi_level: 2
     )
@@ -57,14 +57,15 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
 
   test "assign_room assigns available ED room to non-RP eligible patient" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    room = Room.create!(number: "ED01", room_type: :ed, status: :available)
+    room_number = "ED_#{SecureRandom.hex(4)}"
+    room = Room.create!(number: room_number, room_type: :ed, status: :available)
     
     assert_difference('Event.count') do
-      patch assign_room_patient_url(@patient)
+      post assign_room_patient_url(@patient)
     end
     
     assert_response :redirect
-    assert_match "Room ED01 assigned", flash[:notice]
+    assert_match "Room #{room_number} assigned", flash[:notice]
     
     room.reload
     @patient.reload
@@ -72,19 +73,20 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @patient, room.current_patient
     assert room.status_occupied?
     assert @patient.location_ed_room?
-    assert_equal "ED01", @patient.room_number
+    assert_equal room_number, @patient.room_number
   end
 
   test "assign_room assigns available RP room to RP eligible patient" do
     @patient.update!(rp_eligible: true, location_status: :needs_room_assignment)
-    room = Room.create!(number: "RP01", room_type: :rp, status: :available)
+    room_number = "RP_#{SecureRandom.hex(4)}"
+    room = Room.create!(number: room_number, room_type: :rp, status: :available)
     
     assert_difference('Event.count') do
-      patch assign_room_patient_url(@patient)
+      post assign_room_patient_url(@patient)
     end
     
     assert_response :redirect
-    assert_match "Room RP01 assigned", flash[:notice]
+    assert_match "Room #{room_number} assigned", flash[:notice]
     
     room.reload
     @patient.reload
@@ -92,15 +94,15 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     assert_equal @patient, room.current_patient
     assert room.status_occupied?
     assert @patient.location_results_pending?
-    assert_equal "RP01", @patient.room_number
+    assert_equal room_number, @patient.room_number
   end
 
   test "assign_room fails when no ED rooms available" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    Room.create!(number: "ED01", room_type: :ed, status: :occupied)
+    Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :occupied)
     
     assert_no_difference('Event.count') do
-      patch assign_room_patient_url(@patient)
+      post assign_room_patient_url(@patient)
     end
     
     assert_response :redirect
@@ -113,10 +115,10 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
 
   test "assign_room fails when no RP rooms available" do
     @patient.update!(rp_eligible: true, location_status: :needs_room_assignment)
-    Room.create!(number: "RP01", room_type: :rp, status: :occupied)
+    Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :occupied)
     
     assert_no_difference('Event.count') do
-      patch assign_room_patient_url(@patient)
+      post assign_room_patient_url(@patient)
     end
     
     assert_response :redirect
@@ -129,7 +131,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
 
   test "assign_room completes associated nursing task" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    room = Room.create!(number: "ED01", room_type: :ed, status: :available)
+    room = Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :available)
     
     task = NursingTask.create!(
       patient: @patient,
@@ -141,7 +143,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
       due_at: 30.minutes.from_now
     )
     
-    patch assign_room_patient_url(@patient)
+    post assign_room_patient_url(@patient)
     
     task.reload
     assert task.status_completed?
@@ -150,9 +152,9 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
 
   test "assign_room with JSON format returns success" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    room = Room.create!(number: "ED01", room_type: :ed, status: :available)
+    room = Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :available)
     
-    patch assign_room_patient_url(@patient), params: {}, as: :json
+    post assign_room_patient_url(@patient), params: {}, as: :json
     
     assert_response :success
     response_data = JSON.parse(response.body)
@@ -162,9 +164,9 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
 
   test "assign_room with JSON format returns error when no rooms available" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    Room.create!(number: "ED01", room_type: :ed, status: :occupied)
+    Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :occupied)
     
-    patch assign_room_patient_url(@patient), params: {}, as: :json
+    post assign_room_patient_url(@patient), params: {}, as: :json
     
     assert_response :unprocessable_entity
     response_data = JSON.parse(response.body)
@@ -174,20 +176,22 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
 
   test "assign_room handles referrer redirect" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    room = Room.create!(number: "ED01", room_type: :ed, status: :available)
+    room = Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :available)
     referrer_url = dashboard_ed_rn_url
     
-    patch assign_room_patient_url(@patient), headers: { "HTTP_REFERER" => referrer_url }
+    post assign_room_patient_url(@patient), headers: { "HTTP_REFERER" => referrer_url }
     
     assert_redirected_to referrer_url
   end
 
   test "assign_room prefers first available room" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    room1 = Room.create!(number: "ED01", room_type: :ed, status: :available)
-    room2 = Room.create!(number: "ED02", room_type: :ed, status: :available)
+    room1_number = "ED_#{SecureRandom.hex(4)}"
+    room2_number = "ED_#{SecureRandom.hex(4)}"
+    room1 = Room.create!(number: room1_number, room_type: :ed, status: :available)
+    room2 = Room.create!(number: room2_number, room_type: :ed, status: :available)
     
-    patch assign_room_patient_url(@patient)
+    post assign_room_patient_url(@patient)
     
     room1.reload
     room2.reload
@@ -196,15 +200,15 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     # Should assign to first available room
     assert_equal @patient, room1.current_patient
     assert_nil room2.current_patient
-    assert_equal "ED01", @patient.room_number
+    assert_equal room1_number, @patient.room_number
   end
 
   test "assign_room only looks at appropriate room type" do
     @patient.update!(rp_eligible: false, location_status: :needs_room_assignment)
-    rp_room = Room.create!(number: "RP01", room_type: :rp, status: :available)
+    rp_room = Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :available)
     
     # No ED rooms available, only RP room
-    patch assign_room_patient_url(@patient)
+    post assign_room_patient_url(@patient)
     
     assert_response :redirect
     assert_match "No ED rooms available", flash[:alert]
