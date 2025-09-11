@@ -133,4 +133,296 @@ class PatientTest < ActiveSupport::TestCase
       @patient.destroy
     end
   end
+
+  test "location_status enum and scopes" do
+    @patient.save!
+    
+    # Test default status
+    assert @patient.location_waiting_room?
+    
+    # Test enum transitions
+    @patient.update!(location_status: :triage)
+    assert @patient.location_triage?
+    
+    @patient.update!(location_status: :needs_room_assignment)
+    assert @patient.location_needs_room_assignment?
+    
+    @patient.update!(location_status: :results_pending)
+    assert @patient.location_results_pending?
+    
+    @patient.update!(location_status: :ed_room)
+    assert @patient.location_ed_room?
+    
+    @patient.update!(location_status: :treatment)
+    assert @patient.location_treatment?
+    
+    @patient.update!(location_status: :discharged)
+    assert @patient.location_discharged?
+  end
+
+  test "scopes filter patients correctly" do
+    @patient.save!
+    
+    # Create patients with different statuses
+    waiting_patient = Patient.create!(
+      first_name: "Waiting", last_name: "Patient", age: 25, mrn: "WAIT001",
+      location_status: :waiting_room, esi_level: 3
+    )
+    
+    triage_patient = Patient.create!(
+      first_name: "Triage", last_name: "Patient", age: 30, mrn: "TRIAGE001",
+      location_status: :triage, esi_level: 4
+    )
+    
+    ed_patient = Patient.create!(
+      first_name: "ED", last_name: "Patient", age: 35, mrn: "ED001",
+      location_status: :ed_room, esi_level: 2
+    )
+    
+    treatment_patient = Patient.create!(
+      first_name: "Treatment", last_name: "Patient", age: 40, mrn: "TREAT001",
+      location_status: :treatment, esi_level: 3
+    )
+    
+    provider_patient = Patient.create!(
+      first_name: "Provider", last_name: "Patient", age: 45, mrn: "PROV001",
+      location_status: :ed_room, provider: "Dr. Smith", esi_level: 2
+    )
+    
+    critical_patient = Patient.create!(
+      first_name: "Critical", last_name: "Patient", age: 50, mrn: "CRIT001",
+      location_status: :ed_room, esi_level: 1
+    )
+    
+    # Test waiting scope
+    waiting_patients = Patient.waiting
+    assert_includes waiting_patients, waiting_patient
+    assert_not_includes waiting_patients, triage_patient
+    assert_not_includes waiting_patients, ed_patient
+    
+    # Test in_triage scope
+    in_triage_patients = Patient.in_triage
+    assert_includes in_triage_patients, waiting_patient
+    assert_includes in_triage_patients, triage_patient
+    assert_not_includes in_triage_patients, ed_patient
+    
+    # Test in_ed scope
+    in_ed_patients = Patient.in_ed
+    assert_includes in_ed_patients, ed_patient
+    assert_includes in_ed_patients, treatment_patient
+    assert_includes in_ed_patients, provider_patient
+    assert_includes in_ed_patients, critical_patient
+    assert_not_includes in_ed_patients, waiting_patient
+    
+    # Test with_provider scope
+    with_provider_patients = Patient.with_provider
+    assert_includes with_provider_patients, provider_patient
+    assert_not_includes with_provider_patients, ed_patient
+    
+    # Test critical scope
+    critical_patients = Patient.critical
+    assert_includes critical_patients, critical_patient
+    assert_not_includes critical_patients, ed_patient
+  end
+
+  test "esi_target_minutes returns correct targets" do
+    assert_equal 0, Patient.new(esi_level: 1).esi_target_minutes
+    assert_equal 10, Patient.new(esi_level: 2).esi_target_minutes
+    assert_equal 30, Patient.new(esi_level: 3).esi_target_minutes
+    assert_equal 60, Patient.new(esi_level: 4).esi_target_minutes
+    assert_equal 120, Patient.new(esi_level: 5).esi_target_minutes
+    assert_equal 30, Patient.new(esi_level: nil).esi_target_minutes # default
+  end
+
+  test "esi_target_label returns correct labels" do
+    assert_equal "Immediate", Patient.new(esi_level: 1).esi_target_label
+    assert_equal "10m target", Patient.new(esi_level: 2).esi_target_label
+    assert_equal "30m target", Patient.new(esi_level: 3).esi_target_label
+    assert_equal "60m target", Patient.new(esi_level: 4).esi_target_label
+    assert_equal "120m target", Patient.new(esi_level: 5).esi_target_label
+  end
+
+  test "esi_description returns correct descriptions" do
+    assert_equal "Resuscitation", Patient.new(esi_level: 1).esi_description
+    assert_equal "Emergent", Patient.new(esi_level: 2).esi_description
+    assert_equal "Urgent", Patient.new(esi_level: 3).esi_description
+    assert_equal "Less Urgent", Patient.new(esi_level: 4).esi_description
+    assert_equal "Non-Urgent", Patient.new(esi_level: 5).esi_description
+  end
+
+  test "overdue? returns correct status" do
+    # Patient not overdue
+    patient = Patient.new(esi_level: 3, wait_time_minutes: 20)
+    assert_not patient.overdue?
+    
+    # Patient overdue
+    patient.wait_time_minutes = 45
+    assert patient.overdue?
+    
+    # Critical patient should be overdue immediately
+    patient = Patient.new(esi_level: 1, wait_time_minutes: 1)
+    assert patient.overdue?
+  end
+
+  test "critical? returns correct status" do
+    assert Patient.new(esi_level: 1).critical?
+    assert Patient.new(esi_level: 2).critical?
+    assert_not Patient.new(esi_level: 3).critical?
+    assert_not Patient.new(esi_level: 4).critical?
+    assert_not Patient.new(esi_level: 5).critical?
+  end
+
+  test "room assignment workflow" do
+    @patient.update!(location_status: :needs_room_assignment, rp_eligible: false)
+    room = Room.create!(number: "ED01", room_type: :ed, status: :available)
+    
+    # Assign room via Room model
+    room.assign_patient(@patient)
+    @patient.reload
+    
+    # Check patient status updated correctly
+    assert @patient.location_ed_room?
+    assert_equal "ED01", @patient.room_number
+  end
+
+  test "rp eligible patient workflow" do
+    @patient.update!(location_status: :needs_room_assignment, rp_eligible: true)
+    room = Room.create!(number: "RP01", room_type: :rp, status: :available)
+    
+    # Assign room via Room model
+    room.assign_patient(@patient)
+    @patient.reload
+    
+    # Check patient status updated correctly for RP
+    assert @patient.location_results_pending?
+    assert_equal "RP01", @patient.room_number
+  end
+
+  test "patient transitions through complete workflow" do
+    @patient.save!
+    
+    # Start in waiting room
+    assert @patient.location_waiting_room?
+    
+    # Move to triage
+    @patient.update!(location_status: :triage)
+    assert @patient.location_triage?
+    
+    # Complete triage, needs room assignment
+    @patient.update!(location_status: :needs_room_assignment, rp_eligible: false)
+    assert @patient.location_needs_room_assignment?
+    
+    # Assign to ED room
+    @patient.update!(location_status: :ed_room, room_number: "ED01")
+    assert @patient.location_ed_room?
+    assert_equal "ED01", @patient.room_number
+    
+    # Move to treatment
+    @patient.update!(location_status: :treatment)
+    assert @patient.location_treatment?
+    
+    # Discharge
+    @patient.update!(location_status: :discharged, room_number: nil)
+    assert @patient.location_discharged?
+    assert_nil @patient.room_number
+  end
+
+  test "rp_eligible boolean field works correctly" do
+    @patient.save!
+    
+    # Test nil value (should be falsy)
+    assert_not @patient.rp_eligible
+    
+    # Test false value
+    @patient.update!(rp_eligible: false)
+    assert_not @patient.rp_eligible
+    
+    # Test true value
+    @patient.update!(rp_eligible: true)
+    assert @patient.rp_eligible
+  end
+
+  test "patient can have multiple vitals over time" do
+    @patient.save!
+    
+    # Create initial vitals
+    vital1 = @patient.vitals.create!(
+      heart_rate: 72,
+      blood_pressure_systolic: 120,
+      blood_pressure_diastolic: 80,
+      recorded_at: 2.hours.ago
+    )
+    
+    # Create updated vitals
+    vital2 = @patient.vitals.create!(
+      heart_rate: 85,
+      blood_pressure_systolic: 130,
+      blood_pressure_diastolic: 85,
+      recorded_at: 1.hour.ago
+    )
+    
+    # Latest vital should be the most recent
+    assert_equal vital2, @patient.latest_vital
+    assert_equal 2, @patient.vitals.count
+  end
+
+  test "patient can have multiple events" do
+    @patient.save!
+    
+    # Create arrival event
+    event1 = @patient.events.create!(
+      action: "Arrival",
+      details: "Patient arrived via ambulance",
+      performed_by: "Registration",
+      time: 2.hours.ago,
+      category: "administrative"
+    )
+    
+    # Create triage event
+    event2 = @patient.events.create!(
+      action: "Triage completed",
+      details: "ESI 3 assigned",
+      performed_by: "Triage RN",
+      time: 1.hour.ago,
+      category: "clinical"
+    )
+    
+    assert_equal 2, @patient.events.count
+    assert_includes @patient.events, event1
+    assert_includes @patient.events, event2
+  end
+
+  test "wait_progress_percentage handles edge cases" do
+    # ESI 1 (immediate) should show 100% immediately
+    patient = Patient.new(esi_level: 1, wait_time_minutes: 0)
+    assert_equal 100, patient.wait_progress_percentage
+    
+    # Very long wait should cap at 100%
+    patient = Patient.new(esi_level: 3, wait_time_minutes: 1000)
+    assert_equal 100, patient.wait_progress_percentage
+    
+    # Zero wait time
+    patient = Patient.new(esi_level: 3, wait_time_minutes: 0)
+    assert_equal 0, patient.wait_progress_percentage
+  end
+
+  test "patient associations work correctly" do
+    @patient.save!
+    
+    # Test care pathways association
+    pathway = @patient.care_pathways.create!(
+      pathway_type: :standard,
+      status: :not_started
+    )
+    
+    assert_includes @patient.care_pathways, pathway
+    
+    # Test active care pathway
+    pathway.update!(status: :in_progress)
+    assert_equal pathway, @patient.active_care_pathway
+    
+    # Test completed pathway doesn't show as active
+    pathway.update!(status: :completed)
+    assert_nil @patient.active_care_pathway
+  end
 end

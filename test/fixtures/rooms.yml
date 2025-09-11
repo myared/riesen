@@ -1,19 +1,33 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
-one:
-  number: MyString
-  room_type: 1
-  status: 1
-  current_patient: one
-  current_patient_type: Current patient
-  esi_level: 1
-  time_in_room: 1
+ed_room_one:
+  number: "ED01"
+  room_type: 0  # ed
+  status: 0     # available
+  current_patient_id: 
+  esi_level: 
+  time_in_room: 
 
-two:
-  number: MyString
-  room_type: 1
-  status: 1
-  current_patient: two
-  current_patient_type: Current patient
-  esi_level: 1
-  time_in_room: 1
+ed_room_two:
+  number: "ED02"
+  room_type: 0  # ed
+  status: 1     # occupied
+  current_patient_id: 
+  esi_level: 3
+  time_in_room: 45
+
+rp_room_one:
+  number: "RP01"
+  room_type: 1  # rp
+  status: 0     # available
+  current_patient_id: 
+  esi_level: 
+  time_in_room: 
+
+rp_room_two:
+  number: "RP02"
+  room_type: 1  # rp
+  status: 1     # occupied
+  current_patient_id: 
+  esi_level: 4
+  time_in_room: 30

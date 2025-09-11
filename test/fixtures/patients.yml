@@ -1,31 +1,37 @@
 # Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
 
 one:
-  first_name: MyString
-  last_name: MyString
-  age: 1
-  mrn: MyString
-  location: MyString
-  provider: MyString
-  chief_complaint: MyText
-  esi_level: 1
-  pain_score: 1
-  arrival_time: 2025-09-10 11:20:34
-  wait_time_minutes: 1
-  care_pathway: MyString
+  first_name: "John"
+  last_name: "Doe"
+  age: 30
+  mrn: "TEST001"
+  location: "Waiting Room"
+  provider: 
+  chief_complaint: "Chest pain"
+  esi_level: 3
+  pain_score: 5
+  arrival_time: <%= 2.hours.ago %>
+  wait_time_minutes: 15
+  care_pathway: 
   rp_eligible: false
+  location_status: 0  # waiting_room
+  room_number: 
+  triage_completed_at: 
 
 two:
-  first_name: MyString
-  last_name: MyString
-  age: 1
-  mrn: MyString
-  location: MyString
-  provider: MyString
-  chief_complaint: MyText
-  esi_level: 1
-  pain_score: 1
-  arrival_time: 2025-09-10 11:20:34
-  wait_time_minutes: 1
-  care_pathway: MyString
-  rp_eligible: false
+  first_name: "Jane"
+  last_name: "Smith"
+  age: 25
+  mrn: "TEST002"
+  location: "RP Area"
+  provider: "Dr. Johnson"
+  chief_complaint: "Lab follow-up"
+  esi_level: 4
+  pain_score: 2
+  arrival_time: <%= 3.hours.ago %>
+  wait_time_minutes: 45
+  care_pathway: 
+  rp_eligible: true
+  location_status: 3  # results_pending
+  room_number: "RP01"
+  triage_completed_at: <%= 2.hours.ago %>
