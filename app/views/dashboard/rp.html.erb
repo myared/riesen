@@ -65,11 +65,11 @@
                     <span class="timer-label">Room Assignment Timer</span>
                   </div>
                 <% else %>
-                  <div class="wait-progress">
+                  <div class="wait-progress <%= patient.wait_status_class %>">
+                    <span class="wait-time"><%= patient.wait_time_minutes %>m</span>
                     <div class="progress-bar">
                       <div class="progress-bar-fill" style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
                     </div>
-                    <span class="wait-time"><%= patient.wait_time_minutes %>m</span>
                     <span class="wait-target"><%= patient.esi_target_label %></span>
                   </div>
                 <% end %>

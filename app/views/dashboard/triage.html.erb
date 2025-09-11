@@ -30,7 +30,6 @@
         <th>Wait Progress</th>
         <th>Chief Complaint</th>
         <th>RP Eligible</th>
-        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -57,12 +56,12 @@
             </span>
           </td>
           <td>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span><%= patient.wait_time_minutes %>m</span>
-              <div class="progress-bar" style="width: 100px;">
-                <div class="progress-bar-fill" style="width: <%= patient.wait_progress_percentage %>%"></div>
+            <div class="wait-progress <%= patient.wait_status_class %>">
+              <span class="wait-time"><%= patient.wait_time_minutes %>m</span>
+              <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
               </div>
-              <span style="font-size: 11px; color: #586069;"><%= patient.esi_target_label %></span>
+              <span class="wait-target"><%= patient.esi_target_label %></span>
             </div>
           </td>
           <td>
@@ -74,16 +73,6 @@
             <% else %>
               <span class="not-rp-eligible">✗ Not RP Eligible</span>
             <% end %>
-          </td>
-          <td>
-            <div class="action-buttons">
-              <button class="btn-action" data-patient-id="<%= patient.id %>">
-                Assess
-              </button>
-              <button class="btn-action" data-patient-id="<%= patient.id %>">
-                Send to ED
-              </button>
-            </div>
           </td>
         </tr>
       <% end %>

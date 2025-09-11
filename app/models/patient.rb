@@ -81,6 +81,30 @@ class Patient < ApplicationRecord
     wait_time_minutes > esi_target_minutes
   end
   
+  def wait_status
+    return :on_time if wait_time_minutes <= esi_target_minutes
+    
+    over_target = wait_time_minutes - esi_target_minutes
+    over_percentage = (over_target.to_f / esi_target_minutes * 100).round
+    
+    if over_percentage <= 50
+      :warning
+    else
+      :critical
+    end
+  end
+  
+  def wait_status_class
+    case wait_status
+    when :warning
+      'wait-warning'
+    when :critical
+      'wait-critical'
+    else
+      ''
+    end
+  end
+  
   def critical?
     esi_level.in?([1, 2])
   end
