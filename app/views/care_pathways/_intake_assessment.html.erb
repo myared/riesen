@@ -1,77 +1,14 @@
-<div class="intake-assessment-form">
-  <h3>Intake Assessment</h3>
+<div class="step-action-container">
+  <div class="step-header">
+    <h3>Intake Assessment</h3>
+    <p class="step-description">Complete the patient intake assessment process</p>
+  </div>
   
   <%= form_with url: complete_step_patient_care_pathway_path(patient, step.care_pathway, step),
                 method: :post,
                 local: true,
-                class: "assessment-form" do |f| %>
-    
-    <div class="form-section">
-      <h4>Symptoms</h4>
-      <div class="symptoms-grid">
-        <% symptoms = [
-          'Chest pain', 'Shortness of breath', 'Abdominal pain', 'Dizziness',
-          'Nausea/vomiting', 'Headache', 'Fever', 'Altered mental status',
-          'Back pain', 'Extremity pain/injury', 'Weakness/fatigue', 'Urinary symptoms',
-          'Cough', 'Rash', 'Bleeding', 'Fall/trauma'
-        ] %>
-        <% symptoms.each do |symptom| %>
-          <label class="checkbox-label">
-            <%= check_box_tag "symptoms[]", symptom, false, class: "symptom-checkbox" %>
-            <span><%= symptom %></span>
-          </label>
-        <% end %>
-      </div>
-    </div>
-    
-    <div class="form-section">
-      <h4>Vital Signs</h4>
-      <div class="vitals-grid">
-        <div class="vital-input">
-          <label>Blood Pressure</label>
-          <%= text_field_tag "vitals[blood_pressure]", "", placeholder: "120/80", class: "form-control" %>
-        </div>
-        <div class="vital-input">
-          <label>Heart Rate</label>
-          <%= number_field_tag "vitals[heart_rate]", "", placeholder: "72", class: "form-control" %>
-        </div>
-        <div class="vital-input">
-          <label>Temperature (°F)</label>
-          <%= number_field_tag "vitals[temperature]", "", placeholder: "98.6", step: "0.1", class: "form-control" %>
-        </div>
-        <div class="vital-input">
-          <label>O2 Saturation (%)</label>
-          <%= number_field_tag "vitals[o2_saturation]", "", placeholder: "98", class: "form-control" %>
-        </div>
-        <div class="vital-input">
-          <label>Respiratory Rate</label>
-          <%= number_field_tag "vitals[respiratory_rate]", "", placeholder: "16", class: "form-control" %>
-        </div>
-        <div class="vital-input">
-          <label>Pain Score (0-10)</label>
-          <%= number_field_tag "vitals[pain_score]", "", placeholder: "0", min: 0, max: 10, class: "form-control" %>
-        </div>
-      </div>
-    </div>
-    
-    <div class="form-section">
-      <h4>Risk Factors</h4>
-      <div class="risk-factors-grid">
-        <% risk_factors = [
-          'Age > 65', 'Diabetes', 'Hypertension', 'Heart disease',
-          'COPD', 'Pregnancy', 'Recent surgery', 'Blood thinners',
-          'Immunocompromised', 'Previous hospitalizations', 'Chronic pain', 'Mental health history',
-          'Drug allergies'
-        ] %>
-        <% risk_factors.each do |factor| %>
-          <label class="checkbox-label">
-            <%= check_box_tag "risk_factors[]", factor, false, class: "risk-checkbox" %>
-            <span><%= factor %></span>
-          </label>
-        <% end %>
-      </div>
-    </div>
-    
+                data: { turbo: false },
+                class: "step-action-form" do |f| %>
     <div class="form-actions">
       <%= submit_tag "Complete Intake Assessment", class: "btn btn-primary btn-lg" %>
     </div>

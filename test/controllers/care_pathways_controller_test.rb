@@ -240,6 +240,54 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
                    "triage_completed_at should be set to exactly current time"
     end
   end
+  
+  test "should allow bed assignment override to RP when patient not eligible" do
+    # Set patient as not RP eligible initially
+    @patient.update!(rp_eligible: false)
+    
+    # Override to assign to RP
+    post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}",
+         params: { destination: "rp" }
+    
+    assert_response :redirect
+    
+    # Check patient is now RP eligible
+    @patient.reload
+    assert @patient.rp_eligible?, "Patient should be RP eligible after override"
+    
+    # Check events record the override
+    step_event = Event.where(patient: @patient, action: "Bed Assignment completed").first
+    assert_includes step_event.details, "RP", "Event should mention RP assignment"
+    
+    # Check nursing task reflects RP assignment
+    nursing_task = NursingTask.where(patient: @patient, task_type: :room_assignment).first
+    assert_equal "RP RN", nursing_task.assigned_to
+    assert_includes nursing_task.description, "RP area"
+  end
+  
+  test "should allow bed assignment override to ED when patient is RP eligible" do
+    # Set patient as RP eligible initially
+    @patient.update!(rp_eligible: true)
+    
+    # Override to assign to ED
+    post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}",
+         params: { destination: "ed" }
+    
+    assert_response :redirect
+    
+    # Check patient is now not RP eligible
+    @patient.reload
+    assert_not @patient.rp_eligible?, "Patient should not be RP eligible after ED override"
+    
+    # Check events record the override
+    step_event = Event.where(patient: @patient, action: "Bed Assignment completed").first
+    assert_includes step_event.details, "ED", "Event should mention ED assignment"
+    
+    # Check nursing task reflects ED assignment
+    nursing_task = NursingTask.where(patient: @patient, task_type: :room_assignment).first
+    assert_equal "ED RN", nursing_task.assigned_to
+    assert_includes nursing_task.description, "ED area"
+  end
 
   test "should not set room_assignment_needed_at if pathway does not complete" do
     # Reset steps to incomplete

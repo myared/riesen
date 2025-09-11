@@ -103,12 +103,20 @@ class CarePathwaysController < ApplicationController
     @care_pathway = @patient.care_pathways.find(params[:id])
     @step = @care_pathway.care_pathway_steps.find(params[:step_id])
     
+    # Handle bed assignment destination override
+    if @step.name == 'Bed Assignment' && params[:destination].present?
+      # Update patient's RP eligibility based on user's selection
+      @patient.update(rp_eligible: params[:destination] == 'rp')
+      
+      Rails.logger.info "Bed Assignment Override: Patient #{@patient.id} (#{@patient.full_name}) assigned to #{params[:destination].upcase} (RP eligible: #{@patient.rp_eligible?})"
+    end
+    
     if @step.complete!(current_user_name)
       # Record event for step completion
       Event.create!(
         patient: @patient,
         action: "#{@step.name} completed",
-        details: "Care pathway step completed",
+        details: @step.name == 'Bed Assignment' ? "Patient assigned to #{params[:destination]&.upcase || (@patient.rp_eligible? ? 'RP' : 'ED')}" : "Care pathway step completed",
         performed_by: 'Triage RN',
         time: Time.current,
         category: 'triage'
