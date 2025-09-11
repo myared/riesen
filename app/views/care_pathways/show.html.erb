@@ -1,255 +1,769 @@
-<%= turbo_frame_tag "care-pathway-modal-container" do %>
-  <div class="modal-overlay">
-    <div class="care-pathway-modal" data-patient-id="<%= @patient.id %>" data-pathway-id="<%= @care_pathway.id %>">
-      <div class="modal-header">
-        <div class="header-left">
-          <h2>Care Pathway</h2>
-        </div>
-        <div class="patient-info">
-          <%= @patient.full_name %> • Patient ID: <%= @patient.mrn %>
-        </div>
-        <button class="modal-close" data-controller="modal" data-action="click->modal#close">×</button>
+<turbo-frame id="care-pathway-content">
+  <div class="care-pathway-container">
+    <div class="care-pathway-header">
+      <div class="header-left">
+        <% back_path = case session[:care_pathway_referrer]
+                       when 'triage' then dashboard_triage_path
+                       when 'rp' then dashboard_rp_path
+                       when 'ed_rn' then dashboard_ed_rn_path
+                       when 'provider' then dashboard_provider_path
+                       when 'charge_rn' then dashboard_charge_rn_path
+                       else dashboard_triage_path
+                       end %>
+        <%= link_to back_path, class: "back-button", data: { turbo: false } do %>
+          ← Back to Dashboard
+        <% end %>
+        <h1>Care Pathway</h1>
       </div>
-  
-  <% if @care_pathway.pathway_type_triage? %>
-    <!-- Triage Pathway -->
-    <div class="pathway-progress">
-      <% @steps.each do |step| %>
-        <div class="pathway-step <%= step.status_class %>" data-step-id="<%= step.id %>">
-          <div class="step-icon">
-            <% if step.completed? %>
-              <span class="checkmark">✓</span>
-            <% elsif step.current? %>
-              <span class="current-indicator"></span>
-            <% else %>
-              <span class="pending-indicator"></span>
+      <div class="patient-info">
+        <strong><%= @patient.full_name %></strong> • MRN: <%= @patient.mrn %> • <%= @patient.age %>Y
+      </div>
+    </div>
+    
+    <div class="care-pathway-body">
+      <% if @care_pathway.pathway_type_triage? %>
+        <!-- Triage Pathway -->
+        <div class="pathway-section">
+          <h2>Triage Pathway</h2>
+          
+          <div class="pathway-progress">
+            <% @steps.each do |step| %>
+              <div class="pathway-step <%= step.status_class %>" data-step-id="<%= step.id %>">
+                <div class="step-icon">
+                  <% if step.completed? %>
+                    <span class="checkmark">✓</span>
+                  <% elsif step.current? %>
+                    <span class="current-indicator"></span>
+                  <% else %>
+                    <span class="pending-indicator"></span>
+                  <% end %>
+                </div>
+                <div class="step-label"><%= step.name %></div>
+                <% if step.completed_at %>
+                  <div class="step-time"><%= step.completed_at.strftime("%l:%M %p") %></div>
+                <% end %>
+              </div>
+              <% unless step == @steps.last %>
+                <div class="step-connector <%= 'completed' if step.completed? %>"></div>
+              <% end %>
             <% end %>
           </div>
-          <div class="step-label"><%= step.name %></div>
-          <% if step.completed_at %>
-            <div class="step-time"><%= step.completed_at.strftime("%l:%M %p") %></div>
+          
+          <div class="progress-indicator">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: <%= @care_pathway.progress_percentage %>%"></div>
+            </div>
+            <h3><%= @care_pathway.progress_percentage %>% Complete</h3>
+          </div>
+          
+          <% current_step = @care_pathway.current_triage_step %>
+          <% if current_step %>
+            <div class="current-step-content">
+              <% if current_step.name == 'Intake' %>
+                <%= render 'care_pathways/intake_assessment', patient: @patient, step: current_step %>
+              <% elsif current_step.name == 'Bed Assignment' %>
+                <%= render 'care_pathways/bed_assignment', patient: @patient, step: current_step %>
+              <% else %>
+                <div class="step-action">
+                  <%= button_to "Complete #{current_step.name}", 
+                                complete_step_patient_care_pathway_path(@patient, @care_pathway, current_step),
+                                method: :post,
+                                class: "btn btn-primary btn-complete-step",
+                                data: { step_id: current_step.id, turbo: false } %>
+                </div>
+              <% end %>
+            </div>
+          <% elsif @care_pathway.complete? %>
+            <div class="pathway-complete">
+              <h3>✓ Triage Complete</h3>
+              <p>Patient is ready for transfer to <%= @patient.rp_eligible? ? 'Results Pending (RP)' : 'Emergency Department (ED)' %></p>
+            </div>
           <% end %>
         </div>
-        <% unless step == @steps.last %>
-          <div class="step-connector <%= 'completed' if step.completed? %>"></div>
-        <% end %>
+        
+      <% elsif @care_pathway.pathway_type_emergency_room? %>
+        <!-- Emergency Room Pathway -->
+        <div class="er-pathway-container">
+          <div class="er-pathway-header">
+            <h2>Emergency Room Care Pathway</h2>
+            <p class="pathway-subtitle">Active Clinical Management</p>
+            <div class="progress-bar-container">
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: <%= @care_pathway.progress_percentage %>%"></div>
+              </div>
+              <span class="progress-text"><%= @care_pathway.progress_percentage %>% Complete</span>
+            </div>
+          </div>
+        
+          <div class="er-pathway-summary">
+            <div class="summary-item">
+              <span class="summary-icon" aria-label="Orders">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="8" y="3" width="8" height="11" rx="1"/>
+                  <path d="M8 7h8M8 10h8"/>
+                </svg>
+              </span>
+              <span class="summary-label">Orders:</span>
+              <span class="summary-value"><%= @orders.completed.count %>/<%= @orders.count %></span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-icon" aria-label="Procedures">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+                </svg>
+              </span>
+              <span class="summary-label">Procedures:</span>
+              <span class="summary-value"><%= @procedures.completed.count %>/<%= @procedures.count %></span>
+            </div>
+            <div class="summary-item">
+              <span class="summary-icon" aria-label="Clinical Goals">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/>
+                  <circle cx="12" cy="12" r="6"/>
+                  <circle cx="12" cy="12" r="2"/>
+                </svg>
+              </span>
+              <span class="summary-label">Goals:</span>
+              <span class="summary-value"><%= @clinical_endpoints.achieved.count %>/<%= @clinical_endpoints.count %></span>
+            </div>
+          </div>
+          
+          <div class="er-pathway-tabs">
+            <button class="tab-button active" data-tab="orders">Orders</button>
+            <button class="tab-button" data-tab="procedures">Procedures</button>
+            <button class="tab-button" data-tab="endpoints">Clinical Endpoints</button>
+          </div>
+          
+          <div class="er-pathway-content">
+            <!-- Orders Tab -->
+            <div class="tab-content active" id="orders">
+              <div class="section-header">
+                <h4>Orders (Labs, Meds, Imaging)</h4>
+                <button class="btn btn-primary btn-add" onclick="showAddOrderModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+                  + Add Order
+                </button>
+              </div>
+              
+              <% if @orders.any? %>
+                <div class="orders-list">
+                  <% @orders.each do |order| %>
+                    <div class="order-item" data-order-id="<%= order.id %>">
+                      <div class="order-icon"><%= order.type_icon %></div>
+                      <div class="order-info">
+                        <div class="order-name"><%= order.name %></div>
+                        <div class="order-meta">
+                          <span class="order-type"><%= order.order_type.humanize %></span>
+                          <span class="order-time">Ordered by <%= order.ordered_by %> at <%= order.ordered_at&.strftime("%l:%M %p") %></span>
+                        </div>
+                      </div>
+                      <div class="order-status-tracker">
+                        <% %w[ordered collected in_lab resulted].each do |status| %>
+                          <div class="status-step <%= 'completed' if order.status_value >= order.class.statuses[status] %>">
+                            <%= status.humanize %>
+                          </div>
+                          <% unless status == 'resulted' %>
+                            <div class="status-connector <%= 'completed' if order.status_value > order.class.statuses[status] %>"></div>
+                          <% end %>
+                        <% end %>
+                      </div>
+                      <% unless order.resulted? %>
+                        <button class="btn btn-sm btn-advance" 
+                                onclick="advanceOrderStatus(<%= @patient.id %>, <%= @care_pathway.id %>, <%= order.id %>)">
+                          Advance →
+                        </button>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              <% else %>
+                <div class="empty-state">No orders placed yet</div>
+              <% end %>
+            </div>
+            
+            <!-- Procedures Tab -->
+            <div class="tab-content" id="procedures">
+              <div class="section-header">
+                <h4>Procedures</h4>
+                <button class="btn btn-primary btn-add" onclick="showAddProcedureModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+                  + Add Procedure
+                </button>
+              </div>
+              
+              <% if @procedures.any? %>
+                <div class="procedures-list">
+                  <% @procedures.each do |procedure| %>
+                    <div class="procedure-item <%= procedure.status_class %>" data-procedure-id="<%= procedure.id %>">
+                      <div class="procedure-icon">🔧</div>
+                      <div class="procedure-info">
+                        <div class="procedure-name"><%= procedure.name %></div>
+                        <% if procedure.description.present? %>
+                          <div class="procedure-description"><%= procedure.description %></div>
+                        <% end %>
+                        <% if procedure.completed? %>
+                          <div class="procedure-meta">
+                            Completed by <%= procedure.completed_by %> at <%= procedure.completed_at&.strftime("%l:%M %p") %>
+                          </div>
+                        <% end %>
+                      </div>
+                      <% unless procedure.completed? %>
+                        <button class="btn btn-sm btn-complete" 
+                                onclick="completeProcedure(<%= @patient.id %>, <%= @care_pathway.id %>, <%= procedure.id %>)">
+                          Mark Complete
+                        </button>
+                      <% else %>
+                        <span class="status-badge completed">✓ Complete</span>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              <% else %>
+                <div class="empty-state">No procedures added yet</div>
+              <% end %>
+            </div>
+            
+            <!-- Clinical Endpoints Tab -->
+            <div class="tab-content" id="endpoints">
+              <div class="section-header">
+                <h4>Clinical Endpoints</h4>
+                <button class="btn btn-primary btn-add" onclick="showAddEndpointModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+                  + Add Goal
+                </button>
+              </div>
+              
+              <% if @clinical_endpoints.any? %>
+                <div class="endpoints-list">
+                  <% @clinical_endpoints.each do |endpoint| %>
+                    <div class="endpoint-item <%= endpoint.status_class %>" data-endpoint-id="<%= endpoint.id %>">
+                      <div class="endpoint-icon">🎯</div>
+                      <div class="endpoint-info">
+                        <div class="endpoint-name"><%= endpoint.name %></div>
+                        <div class="endpoint-description"><%= endpoint.description %></div>
+                        <% if endpoint.achieved? %>
+                          <div class="endpoint-meta">
+                            Achieved by <%= endpoint.achieved_by %> at <%= endpoint.achieved_at&.strftime("%l:%M %p") %>
+                          </div>
+                        <% end %>
+                      </div>
+                      <% unless endpoint.achieved? %>
+                        <button class="btn btn-sm btn-achieve" 
+                                onclick="achieveEndpoint(<%= @patient.id %>, <%= @care_pathway.id %>, <%= endpoint.id %>)">
+                          Mark Achieved
+                        </button>
+                      <% else %>
+                        <span class="status-badge achieved">✓ Achieved</span>
+                      <% end %>
+                    </div>
+                  <% end %>
+                </div>
+              <% else %>
+                <div class="empty-state">No clinical endpoints added yet</div>
+              <% end %>
+            </div>
+          </div>
+        </div>
+        
+        <%= render 'add_order_modal' %>
+        <%= render 'add_procedure_modal' %>
+        <%= render 'add_endpoint_modal' %>
       <% end %>
     </div>
-    
-    <div class="progress-indicator">
-      <h3><%= @care_pathway.progress_percentage %>% Complete</h3>
-    </div>
-    
-    <% current_step = @care_pathway.current_triage_step %>
-    <% if current_step %>
-      <div class="current-step-content">
-        <% if current_step.name == 'Intake' %>
-          <%= render 'care_pathways/intake_assessment', patient: @patient, step: current_step %>
-        <% elsif current_step.name == 'Bed Assignment' %>
-          <%= render 'care_pathways/bed_assignment', patient: @patient, step: current_step %>
-        <% else %>
-          <div class="step-action">
-            <%= button_to "Complete #{current_step.name}", 
-                          complete_step_patient_care_pathway_path(@patient, @care_pathway, current_step),
-                          method: :post,
-                          class: "btn btn-primary btn-complete-step",
-                          data: { step_id: current_step.id } %>
-          </div>
-        <% end %>
-      </div>
-    <% elsif @care_pathway.complete? %>
-      <div class="pathway-complete">
-        <h3>✓ Triage Complete</h3>
-        <p>Patient is ready for transfer to <%= @patient.rp_eligible? ? 'Results Pending (RP)' : 'Emergency Department (ED)' %></p>
-      </div>
-    <% end %>
-    
-  <% elsif @care_pathway.pathway_type_emergency_room? %>
-    <!-- Emergency Room Pathway -->
-    <div class="er-pathway-container">
-      <div class="er-pathway-header">
-        <h3>Emergency Room Care Pathway</h3>
-        <p class="pathway-subtitle">Active Clinical Management</p>
-        <div class="progress-bar-container">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: <%= @care_pathway.progress_percentage %>%"></div>
-          </div>
-          <span class="progress-text"><%= @care_pathway.progress_percentage %>% Complete</span>
-        </div>
-      </div>
-    
-    <div class="er-pathway-summary">
-      <div class="summary-item">
-        <span class="summary-icon" aria-label="Orders">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 11H3m6 0v6m0-6l7-7m-7 7l7 7M21 11a10 10 0 11-20 0 10 10 0 0120 0z"/>
-            <rect x="8" y="3" width="8" height="11" rx="1"/>
-            <path d="M8 7h8M8 10h8"/>
-          </svg>
-        </span>
-        <span class="summary-label">Orders:</span>
-        <span class="summary-value"><%= @orders.completed.count %>/<%= @orders.count %></span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-icon" aria-label="Procedures">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
-          </svg>
-        </span>
-        <span class="summary-label">Procedures:</span>
-        <span class="summary-value"><%= @procedures.completed.count %>/<%= @procedures.count %></span>
-      </div>
-      <div class="summary-item">
-        <span class="summary-icon" aria-label="Clinical Goals">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"/>
-            <circle cx="12" cy="12" r="6"/>
-            <circle cx="12" cy="12" r="2"/>
-          </svg>
-        </span>
-        <span class="summary-label">Goals:</span>
-        <span class="summary-value"><%= @clinical_endpoints.achieved.count %>/<%= @clinical_endpoints.count %></span>
-      </div>
-    </div>
-    
-    <div class="er-pathway-tabs">
-      <button class="tab-button active" data-tab="orders">Orders</button>
-      <button class="tab-button" data-tab="procedures">Procedures</button>
-      <button class="tab-button" data-tab="endpoints">Clinical Endpoints</button>
-    </div>
-    
-    <div class="er-pathway-content">
-      <!-- Orders Tab -->
-      <div class="tab-content active" id="orders">
-        <div class="section-header">
-          <h4>Orders (Labs, Meds, Imaging)</h4>
-          <button class="btn btn-primary btn-add" onclick="showAddOrderModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
-            + Add Order
-          </button>
-        </div>
-        
-        <% if @orders.any? %>
-          <div class="orders-list">
-            <% @orders.each do |order| %>
-              <div class="order-item" data-order-id="<%= order.id %>">
-                <div class="order-icon"><%= order.type_icon %></div>
-                <div class="order-info">
-                  <div class="order-name"><%= order.name %></div>
-                  <div class="order-meta">
-                    <span class="order-type"><%= order.order_type.humanize %></span>
-                    <span class="order-time">Ordered by <%= order.ordered_by %> at <%= order.ordered_at&.strftime("%l:%M %p") %></span>
-                  </div>
-                </div>
-                <div class="order-status-tracker">
-                  <% %w[ordered collected in_lab resulted].each do |status| %>
-                    <div class="status-step <%= 'completed' if order.status_value >= order.class.statuses[status] %>">
-                      <%= status.humanize %>
-                    </div>
-                    <% unless status == 'resulted' %>
-                      <div class="status-connector <%= 'completed' if order.status_value > order.class.statuses[status] %>"></div>
-                    <% end %>
-                  <% end %>
-                </div>
-                <% unless order.resulted? %>
-                  <button class="btn btn-sm btn-advance" 
-                          onclick="advanceOrderStatus(<%= @patient.id %>, <%= @care_pathway.id %>, <%= order.id %>)">
-                    Advance →
-                  </button>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
-        <% else %>
-          <div class="empty-state">No orders placed yet</div>
-        <% end %>
-      </div>
-      
-      <!-- Procedures Tab -->
-      <div class="tab-content" id="procedures">
-        <div class="section-header">
-          <h4>Procedures</h4>
-          <button class="btn btn-primary btn-add" onclick="showAddProcedureModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
-            + Add Procedure
-          </button>
-        </div>
-        
-        <% if @procedures.any? %>
-          <div class="procedures-list">
-            <% @procedures.each do |procedure| %>
-              <div class="procedure-item <%= procedure.status_class %>" data-procedure-id="<%= procedure.id %>">
-                <div class="procedure-icon">🔧</div>
-                <div class="procedure-info">
-                  <div class="procedure-name"><%= procedure.name %></div>
-                  <% if procedure.description.present? %>
-                    <div class="procedure-description"><%= procedure.description %></div>
-                  <% end %>
-                  <% if procedure.completed? %>
-                    <div class="procedure-meta">
-                      Completed by <%= procedure.completed_by %> at <%= procedure.completed_at&.strftime("%l:%M %p") %>
-                    </div>
-                  <% end %>
-                </div>
-                <% unless procedure.completed? %>
-                  <button class="btn btn-sm btn-complete" 
-                          onclick="completeProcedure(<%= @patient.id %>, <%= @care_pathway.id %>, <%= procedure.id %>)">
-                    Mark Complete
-                  </button>
-                <% else %>
-                  <span class="status-badge completed">✓ Complete</span>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
-        <% else %>
-          <div class="empty-state">No procedures added yet</div>
-        <% end %>
-      </div>
-      
-      <!-- Clinical Endpoints Tab -->
-      <div class="tab-content" id="endpoints">
-        <div class="section-header">
-          <h4>Clinical Endpoints</h4>
-          <button class="btn btn-primary btn-add" onclick="showAddEndpointModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
-            + Add Goal
-          </button>
-        </div>
-        
-        <% if @clinical_endpoints.any? %>
-          <div class="endpoints-list">
-            <% @clinical_endpoints.each do |endpoint| %>
-              <div class="endpoint-item <%= endpoint.status_class %>" data-endpoint-id="<%= endpoint.id %>">
-                <div class="endpoint-icon">🎯</div>
-                <div class="endpoint-info">
-                  <div class="endpoint-name"><%= endpoint.name %></div>
-                  <div class="endpoint-description"><%= endpoint.description %></div>
-                  <% if endpoint.achieved? %>
-                    <div class="endpoint-meta">
-                      Achieved by <%= endpoint.achieved_by %> at <%= endpoint.achieved_at&.strftime("%l:%M %p") %>
-                    </div>
-                  <% end %>
-                </div>
-                <% unless endpoint.achieved? %>
-                  <button class="btn btn-sm btn-achieve" 
-                          onclick="achieveEndpoint(<%= @patient.id %>, <%= @care_pathway.id %>, <%= endpoint.id %>)">
-                    Mark Achieved
-                  </button>
-                <% else %>
-                  <span class="status-badge achieved">✓ Achieved</span>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
-        <% else %>
-          <div class="empty-state">No clinical endpoints added yet</div>
-        <% end %>
-      </div>
-    </div>
-    
-    </div>
-    <%= render 'add_order_modal' %>
-    <%= render 'add_procedure_modal' %>
-    <%= render 'add_endpoint_modal' %>
-  <% end %>
-    </div>
   </div>
-<% end %>
+</turbo-frame>
+
+<style>
+  .care-pathway-container {
+    background: white;
+    min-height: 100vh;
+  }
+
+  .care-pathway-header {
+    padding: 20px 30px;
+    border-bottom: 1px solid #e1e4e8;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: white;
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .back-button {
+    padding: 8px 16px;
+    background: #f6f8fa;
+    border: 1px solid #d1d5da;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #24292e;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+
+  .back-button:hover {
+    background: #e1e4e8;
+    border-color: #c1c4cb;
+  }
+
+  .care-pathway-header h1 {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 600;
+    color: #24292e;
+  }
+
+  .patient-info {
+    font-size: 14px;
+    color: #586069;
+  }
+
+  .care-pathway-body {
+    padding: 30px;
+  }
+
+  .pathway-section h2 {
+    margin: 0 0 20px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #24292e;
+  }
+
+  .pathway-progress {
+    display: flex;
+    align-items: center;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f6f8fa;
+    border-radius: 8px;
+  }
+
+  .pathway-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+  }
+
+  .step-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 8px;
+    background: white;
+    border: 2px solid #d1d5da;
+  }
+
+  .pathway-step.completed .step-icon {
+    background: #28a745;
+    border-color: #28a745;
+    color: white;
+  }
+
+  .pathway-step.current .step-icon {
+    background: #0366d6;
+    border-color: #0366d6;
+  }
+
+  .current-indicator {
+    width: 12px;
+    height: 12px;
+    background: white;
+    border-radius: 50%;
+  }
+
+  .pending-indicator {
+    width: 12px;
+    height: 12px;
+    background: #d1d5da;
+    border-radius: 50%;
+  }
+
+  .step-connector {
+    flex: 1;
+    height: 2px;
+    background: #d1d5da;
+    margin: 0 10px;
+    align-self: center;
+    transform: translateY(-20px);
+  }
+
+  .step-connector.completed {
+    background: #28a745;
+  }
+
+  .progress-indicator {
+    margin-bottom: 30px;
+  }
+
+  .progress-bar {
+    height: 8px;
+    background: #e1e4e8;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: #0366d6;
+    transition: width 0.3s ease;
+  }
+
+  .progress-indicator h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #586069;
+  }
+
+  .current-step-content {
+    padding: 20px;
+    background: #f6f8fa;
+    border-radius: 8px;
+  }
+
+  .pathway-complete {
+    padding: 30px;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .pathway-complete h3 {
+    margin: 0 0 10px 0;
+    color: #155724;
+  }
+
+  .pathway-complete p {
+    margin: 0;
+    color: #155724;
+  }
+
+  /* Emergency Room Pathway Styles */
+  .er-pathway-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .er-pathway-header h2 {
+    margin: 0 0 10px 0;
+    font-size: 24px;
+    font-weight: 600;
+  }
+
+  .pathway-subtitle {
+    margin: 0 0 20px 0;
+    color: #586069;
+  }
+
+  .progress-bar-container {
+    margin-bottom: 30px;
+  }
+
+  .progress-text {
+    display: block;
+    margin-top: 8px;
+    font-size: 14px;
+    color: #586069;
+  }
+
+  .er-pathway-summary {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f6f8fa;
+    border-radius: 8px;
+  }
+
+  .summary-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .summary-icon {
+    color: #586069;
+  }
+
+  .summary-label {
+    font-weight: 500;
+    color: #24292e;
+  }
+
+  .summary-value {
+    font-weight: 600;
+    color: #0366d6;
+  }
+
+  .er-pathway-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+    border-bottom: 2px solid #e1e4e8;
+  }
+
+  .tab-button {
+    padding: 10px 20px;
+    background: none;
+    border: none;
+    font-size: 14px;
+    font-weight: 500;
+    color: #586069;
+    cursor: pointer;
+    position: relative;
+    transition: color 0.2s;
+  }
+
+  .tab-button:hover {
+    color: #24292e;
+  }
+
+  .tab-button.active {
+    color: #0366d6;
+  }
+
+  .tab-button.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: #0366d6;
+  }
+
+  .tab-content {
+    display: none;
+  }
+
+  .tab-content.active {
+    display: block;
+  }
+
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .section-header h4 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: #24292e;
+  }
+
+  .btn {
+    padding: 8px 16px;
+    border: 1px solid #d1d5da;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+    display: inline-block;
+  }
+
+  .btn-primary {
+    background: #0366d6;
+    border-color: #0366d6;
+    color: white;
+  }
+
+  .btn-primary:hover {
+    background: #0256c7;
+    border-color: #0256c7;
+  }
+
+  .btn-sm {
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .orders-list,
+  .procedures-list,
+  .endpoints-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+  }
+
+  .order-item,
+  .procedure-item,
+  .endpoint-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 15px;
+    background: #f6f8fa;
+    border-radius: 8px;
+    border: 1px solid #e1e4e8;
+  }
+
+  .order-icon,
+  .procedure-icon,
+  .endpoint-icon {
+    font-size: 24px;
+  }
+
+  .order-info,
+  .procedure-info,
+  .endpoint-info {
+    flex: 1;
+  }
+
+  .order-name,
+  .procedure-name,
+  .endpoint-name {
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .order-meta,
+  .procedure-meta,
+  .endpoint-meta {
+    font-size: 12px;
+    color: #586069;
+  }
+
+  .order-type {
+    display: inline-block;
+    padding: 2px 6px;
+    background: white;
+    border-radius: 3px;
+    margin-right: 10px;
+  }
+
+  .order-status-tracker {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .status-step {
+    padding: 4px 8px;
+    font-size: 11px;
+    background: white;
+    border-radius: 3px;
+    color: #586069;
+  }
+
+  .status-step.completed {
+    background: #28a745;
+    color: white;
+  }
+
+  .status-connector {
+    width: 20px;
+    height: 2px;
+    background: #d1d5da;
+  }
+
+  .status-connector.completed {
+    background: #28a745;
+  }
+
+  .status-badge {
+    padding: 4px 8px;
+    font-size: 12px;
+    border-radius: 4px;
+  }
+
+  .status-badge.completed,
+  .status-badge.achieved {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+  }
+
+  .empty-state {
+    padding: 40px;
+    text-align: center;
+    color: #586069;
+    background: #f6f8fa;
+    border-radius: 8px;
+  }
+</style>
+
+<script>
+  // Tab switching functionality
+  document.addEventListener('DOMContentLoaded', () => {
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+    
+    tabButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const tabId = button.dataset.tab;
+        
+        // Remove active class from all buttons and contents
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        tabContents.forEach(content => content.classList.remove('active'));
+        
+        // Add active class to clicked button and corresponding content
+        button.classList.add('active');
+        document.getElementById(tabId).classList.add('active');
+      });
+    });
+  });
+
+  // Helper functions for actions
+  function advanceOrderStatus(patientId, pathwayId, orderId) {
+    fetch(`/patients/${patientId}/care_pathways/${pathwayId}/update_order_status/${orderId}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    }).then(() => {
+      Turbo.visit(window.location.href, { action: "replace" });
+    });
+  }
+
+  function completeProcedure(patientId, pathwayId, procedureId) {
+    fetch(`/patients/${patientId}/care_pathways/${pathwayId}/complete_procedure/${procedureId}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    }).then(() => {
+      Turbo.visit(window.location.href, { action: "replace" });
+    });
+  }
+
+  function achieveEndpoint(patientId, pathwayId, endpointId) {
+    fetch(`/patients/${patientId}/care_pathways/${pathwayId}/achieve_endpoint/${endpointId}`, {
+      method: 'POST',
+      headers: {
+        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
+        'Accept': 'application/json',
+        'Content-Type': 'application/json'
+      }
+    }).then(() => {
+      Turbo.visit(window.location.href, { action: "replace" });
+    });
+  }
+
+  // Placeholder functions for modals (these would need proper implementation)
+  function showAddOrderModal(patientId, pathwayId) {
+    console.log('Add order modal would open here');
+  }
+
+  function showAddProcedureModal(patientId, pathwayId) {
+    console.log('Add procedure modal would open here');
+  }
+
+  function showAddEndpointModal(patientId, pathwayId) {
+    console.log('Add endpoint modal would open here');
+  }
+</script>

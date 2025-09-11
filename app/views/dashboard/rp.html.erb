@@ -49,9 +49,8 @@
               </td>
               <td>
                 <div class="care-pathway-bar">
-                  <%= link_to patient_care_pathways_path(patient), 
-                              class: "btn-action",
-                              data: { turbo_frame: "care-pathway-modal-container" } do %>
+                  <%= link_to patient_care_pathways_path(patient, referrer: 'rp'), 
+                              class: "btn-action" do %>
                     <%= patient.active_care_pathway&.progress_percentage || 0 %>%
                   <% end %>
                 </div>

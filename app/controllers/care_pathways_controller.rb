@@ -3,6 +3,9 @@ class CarePathwaysController < ApplicationController
   before_action :set_care_pathway, only: [:show, :update]
   
   def index
+    # Store the referrer in the session for back navigation
+    session[:care_pathway_referrer] = params[:referrer] if params[:referrer].present?
+    
     # Determine the expected pathway type based on patient location
     expected_pathway_type = determine_pathway_type(@patient)
     
@@ -26,7 +29,7 @@ class CarePathwaysController < ApplicationController
         end
         
         respond_to do |format|
-          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, referrer: params[:referrer]) }
           format.json { render json: @care_pathway, status: :created }
         end
       else
@@ -37,20 +40,23 @@ class CarePathwaysController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, referrer: params[:referrer]) }
         format.json { render json: { id: @care_pathway.id, pathway_type: @care_pathway.pathway_type } }
       end
     end
   end
   
   def show
+    # Store the referrer in the session if provided
+    session[:care_pathway_referrer] = params[:referrer] if params[:referrer].present?
+    
     @steps = @care_pathway.care_pathway_steps.ordered if @care_pathway.pathway_type_triage?
     @orders = @care_pathway.care_pathway_orders if @care_pathway.pathway_type_emergency_room?
     @procedures = @care_pathway.care_pathway_procedures if @care_pathway.pathway_type_emergency_room?
     @clinical_endpoints = @care_pathway.care_pathway_clinical_endpoints if @care_pathway.pathway_type_emergency_room?
     
     respond_to do |format|
-      format.html { render layout: false }
+      format.html { render layout: 'care_pathway' }
       format.json { render json: care_pathway_json }
     end
   end

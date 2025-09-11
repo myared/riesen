@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Care Pathway - <%= @patient.full_name %></title>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="turbo-refresh-method" content="morph">
+    <meta name="turbo-refresh-scroll" content="preserve">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true %>
+    
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        background: #f5f5f5;
+      }
+      .care-pathway-page {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="care-pathway-page" data-turbo-permanent>
+      <%= yield %>
+    </div>
+    
+    <script>
+      // Auto-refresh every 5 seconds
+      if (typeof window.carePathwayRefreshInterval !== 'undefined') {
+        clearInterval(window.carePathwayRefreshInterval);
+      }
+      
+      window.carePathwayRefreshInterval = setInterval(() => {
+        Turbo.visit(window.location.href, { 
+          action: "replace",
+          frame: "care-pathway-content"
+        });
+      }, 5000);
+      
+      // Clear interval when navigating away
+      document.addEventListener('turbo:before-visit', () => {
+        if (window.carePathwayRefreshInterval) {
+          clearInterval(window.carePathwayRefreshInterval);
+          window.carePathwayRefreshInterval = undefined;
+        }
+      });
+    </script>
+  </body>
+</html>
