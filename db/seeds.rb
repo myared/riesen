@@ -2,8 +2,13 @@
 # development, test). The code here should be idempotent so that it can be executed at any point in every environment.
 # The data can then be loaded with the bin/rails db:seed command (or created alongside the database with db:setup).
 
-# Clear existing data
+# Clear existing data (order matters due to foreign keys)
+NursingTask.destroy_all
 Patient.destroy_all
+Room.destroy_all
+
+# Load rooms first
+load Rails.root.join('db/seeds/rooms.rb')
 
 # Create sample patients
 patients_data = [
