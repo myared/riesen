@@ -35,9 +35,11 @@ class PatientsController < ApplicationController
     if @patient.rp_eligible?
       available_room = Room.rp_rooms.status_available.first
       room_type = 'RP'
+      department_name = 'Results Pending'
     else
       available_room = Room.ed_rooms.status_available.first
       room_type = 'ED'
+      department_name = 'Emergency Department'
     end
     
     if available_room
@@ -49,14 +51,17 @@ class PatientsController < ApplicationController
       task&.update(status: 'completed', completed_at: Time.current)
       
       respond_to do |format|
-        format.html { redirect_back(fallback_location: root_path, notice: "Room #{available_room.number} assigned") }
-        format.turbo_stream { redirect_back(fallback_location: root_path, notice: "Room #{available_room.number} assigned") }
+        format.html { redirect_back(fallback_location: root_path, notice: "✓ Patient assigned to #{room_type} Room #{available_room.number}") }
+        format.turbo_stream { redirect_back(fallback_location: root_path, notice: "✓ Patient assigned to #{room_type} Room #{available_room.number}") }
         format.json { render json: { success: true, room: available_room.number } }
       end
     else
       respond_to do |format|
-        format.html { redirect_back(fallback_location: root_path, alert: "No #{room_type} rooms available") }
-        format.json { render json: { success: false, error: "No rooms available" }, status: :unprocessable_entity }
+        format.html { 
+          redirect_back(fallback_location: root_path, 
+                       alert: "⚠️ Cannot assign room: The #{department_name} is full. Please wait for a room to become available.")
+        }
+        format.json { render json: { success: false, error: "No #{room_type} rooms available" }, status: :unprocessable_entity }
       end
     end
   end

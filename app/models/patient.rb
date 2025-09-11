@@ -84,4 +84,23 @@ class Patient < ApplicationRecord
   def critical?
     esi_level.in?([1, 2])
   end
+  
+  def location_needs_room_assignment?
+    location_status == 'needs_room_assignment'
+  end
+  
+  def wait_time_minutes
+    return 0 unless arrival_time
+    ((Time.current - arrival_time) / 60).round
+  end
+  
+  def room_assignment_started_at
+    return nil unless location_needs_room_assignment?
+    triage_completed_at || updated_at
+  end
+  
+  def time_waiting_for_room
+    return 0 unless room_assignment_started_at
+    ((Time.current - room_assignment_started_at) / 60).round
+  end
 end

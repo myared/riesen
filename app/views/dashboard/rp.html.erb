@@ -52,13 +52,27 @@
                 </span>
               </td>
               <td>
-                <div class="wait-progress">
-                  <div class="progress-bar">
-                    <div class="progress-bar-fill" style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
+                <% if patient.location_needs_room_assignment? %>
+                  <div class="wait-progress" 
+                       data-controller="room-assignment-timer"
+                       data-room-assignment-timer-start-time-value="<%= patient.room_assignment_started_at&.iso8601 || Time.current.iso8601 %>"
+                       data-room-assignment-timer-max-minutes-value="20">
+                    <div class="progress-bar">
+                      <div class="progress-bar-fill" 
+                           data-room-assignment-timer-target="progress"></div>
+                    </div>
+                    <span class="room-timer" data-room-assignment-timer-target="timer">20:00</span>
+                    <span class="timer-label">Room Assignment Timer</span>
                   </div>
-                  <span class="wait-time"><%= patient.wait_time_minutes %>m</span>
-                  <span class="wait-target"><%= patient.esi_target_label %></span>
-                </div>
+                <% else %>
+                  <div class="wait-progress">
+                    <div class="progress-bar">
+                      <div class="progress-bar-fill" style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
+                    </div>
+                    <span class="wait-time"><%= patient.wait_time_minutes %>m</span>
+                    <span class="wait-target"><%= patient.esi_target_label %></span>
+                  </div>
+                <% end %>
               </td>
               <td><%= patient.chief_complaint %></td>
               <td><%= patient.provider || 'Not Assigned' %></td>
