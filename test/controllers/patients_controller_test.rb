@@ -65,7 +65,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     end
     
     assert_response :redirect
-    assert_match "Room #{room_number} assigned", flash[:notice]
+    assert_match "Patient assigned to ED Room #{room_number}", flash[:notice]
     
     room.reload
     @patient.reload
@@ -86,7 +86,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     end
     
     assert_response :redirect
-    assert_match "Room #{room_number} assigned", flash[:notice]
+    assert_match "Patient assigned to RP Room #{room_number}", flash[:notice]
     
     room.reload
     @patient.reload
@@ -106,7 +106,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     end
     
     assert_response :redirect
-    assert_match "No ED rooms available", flash[:alert]
+    assert_match "The Emergency Department is full", flash[:alert]
     
     @patient.reload
     assert @patient.location_needs_room_assignment?
@@ -122,7 +122,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     end
     
     assert_response :redirect
-    assert_match "No RP rooms available", flash[:alert]
+    assert_match "The Results Pending is full", flash[:alert]
     
     @patient.reload
     assert @patient.location_needs_room_assignment?
@@ -171,7 +171,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     assert_response :unprocessable_entity
     response_data = JSON.parse(response.body)
     assert_not response_data["success"]
-    assert_equal "No rooms available", response_data["error"]
+    assert_equal "No ED rooms available", response_data["error"]
   end
 
   test "assign_room handles referrer redirect" do
@@ -211,7 +211,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     post assign_room_patient_url(@patient)
     
     assert_response :redirect
-    assert_match "No ED rooms available", flash[:alert]
+    assert_match "The Emergency Department is full", flash[:alert]
     
     rp_room.reload
     @patient.reload

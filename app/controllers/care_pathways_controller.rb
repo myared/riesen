@@ -112,7 +112,11 @@ class CarePathwaysController < ApplicationController
         )
         
         # Update patient location status and create nursing task
-        @patient.update(location_status: :needs_room_assignment, triage_completed_at: Time.current)
+        @patient.update(
+          location_status: :needs_room_assignment, 
+          triage_completed_at: Time.current,
+          room_assignment_needed_at: Time.current
+        )
         
         # Create nursing task for room assignment
         NursingTask.create_room_assignment_task(@patient)

@@ -11,8 +11,7 @@ class PatientTest < ActiveSupport::TestCase
       pain_score: 5,
       location: "Waiting Room",
       chief_complaint: "Headache",
-      arrival_time: Time.current,
-      wait_time_minutes: 10
+      arrival_time: Time.current
     )
   end
 
@@ -88,13 +87,13 @@ class PatientTest < ActiveSupport::TestCase
 
   test "wait_progress_percentage calculates correctly" do
     @patient.esi_level = 3
-    @patient.wait_time_minutes = 15
+    @patient.arrival_time = 15.minutes.ago
     assert_equal 50, @patient.wait_progress_percentage
 
-    @patient.wait_time_minutes = 30
+    @patient.arrival_time = 30.minutes.ago
     assert_equal 100, @patient.wait_progress_percentage
 
-    @patient.wait_time_minutes = 45
+    @patient.arrival_time = 45.minutes.ago
     assert_equal 100, @patient.wait_progress_percentage
   end
 
@@ -254,15 +253,15 @@ class PatientTest < ActiveSupport::TestCase
 
   test "overdue? returns correct status" do
     # Patient not overdue
-    patient = Patient.new(esi_level: 3, wait_time_minutes: 20)
+    patient = Patient.new(esi_level: 3, arrival_time: 20.minutes.ago)
     assert_not patient.overdue?
 
     # Patient overdue
-    patient.wait_time_minutes = 45
+    patient.arrival_time = 45.minutes.ago
     assert patient.overdue?
 
     # Critical patient should be overdue immediately
-    patient = Patient.new(esi_level: 1, wait_time_minutes: 1)
+    patient = Patient.new(esi_level: 1, arrival_time: 1.minute.ago)
     assert patient.overdue?
   end
 
@@ -398,15 +397,15 @@ class PatientTest < ActiveSupport::TestCase
 
   test "wait_progress_percentage handles edge cases" do
     # ESI 1 (immediate) should show 100% immediately
-    patient = Patient.new(esi_level: 1, wait_time_minutes: 0)
+    patient = Patient.new(esi_level: 1, arrival_time: Time.current)
     assert_equal 100, patient.wait_progress_percentage
 
     # Very long wait should cap at 100%
-    patient = Patient.new(esi_level: 3, wait_time_minutes: 1000)
+    patient = Patient.new(esi_level: 3, arrival_time: 1000.minutes.ago)
     assert_equal 100, patient.wait_progress_percentage
 
     # Zero wait time
-    patient = Patient.new(esi_level: 3, wait_time_minutes: 0)
+    patient = Patient.new(esi_level: 3, arrival_time: Time.current)
     assert_equal 0, patient.wait_progress_percentage
   end
 
@@ -430,5 +429,170 @@ class PatientTest < ActiveSupport::TestCase
     pathway.update!(status: :completed)
     @patient.reload # Reload to ensure association is fresh
     assert_nil @patient.active_care_pathway
+  end
+
+  test "room_assignment_needed_at attribute works correctly" do
+    @patient.save!
+
+    # Initially should be nil
+    assert_nil @patient.room_assignment_needed_at
+
+    # Should be able to set the timestamp
+    timestamp = 30.minutes.ago
+    @patient.update!(room_assignment_needed_at: timestamp)
+    @patient.reload
+    assert_equal timestamp.to_i, @patient.room_assignment_needed_at.to_i
+
+    # Should be able to clear the timestamp
+    @patient.update!(room_assignment_needed_at: nil)
+    @patient.reload
+    assert_nil @patient.room_assignment_needed_at
+  end
+
+  test "room_assignment_needed_at can be set to current time" do
+    @patient.save!
+
+    freeze_time do
+      @patient.update!(room_assignment_needed_at: Time.current)
+      @patient.reload
+      assert_equal Time.current.to_f, @patient.room_assignment_needed_at.to_f
+    end
+  end
+
+  test "room_assignment_needed_at persists correctly" do
+    @patient.save!
+
+    # Set a specific timestamp
+    specific_time = Time.parse("2023-10-15 14:30:00 UTC")
+    @patient.update!(room_assignment_needed_at: specific_time)
+
+    # Reload from database
+    @patient.reload
+    assert_equal specific_time, @patient.room_assignment_needed_at
+
+    # Verify it works with other patient operations
+    @patient.update!(esi_level: 2)
+    @patient.reload
+    assert_equal specific_time, @patient.room_assignment_needed_at
+    assert_equal 2, @patient.esi_level
+  end
+
+  test "room_assignment_needed_at works with location_needs_room_assignment status" do
+    @patient.save!
+
+    # Set to needs room assignment and timestamp
+    freeze_time do
+      @patient.update!(
+        location_status: :needs_room_assignment,
+        room_assignment_needed_at: Time.current,
+        triage_completed_at: Time.current
+      )
+
+      @patient.reload
+      assert @patient.location_needs_room_assignment?
+      assert_equal Time.current.to_f, @patient.room_assignment_needed_at.to_f
+      assert_equal Time.current.to_f, @patient.triage_completed_at.to_f
+    end
+  end
+
+  test "room_assignment_needed_at can be used to calculate wait time for room assignment" do
+    @patient.save!
+
+    # Set timestamp to 45 minutes ago
+    @patient.update!(
+      location_status: :needs_room_assignment,
+      room_assignment_needed_at: 45.minutes.ago
+    )
+
+    # Calculate minutes waiting (this matches the MonitorWaitTimesJob logic)
+    minutes_waiting = ((Time.current - @patient.room_assignment_needed_at) / 60).round
+    assert_equal 45, minutes_waiting
+  end
+
+  test "room_assignment_needed_at integrates with triage workflow" do
+    @patient.save!
+
+    # Simulate triage completion workflow
+    freeze_time do
+      triage_completion_time = Time.current
+
+      @patient.update!(
+        location_status: :needs_room_assignment,
+        triage_completed_at: triage_completion_time,
+        room_assignment_needed_at: triage_completion_time
+      )
+
+      @patient.reload
+
+      # Verify workflow state
+      assert @patient.location_needs_room_assignment?
+      assert_equal triage_completion_time, @patient.triage_completed_at
+      assert_equal triage_completion_time, @patient.room_assignment_needed_at
+      assert_equal @patient.triage_completed_at, @patient.room_assignment_needed_at
+
+      # Should be able to transition to assigned room
+      @patient.update!(
+        location_status: :ed_room,
+        room_number: "ED01"
+      )
+
+      @patient.reload
+      assert @patient.location_ed_room?
+      assert_equal "ED01", @patient.room_number
+      # Timestamps should persist even after room assignment
+      assert_equal triage_completion_time, @patient.room_assignment_needed_at
+      assert_equal triage_completion_time, @patient.triage_completed_at
+    end
+  end
+
+  test "room_assignment_needed_at works with different time zones" do
+    @patient.save!
+
+    # Test with specific timezone
+    eastern_time = Time.parse("2023-10-15 09:30:00 EST")
+    @patient.update!(room_assignment_needed_at: eastern_time)
+
+    @patient.reload
+    assert_equal eastern_time.utc, @patient.room_assignment_needed_at.utc
+  end
+
+  test "room_assignment_needed_at can be queried for monitoring" do
+    @patient.save!
+
+    # Create patients with different room assignment timing
+    patient1 = Patient.create!(
+      first_name: "Room1", last_name: "Patient", age: 30, 
+      mrn: "ROOM1_#{SecureRandom.hex(4)}", esi_level: 3,
+      location_status: :needs_room_assignment,
+      room_assignment_needed_at: 30.minutes.ago
+    )
+
+    patient2 = Patient.create!(
+      first_name: "Room2", last_name: "Patient", age: 25, 
+      mrn: "ROOM2_#{SecureRandom.hex(4)}", esi_level: 2,
+      location_status: :needs_room_assignment,
+      room_assignment_needed_at: 10.minutes.ago
+    )
+
+    patient3 = Patient.create!(
+      first_name: "Room3", last_name: "Patient", age: 35, 
+      mrn: "ROOM3_#{SecureRandom.hex(4)}", esi_level: 4,
+      location_status: :ed_room, # Already assigned
+      room_assignment_needed_at: 45.minutes.ago
+    )
+
+    # Query for patients needing room assignment
+    patients_needing_rooms = Patient.location_needs_room_assignment
+    assert_includes patients_needing_rooms, patient1
+    assert_includes patients_needing_rooms, patient2
+    assert_not_includes patients_needing_rooms, patient3
+
+    # Query for patients waiting longer than 20 minutes
+    patients_waiting_long = Patient.where(
+      "room_assignment_needed_at < ?", 20.minutes.ago
+    ).location_needs_room_assignment
+
+    assert_includes patients_waiting_long, patient1
+    assert_not_includes patients_waiting_long, patient2
   end
 end
