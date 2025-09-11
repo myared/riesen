@@ -3,6 +3,8 @@ class DashboardController < ApplicationController
   
   def triage
     @patients = Patient.includes(:vitals, :events).in_triage
+    wait_times = @patients.map(&:wait_time_minutes).compact
+    @avg_wait_time = wait_times.any? ? (wait_times.sum / wait_times.size.to_f).round : 0
   end
 
   def rp

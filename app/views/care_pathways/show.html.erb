@@ -66,28 +66,47 @@
     
   <% elsif @care_pathway.pathway_type_emergency_room? %>
     <!-- Emergency Room Pathway -->
-    <div class="er-pathway-header">
-      <h3>Care Pathway</h3>
-      <p>Active Clinical Management</p>
-      <div class="progress-indicator">
-        <span class="progress-percentage"><%= @care_pathway.progress_percentage %>%</span>
-        <span class="progress-label">Complete</span>
+    <div class="er-pathway-container">
+      <div class="er-pathway-header">
+        <h3>Emergency Room Care Pathway</h3>
+        <p class="pathway-subtitle">Active Clinical Management</p>
+        <div class="progress-bar-container">
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: <%= @care_pathway.progress_percentage %>%"></div>
+          </div>
+          <span class="progress-text"><%= @care_pathway.progress_percentage %>% Complete</span>
+        </div>
       </div>
-    </div>
     
     <div class="er-pathway-summary">
       <div class="summary-item">
-        <span class="summary-icon">📋</span>
+        <span class="summary-icon" aria-label="Orders">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 11H3m6 0v6m0-6l7-7m-7 7l7 7M21 11a10 10 0 11-20 0 10 10 0 0120 0z"/>
+            <rect x="8" y="3" width="8" height="11" rx="1"/>
+            <path d="M8 7h8M8 10h8"/>
+          </svg>
+        </span>
         <span class="summary-label">Orders:</span>
         <span class="summary-value"><%= @orders.completed.count %>/<%= @orders.count %></span>
       </div>
       <div class="summary-item">
-        <span class="summary-icon">🔧</span>
+        <span class="summary-icon" aria-label="Procedures">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+          </svg>
+        </span>
         <span class="summary-label">Procedures:</span>
         <span class="summary-value"><%= @procedures.completed.count %>/<%= @procedures.count %></span>
       </div>
       <div class="summary-item">
-        <span class="summary-icon">🎯</span>
+        <span class="summary-icon" aria-label="Clinical Goals">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/>
+            <circle cx="12" cy="12" r="6"/>
+            <circle cx="12" cy="12" r="2"/>
+          </svg>
+        </span>
         <span class="summary-label">Goals:</span>
         <span class="summary-value"><%= @clinical_endpoints.achieved.count %>/<%= @clinical_endpoints.count %></span>
       </div>
@@ -226,6 +245,10 @@
       </div>
     </div>
     
+    </div>
+    <%= render 'add_order_modal' %>
+    <%= render 'add_procedure_modal' %>
+    <%= render 'add_endpoint_modal' %>
   <% end %>
     </div>
   </div>

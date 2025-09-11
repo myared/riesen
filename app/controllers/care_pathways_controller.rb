@@ -3,22 +3,28 @@ class CarePathwaysController < ApplicationController
   before_action :set_care_pathway, only: [:show, :update]
   
   def index
-    # Find the most recent care pathway (including completed ones)
-    @care_pathway = @patient.care_pathways.order(created_at: :desc).first
+    # Determine the expected pathway type based on patient location
+    expected_pathway_type = determine_pathway_type(@patient)
     
-    if @care_pathway
-      respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
-        format.json { render json: { id: @care_pathway.id, pathway_type: @care_pathway.pathway_type } }
-      end
-    else
-      # Create a new triage pathway if none exists
-      @care_pathway = @patient.care_pathways.build(pathway_type: 'triage')
+    # Find the most recent care pathway of the expected type
+    @care_pathway = @patient.care_pathways
+                            .where(pathway_type: expected_pathway_type)
+                            .order(created_at: :desc)
+                            .first
+    
+    # If no pathway of the expected type exists, create one
+    if @care_pathway.nil?
+      @care_pathway = @patient.care_pathways.build(pathway_type: expected_pathway_type)
       @care_pathway.started_at = Time.current
       @care_pathway.started_by = current_user_name
       
       if @care_pathway.save
-        create_triage_steps
+        if @care_pathway.pathway_type_triage?
+          create_triage_steps
+        elsif @care_pathway.pathway_type_emergency_room?
+          create_emergency_room_components
+        end
+        
         respond_to do |format|
           format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
           format.json { render json: @care_pathway, status: :created }
@@ -28,6 +34,11 @@ class CarePathwaysController < ApplicationController
           format.html { redirect_to root_path, alert: 'Failed to create care pathway' }
           format.json { render json: { error: 'Failed to create care pathway' }, status: :unprocessable_entity }
         end
+      end
+    else
+      respond_to do |format|
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.json { render json: { id: @care_pathway.id, pathway_type: @care_pathway.pathway_type } }
       end
     end
   end
@@ -293,6 +304,53 @@ class CarePathwaysController < ApplicationController
     
     steps.each do |step_data|
       @care_pathway.care_pathway_steps.create!(step_data)
+    end
+  end
+  
+  def determine_pathway_type(patient)
+    # Patients in triage or waiting room get triage pathway
+    # Patients in RP, ED Room, Treatment, or needing room assignment get emergency room pathway
+    case patient.location_status
+    when 'waiting_room', 'triage'
+      'triage'
+    when 'needs_room_assignment', 'results_pending', 'ed_room', 'treatment'
+      'emergency_room'
+    else
+      'triage' # Default to triage if status is unknown
+    end
+  end
+  
+  def create_emergency_room_components
+    # Create initial orders for emergency room pathway
+    orders = [
+      { name: 'CBC', order_type: 'lab', status: 'ordered' },
+      { name: 'Basic Metabolic Panel', order_type: 'lab', status: 'ordered' },
+      { name: 'Chest X-Ray', order_type: 'imaging', status: 'ordered' }
+    ]
+    
+    orders.each do |order_data|
+      @care_pathway.care_pathway_orders.create!(order_data)
+    end
+    
+    # Create initial procedures
+    procedures = [
+      { name: 'IV Access', completed: false },
+      { name: 'Pain Assessment', completed: false }
+    ]
+    
+    procedures.each do |procedure_data|
+      @care_pathway.care_pathway_procedures.create!(procedure_data)
+    end
+    
+    # Create clinical endpoints
+    endpoints = [
+      { name: 'Stable for Discharge', description: 'Patient meets discharge criteria' },
+      { name: 'Admit to Floor', description: 'Patient requires inpatient admission' },
+      { name: 'Transfer to ICU', description: 'Patient requires intensive care' }
+    ]
+    
+    endpoints.each do |endpoint_data|
+      @care_pathway.care_pathway_clinical_endpoints.create!(endpoint_data)
     end
   end
   

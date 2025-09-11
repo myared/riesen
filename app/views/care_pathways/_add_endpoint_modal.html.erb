@@ -1,0 +1,21 @@
+<div id="add-endpoint-modal" class="modal-overlay" style="display: none;">
+  <div class="modal-content">
+    <button type="button" class="modal-close" id="close-add-endpoint">&times;</button>
+    <h3>Add New Clinical Endpoint</h3>
+    <%= form_with(url: '#', method: :post, id: 'add-endpoint-form') do |form| %>
+      <%= form.label :name, "Endpoint Name" %>
+      <%= form.select :name, 
+                      options_for_select(['Pain Controlled', 'Ready for Discharge', 'Admit to Inpatient']), 
+                      {}, 
+                      { id: 'endpoint-select', class: 'form-control' } %>
+      
+      <%= form.label :description, "Description (optional)" %>
+      <%= form.text_area :description, rows: 3 %>
+      
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="cancel-add-endpoint">Cancel</button>
+        <%= form.submit "Add Endpoint", class: "btn btn-primary" %>
+      </div>
+    <% end %>
+  </div>
+</div>

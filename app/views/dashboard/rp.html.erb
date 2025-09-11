@@ -30,6 +30,7 @@
         <thead>
           <tr>
             <th>Patient</th>
+            <th>Care Pathway</th>
             <th>ESI</th>
             <th>Wait / Progress</th>
             <th>Chief Complaint</th>
@@ -45,6 +46,15 @@
                   <div><strong><%= patient.full_name %></strong></div>
                   <div style="font-size: 12px; color: #586069;"><%= patient.age %>Y • MRN: <%= patient.mrn %></div>
                 <% end %>
+              </td>
+              <td>
+                <div class="care-pathway-bar">
+                  <%= link_to patient_care_pathways_path(patient), 
+                              class: "btn-action",
+                              data: { turbo_frame: "care-pathway-modal-container" } do %>
+                    <%= patient.active_care_pathway&.progress_percentage || 0 %>%
+                  <% end %>
+                </div>
               </td>
               <td>
                 <span class="esi-badge esi-<%= patient.esi_level %>">

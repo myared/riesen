@@ -34,7 +34,6 @@ class Patient < ApplicationRecord
   has_many :vitals, dependent: :destroy
   has_many :events, dependent: :destroy
   has_many :care_pathways, dependent: :destroy
-  has_one :active_care_pathway, -> { where(status: [:not_started, :in_progress]) }, class_name: 'CarePathway'
   
   validates :first_name, presence: true
   validates :last_name, presence: true
@@ -52,6 +51,24 @@ class Patient < ApplicationRecord
   
   def full_name
     "#{first_name} #{last_name}"
+  end
+  
+  def active_care_pathway
+    # Determine the expected pathway type based on location
+    expected_type = case location_status
+                   when 'waiting_room', 'triage'
+                     'triage'
+                   when 'needs_room_assignment', 'results_pending', 'ed_room', 'treatment'
+                     'emergency_room'
+                   else
+                     'triage'
+                   end
+    
+    # Return the most recent active pathway of the expected type
+    care_pathways.where(
+      pathway_type: expected_type,
+      status: [:not_started, :in_progress]
+    ).order(created_at: :desc).first
   end
   
   def latest_vital

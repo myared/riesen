@@ -1,13 +1,13 @@
 class CarePathwayOrder < ApplicationRecord
   belongs_to :care_pathway
-  
+
   # Order types
   enum :order_type, {
     lab: 0,
     medication: 1,
     imaging: 2
   }, prefix: true
-  
+
   # Order status progression
   enum :status, {
     ordered: 0,
@@ -15,7 +15,7 @@ class CarePathwayOrder < ApplicationRecord
     in_lab: 2,
     resulted: 3
   }, prefix: false
-  
+
   # Common lab orders
   LAB_ORDERS = [
     'CBC with Differential',
@@ -37,7 +37,7 @@ class CarePathwayOrder < ApplicationRecord
     'Rapid Strep',
     'Influenza A/B'
   ].freeze
-  
+
   # Common medications
   MEDICATIONS = [
     'Acetaminophen 650mg PO',
@@ -55,7 +55,7 @@ class CarePathwayOrder < ApplicationRecord
     'Heparin 5000 units SC',
     'Lorazepam 1mg IV'
   ].freeze
-  
+
   # Common imaging orders
   IMAGING_ORDERS = [
     'Chest X-Ray',
@@ -69,21 +69,21 @@ class CarePathwayOrder < ApplicationRecord
     'Echocardiogram',
     'EKG'
   ].freeze
-  
+
   validates :name, presence: true
   validates :order_type, presence: true
   validates :status, presence: true
-  
+
   scope :labs, -> { order_type_lab }
   scope :medications, -> { order_type_medication }
   scope :imaging, -> { order_type_imaging }
   scope :pending, -> { where.not(status: :resulted) }
   scope :completed, -> { where(status: :resulted) }
-  
+
   # Progress to next status
   def advance_status!
     return false if resulted?
-    
+
     next_status = case status.to_sym
                   when :ordered then :collected
                   when :collected then :in_lab
@@ -91,19 +91,19 @@ class CarePathwayOrder < ApplicationRecord
                   else
                     return false
                   end
-    
+
     update!(
       status: next_status,
       status_updated_at: Time.current,
       status_updated_by: Current.user&.name
     )
   end
-  
+
   # Check if order is complete
   def complete?
     resulted?
   end
-  
+
   # Get status label
   def status_label
     case status.to_sym
@@ -113,7 +113,7 @@ class CarePathwayOrder < ApplicationRecord
     when :resulted then 'Resulted'
     end
   end
-  
+
   # Get order icon based on type
   def type_icon
     case order_type.to_sym
@@ -121,5 +121,13 @@ class CarePathwayOrder < ApplicationRecord
     when :medication then '💊'
     when :imaging then '📷'
     end
+  end
+
+  def status_class
+    "status-#{status}"
+  end
+
+  def status_value
+    self.class.statuses[status]
   end
 end
