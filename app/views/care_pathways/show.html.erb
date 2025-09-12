@@ -167,8 +167,13 @@
                       </div>
                       <div class="order-status-tracker">
                         <% %w[ordered collected in_lab resulted].each do |status| %>
-                          <div class="status-step <%= 'completed' if order.status_value >= order.class.statuses[status] %>">
+                          <div class="status-step <%= 'completed' if order.status_value >= order.class.statuses[status] %> <%= 'timer-' + order.timer_status if order.status == status %>">
                             <%= status.humanize %>
+                            <% if order.status == status && !order.resulted? %>
+                              <div class="timer-indicator timer-<%= order.timer_status %>">
+                                <span class="timer-value" data-start-time="<%= order.status_updated_at&.iso8601 %>"></span>
+                              </div>
+                            <% end %>
                           </div>
                           <% unless status == 'resulted' %>
                             <div class="status-connector <%= 'completed' if order.status_value > order.class.statuses[status] %>"></div>
@@ -840,7 +845,157 @@
     font-size: 16px;
     font-weight: 600;
   }
+  
+  /* Modal Styles */
+  .modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .modal-content {
+    background-color: white;
+    width: 90%;
+    max-width: 500px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e1e4e8;
+  }
+  
+  .modal-header h3 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #586069;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .modal-close:hover {
+    color: #24292e;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #24292e;
+  }
+  
+  .form-control {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #d1d5da;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+  
+  .form-control:focus {
+    outline: none;
+    border-color: #0366d6;
+    box-shadow: 0 0 0 3px rgba(3, 102, 214, 0.1);
+  }
+  
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid #e1e4e8;
+  }
+  
+  .btn-secondary {
+    background: #f6f8fa;
+    color: #24292e;
+    border-color: #d1d5da;
+  }
+  
+  .btn-secondary:hover {
+    background: #e1e4e8;
+    border-color: #c1c4cb;
+  }
+  
+  /* Timer Styles */
+  .timer-indicator {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    font-size: 10px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+  
+  .timer-green {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .timer-yellow {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .timer-red {
+    background: #f8d7da;
+    color: #721c24;
+    animation: pulse 1s infinite;
+  }
+  
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+  }
+  
+  .status-step {
+    position: relative;
+  }
+  
+  .status-step.timer-yellow {
+    border: 2px solid #ffc107;
+  }
+  
+  .status-step.timer-red {
+    border: 2px solid #dc3545;
+  }
 </style>
+
+<!-- Confetti library -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
 
 <script>
   // Tab switching functionality
@@ -848,71 +1003,155 @@
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
     
+    // Function to activate a tab
+    function activateTab(tabId) {
+      // Remove active class from all buttons and contents
+      tabButtons.forEach(btn => btn.classList.remove('active'));
+      tabContents.forEach(content => content.classList.remove('active'));
+      
+      // Find and activate the button and content for the specified tab
+      const targetButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+      const targetContent = document.getElementById(tabId);
+      
+      if (targetButton && targetContent) {
+        targetButton.classList.add('active');
+        targetContent.classList.add('active');
+      }
+    }
+    
+    // Check URL parameters for active tab
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('active_tab');
+    if (activeTab) {
+      activateTab(activeTab);
+    }
+    
+    // Add click handlers for tab buttons
     tabButtons.forEach(button => {
       button.addEventListener('click', () => {
         const tabId = button.dataset.tab;
+        activateTab(tabId);
         
-        // Remove active class from all buttons and contents
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        tabContents.forEach(content => content.classList.remove('active'));
-        
-        // Add active class to clicked button and corresponding content
-        button.classList.add('active');
-        document.getElementById(tabId).classList.add('active');
+        // Update URL without reloading page
+        const url = new URL(window.location);
+        url.searchParams.set('active_tab', tabId);
+        window.history.replaceState({}, '', url);
       });
     });
+
+    // Add confetti effect when triage is complete (only once)
+    const pathwayComplete = document.querySelector('.pathway-complete');
+    if (pathwayComplete && !window.confettiFired) {
+      window.confettiFired = true; // Prevent multiple firings
+      // Trigger confetti immediately when the complete message is shown
+      setTimeout(() => {
+        confetti({
+          particleCount: 100,
+          spread: 70,
+          origin: { y: 0.9 },
+          colors: ['#0366d6', '#28a745', '#ffd700', '#ff6347', '#00ced1']
+        });
+      }, 200); // Small delay to ensure page is fully rendered
+    }
   });
 
   // Helper functions for actions
   function advanceOrderStatus(patientId, pathwayId, orderId) {
-    fetch(`/patients/${patientId}/care_pathways/${pathwayId}/update_order_status/${orderId}`, {
-      method: 'POST',
-      headers: {
-        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    }).then(() => {
-      Turbo.visit(window.location.href, { action: "replace" });
-    });
+    // Create a form to submit with Turbo
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/patients/${patientId}/care_pathways/${pathwayId}/update_order_status/${orderId}`;
+    form.style.display = 'none';
+    
+    const csrfToken = document.querySelector('[name="csrf-token"]').content;
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'authenticity_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+    
+    document.body.appendChild(form);
+    form.requestSubmit();
   }
 
   function completeProcedure(patientId, pathwayId, procedureId) {
-    fetch(`/patients/${patientId}/care_pathways/${pathwayId}/complete_procedure/${procedureId}`, {
-      method: 'POST',
-      headers: {
-        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
-      }
-    }).then(() => {
-      Turbo.visit(window.location.href, { action: "replace" });
-    });
+    // Create a form to submit with Turbo
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/patients/${patientId}/care_pathways/${pathwayId}/complete_procedure/${procedureId}`;
+    form.style.display = 'none';
+    
+    const csrfToken = document.querySelector('[name="csrf-token"]').content;
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'authenticity_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+    
+    document.body.appendChild(form);
+    form.requestSubmit();
   }
 
   function achieveEndpoint(patientId, pathwayId, endpointId) {
-    fetch(`/patients/${patientId}/care_pathways/${pathwayId}/achieve_endpoint/${endpointId}`, {
-      method: 'POST',
-      headers: {
-        'X-CSRF-Token': document.querySelector('[name="csrf-token"]').content,
-        'Accept': 'application/json',
-        'Content-Type': 'application/json'
+    // Create a form to submit with Turbo
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/patients/${patientId}/care_pathways/${pathwayId}/achieve_endpoint/${endpointId}`;
+    form.style.display = 'none';
+    
+    const csrfToken = document.querySelector('[name="csrf-token"]').content;
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'authenticity_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+    
+    document.body.appendChild(form);
+    form.requestSubmit();
+  }
+
+  // Update timers
+  function updateTimers() {
+    document.querySelectorAll('.timer-value').forEach(timer => {
+      const startTime = timer.dataset.startTime;
+      if (startTime) {
+        const start = new Date(startTime);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - start) / 60000);
+        
+        timer.textContent = diffMinutes + 'm';
+        
+        // Update timer color class
+        const indicator = timer.parentElement;
+        indicator.classList.remove('timer-green', 'timer-yellow', 'timer-red');
+        
+        if (diffMinutes <= 20) {
+          indicator.classList.add('timer-green');
+        } else if (diffMinutes <= 40) {
+          indicator.classList.add('timer-yellow');
+        } else {
+          indicator.classList.add('timer-red');
+        }
       }
-    }).then(() => {
-      Turbo.visit(window.location.href, { action: "replace" });
     });
   }
-
-  // Placeholder functions for modals (these would need proper implementation)
-  function showAddOrderModal(patientId, pathwayId) {
-    console.log('Add order modal would open here');
-  }
-
-  function showAddProcedureModal(patientId, pathwayId) {
-    console.log('Add procedure modal would open here');
-  }
-
-  function showAddEndpointModal(patientId, pathwayId) {
-    console.log('Add endpoint modal would open here');
-  }
+  
+  // Update timers every 10 seconds with cleanup
+  let timerInterval = setInterval(updateTimers, 10000);
+  updateTimers(); // Initial call
+  
+  // Clean up interval on page unload
+  window.addEventListener('beforeunload', () => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+    }
+  });
+  
+  // Also clean up on Turbo navigation
+  document.addEventListener('turbo:before-cache', () => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      timerInterval = null;
+    }
+  });
 </script>

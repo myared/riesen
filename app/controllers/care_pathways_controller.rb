@@ -1,41 +1,41 @@
 class CarePathwaysController < ApplicationController
   before_action :set_patient
-  before_action :set_care_pathway, only: [:show, :update]
-  
+  before_action :set_care_pathway, only: [ :show, :update ]
+
   def index
     # Store the referrer in the session for back navigation
     session[:care_pathway_referrer] = params[:referrer] if params[:referrer].present?
-    
+
     # Determine the expected pathway type based on patient location
     expected_pathway_type = determine_pathway_type(@patient)
-    
+
     # Find the most recent care pathway of the expected type
     @care_pathway = @patient.care_pathways
                             .where(pathway_type: expected_pathway_type)
                             .order(created_at: :desc)
                             .first
-    
+
     # If no pathway of the expected type exists, create one
     if @care_pathway.nil?
       @care_pathway = @patient.care_pathways.build(pathway_type: expected_pathway_type)
       @care_pathway.started_at = Time.current
       @care_pathway.started_by = current_user_name
-      
+
       if @care_pathway.save
         if @care_pathway.pathway_type_triage?
           create_triage_steps
         elsif @care_pathway.pathway_type_emergency_room?
           create_emergency_room_components
         end
-        
+
         respond_to do |format|
           format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, referrer: params[:referrer]) }
           format.json { render json: @care_pathway, status: :created }
         end
       else
         respond_to do |format|
-          format.html { redirect_to root_path, alert: 'Failed to create care pathway' }
-          format.json { render json: { error: 'Failed to create care pathway' }, status: :unprocessable_entity }
+          format.html { redirect_to root_path, alert: "Failed to create care pathway" }
+          format.json { render json: { error: "Failed to create care pathway" }, status: :unprocessable_entity }
         end
       end
     else
@@ -45,33 +45,33 @@ class CarePathwaysController < ApplicationController
       end
     end
   end
-  
+
   def show
     # Store the referrer in the session if provided
     session[:care_pathway_referrer] = params[:referrer] if params[:referrer].present?
-    
+
     @steps = @care_pathway.care_pathway_steps.ordered if @care_pathway.pathway_type_triage?
-    @orders = @care_pathway.care_pathway_orders if @care_pathway.pathway_type_emergency_room?
+    @orders = @care_pathway.care_pathway_orders.order(:name) if @care_pathway.pathway_type_emergency_room?
     @procedures = @care_pathway.care_pathway_procedures if @care_pathway.pathway_type_emergency_room?
     @clinical_endpoints = @care_pathway.care_pathway_clinical_endpoints if @care_pathway.pathway_type_emergency_room?
-    
+
     respond_to do |format|
-      format.html { render layout: 'care_pathway' }
+      format.html { render layout: "care_pathway" }
       format.json { render json: care_pathway_json }
     end
   end
-  
+
   def create
     @care_pathway = @patient.care_pathways.build(care_pathway_params)
     @care_pathway.started_at = Time.current
     @care_pathway.started_by = current_user_name
-    
+
     if @care_pathway.save
       # Initialize steps for triage pathway
       if @care_pathway.pathway_type_triage?
         create_triage_steps
       end
-      
+
       respond_to do |format|
         format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
         format.json { render json: @care_pathway, status: :created }
@@ -83,7 +83,7 @@ class CarePathwaysController < ApplicationController
       end
     end
   end
-  
+
   def update
     if @care_pathway.update(care_pathway_params)
       respond_to do |format|
@@ -97,60 +97,60 @@ class CarePathwaysController < ApplicationController
       end
     end
   end
-  
+
   # Complete a triage step
   def complete_step
     @care_pathway = @patient.care_pathways.find(params[:id])
     @step = @care_pathway.care_pathway_steps.find(params[:step_id])
-    
+
     # Handle bed assignment destination override
-    if @step.name == 'Bed Assignment' && params[:destination].present?
+    if @step.name == "Bed Assignment" && params[:destination].present?
       # Update patient's RP eligibility based on user's selection
-      @patient.update(rp_eligible: params[:destination] == 'rp')
-      
+      @patient.update(rp_eligible: params[:destination] == "rp")
+
       Rails.logger.info "Bed Assignment Override: Patient #{@patient.id} (#{@patient.full_name}) assigned to #{params[:destination].upcase} (RP eligible: #{@patient.rp_eligible?})"
     end
-    
+
     if @step.complete!(current_user_name)
       # Record event for step completion
       Event.create!(
         patient: @patient,
         action: "#{@step.name} completed",
-        details: @step.name == 'Bed Assignment' ? "Patient assigned to #{params[:destination]&.upcase || (@patient.rp_eligible? ? 'RP' : 'ED')}" : "Care pathway step completed",
-        performed_by: 'Triage RN',
+        details: @step.name == "Bed Assignment" ? "Patient assigned to #{params[:destination]&.upcase || (@patient.rp_eligible? ? 'RP' : 'ED')}" : "Care pathway step completed",
+        performed_by: "Triage RN",
         time: Time.current,
-        category: 'triage'
+        category: "triage"
       )
-      
+
       # Check if pathway is complete
       if @care_pathway.complete?
         @care_pathway.update(status: :completed, completed_at: Time.current, completed_by: current_user_name)
-        
+
         # Record pathway completion event
         Event.create!(
           patient: @patient,
           action: "Triage pathway completed",
           details: "Patient ready for #{@patient.rp_eligible? ? 'RP' : 'ED'} placement",
-          performed_by: 'Triage RN',
+          performed_by: "Triage RN",
           time: Time.current,
-          category: 'triage'
+          category: "triage"
         )
-        
+
         # Update patient location status and create nursing task
         @patient.update(
-          location_status: :needs_room_assignment, 
+          location_status: :needs_room_assignment,
           triage_completed_at: Time.current,
           room_assignment_needed_at: Time.current
         )
-        
+
         # Create nursing task for room assignment
         NursingTask.create_room_assignment_task(@patient)
       else
         @care_pathway.update(status: :in_progress) if @care_pathway.status_not_started?
       end
-      
+
       respond_to do |format|
-        format.html { 
+        format.html {
           redirect_to patient_care_pathway_path(@patient, @care_pathway),
                       status: :see_other # Important for Turbo to handle the redirect properly
         }
@@ -158,216 +158,275 @@ class CarePathwaysController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { 
-          redirect_to patient_care_pathway_path(@patient, @care_pathway), 
-                      alert: 'Failed to complete step',
-                      status: :see_other 
+        format.html {
+          redirect_to patient_care_pathway_path(@patient, @care_pathway),
+                      alert: "Failed to complete step",
+                      status: :see_other
         }
         format.json { render json: { success: false }, status: :unprocessable_entity }
       end
     end
   end
-  
+
   # Add an order
   def add_order
     @care_pathway = @patient.care_pathways.find(params[:id])
     @order = @care_pathway.care_pathway_orders.build(order_params)
     @order.ordered_at = Time.current
     @order.ordered_by = current_user_name
-    
+
     if @order.save
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.html { 
+          redirect_to patient_care_pathway_path(@patient, @care_pathway), 
+                      status: :see_other,
+                      notice: "Order added successfully"
+        }
         format.json { render json: @order, status: :created }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway), alert: 'Failed to add order' }
+        format.html { 
+          redirect_to patient_care_pathway_path(@patient, @care_pathway), 
+                      alert: "Failed to add order",
+                      status: :unprocessable_entity
+        }
         format.json { render json: @order.errors, status: :unprocessable_entity }
       end
     end
   end
-  
+
   # Update order status
   def update_order_status
     @care_pathway = @patient.care_pathways.find(params[:id])
     @order = @care_pathway.care_pathway_orders.find(params[:order_id])
-    
-    if @order.advance_status!
+
+    if @order.advance_status!(current_user_name)
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), status: :see_other }
         format.json { render json: { success: true, status: @order.status, progress: @care_pathway.progress_percentage } }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway), alert: 'Failed to update order status' }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), alert: "Failed to update order status", status: :unprocessable_entity }
         format.json { render json: { success: false }, status: :unprocessable_entity }
       end
     end
   end
-  
+
   # Add a procedure
   def add_procedure
     @care_pathway = @patient.care_pathways.find(params[:id])
     @procedure = @care_pathway.care_pathway_procedures.build(procedure_params)
-    
+
     if @procedure.save
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.html { 
+          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
+                      status: :see_other,
+                      notice: "Procedure added successfully"
+        }
         format.json { render json: @procedure, status: :created }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway), alert: 'Failed to add procedure' }
+        format.html { 
+          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
+                      alert: "Failed to add procedure",
+                      status: :unprocessable_entity
+        }
         format.json { render json: @procedure.errors, status: :unprocessable_entity }
       end
     end
   end
-  
+
   # Complete a procedure
   def complete_procedure
     @care_pathway = @patient.care_pathways.find(params[:id])
     @procedure = @care_pathway.care_pathway_procedures.find(params[:procedure_id])
-    
+
     if @procedure.complete!(current_user_name)
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'procedures') }
         format.json { render json: { success: true, progress: @care_pathway.progress_percentage } }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway), alert: 'Failed to complete procedure' }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'procedures'), alert: "Failed to complete procedure" }
         format.json { render json: { success: false }, status: :unprocessable_entity }
       end
     end
   end
-  
+
   # Add a clinical endpoint
   def add_clinical_endpoint
     @care_pathway = @patient.care_pathways.find(params[:id])
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.build(endpoint_params)
-    
+
     if @endpoint.save
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.html { 
+          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
+                      status: :see_other,
+                      notice: "Clinical goal added successfully"
+        }
         format.json { render json: @endpoint, status: :created }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway), alert: 'Failed to add clinical endpoint' }
+        format.html { 
+          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
+                      alert: "Failed to add clinical endpoint",
+                      status: :unprocessable_entity
+        }
         format.json { render json: @endpoint.errors, status: :unprocessable_entity }
       end
     end
   end
-  
+
   # Achieve a clinical endpoint
   def achieve_endpoint
     @care_pathway = @patient.care_pathways.find(params[:id])
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.find(params[:endpoint_id])
-    
+
     if @endpoint.achieve!(current_user_name)
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway) }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'endpoints') }
         format.json { render json: { success: true, progress: @care_pathway.progress_percentage } }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway), alert: 'Failed to achieve endpoint' }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'endpoints'), alert: "Failed to achieve endpoint" }
         format.json { render json: { success: false }, status: :unprocessable_entity }
       end
     end
   end
-  
+
   private
-  
+
   def set_patient
     @patient = Patient.find(params[:patient_id])
   end
-  
+
   def set_care_pathway
     @care_pathway = @patient.care_pathways.find(params[:id])
   end
-  
+
   def care_pathway_params
     params.require(:care_pathway).permit(:pathway_type, :status)
   end
-  
+
   def order_params
-    params.require(:order).permit(:name, :order_type, :notes)
+    # Sanitize and validate parameters
+    permitted = params.require(:order).permit(:name, :order_type, :notes)
+
+    # Validate order_type is one of the allowed values
+    unless %w[lab medication imaging].include?(permitted[:order_type])
+      raise ActionController::ParameterMissing.new(:order_type)
+    end
+
+    # Ensure name is from the predefined lists
+    valid_names = case permitted[:order_type]
+    when "lab" then CarePathwayOrder::LAB_ORDERS
+    when "medication" then CarePathwayOrder::MEDICATIONS
+    when "imaging" then CarePathwayOrder::IMAGING_ORDERS
+    else []
+    end
+
+    unless valid_names.include?(permitted[:name])
+      raise ActionController::ParameterMissing.new(:name)
+    end
+
+    permitted
   end
-  
+
   def procedure_params
-    params.require(:procedure).permit(:name, :description, :notes)
+    permitted = params.require(:procedure).permit(:name, :description, :notes)
+
+    # Validate procedure name is from predefined list
+    unless CarePathwayProcedure::PROCEDURES.include?(permitted[:name])
+      raise ActionController::ParameterMissing.new(:name)
+    end
+
+    permitted
   end
-  
+
   def endpoint_params
-    params.require(:endpoint).permit(:name, :description, :notes)
+    permitted = params.require(:endpoint).permit(:name, :description, :notes)
+
+    # Validate endpoint name is from predefined list
+    unless CarePathwayClinicalEndpoint::CLINICAL_ENDPOINTS.include?(permitted[:name])
+      raise ActionController::ParameterMissing.new(:name)
+    end
+
+    permitted
   end
-  
+
   def current_user_name
     # Placeholder - replace with actual current user logic
-    'Current User'
+    # For now, return a valid performer role
+    "ED RN"
   end
-  
+
   def create_triage_steps
     steps = [
-      { name: 'Check-In', sequence: 0 },
-      { name: 'Intake', sequence: 1 },
-      { name: 'Bed Assignment', sequence: 2 }
+      { name: "Check-In", sequence: 0 },
+      { name: "Intake", sequence: 1 },
+      { name: "Bed Assignment", sequence: 2 }
     ]
-    
+
     steps.each do |step_data|
       @care_pathway.care_pathway_steps.create!(step_data)
     end
   end
-  
+
   def determine_pathway_type(patient)
     # Patients in triage or waiting room get triage pathway
     # Patients in RP, ED Room, Treatment, or needing room assignment get emergency room pathway
     case patient.location_status
-    when 'waiting_room', 'triage'
-      'triage'
-    when 'needs_room_assignment', 'results_pending', 'ed_room', 'treatment'
-      'emergency_room'
+    when "waiting_room", "triage"
+      "triage"
+    when "needs_room_assignment", "results_pending", "ed_room", "treatment"
+      "emergency_room"
     else
-      'triage' # Default to triage if status is unknown
+      "triage" # Default to triage if status is unknown
     end
   end
-  
+
   def create_emergency_room_components
     # Create initial orders for emergency room pathway
     orders = [
-      { name: 'CBC', order_type: 'lab', status: 'ordered' },
-      { name: 'Basic Metabolic Panel', order_type: 'lab', status: 'ordered' },
-      { name: 'Chest X-Ray', order_type: 'imaging', status: 'ordered' }
+      { name: "CBC", order_type: "lab", status: "ordered" },
+      { name: "Basic Metabolic Panel", order_type: "lab", status: "ordered" },
+      { name: "Chest X-Ray", order_type: "imaging", status: "ordered" }
     ]
-    
+
     orders.each do |order_data|
       @care_pathway.care_pathway_orders.create!(order_data)
     end
-    
+
     # Create initial procedures
     procedures = [
-      { name: 'IV Access', completed: false },
-      { name: 'Pain Assessment', completed: false }
+      { name: "IV Access", completed: false },
+      { name: "Pain Assessment", completed: false }
     ]
-    
+
     procedures.each do |procedure_data|
       @care_pathway.care_pathway_procedures.create!(procedure_data)
     end
-    
+
     # Create clinical endpoints
     endpoints = [
-      { name: 'Stable for Discharge', description: 'Patient meets discharge criteria' },
-      { name: 'Admit to Floor', description: 'Patient requires inpatient admission' },
-      { name: 'Transfer to ICU', description: 'Patient requires intensive care' }
+      { name: "Stable for Discharge", description: "Patient meets discharge criteria" },
+      { name: "Admit to Floor", description: "Patient requires inpatient admission" },
+      { name: "Transfer to ICU", description: "Patient requires intensive care" }
     ]
-    
+
     endpoints.each do |endpoint_data|
       @care_pathway.care_pathway_clinical_endpoints.create!(endpoint_data)
     end
   end
-  
+
   def care_pathway_json
     {
       id: @care_pathway.id,
@@ -380,7 +439,7 @@ class CarePathwaysController < ApplicationController
       clinical_endpoints: @clinical_endpoints&.map { |e| endpoint_json(e) }
     }
   end
-  
+
   def step_json(step)
     {
       id: step.id,
@@ -391,7 +450,7 @@ class CarePathwaysController < ApplicationController
       status: step.status
     }
   end
-  
+
   def order_json(order)
     {
       id: order.id,
@@ -401,7 +460,7 @@ class CarePathwaysController < ApplicationController
       status_label: order.status_label
     }
   end
-  
+
   def procedure_json(procedure)
     {
       id: procedure.id,
@@ -410,7 +469,7 @@ class CarePathwaysController < ApplicationController
       status: procedure.status
     }
   end
-  
+
   def endpoint_json(endpoint)
     {
       id: endpoint.id,

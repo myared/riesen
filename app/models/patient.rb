@@ -59,15 +59,15 @@ class Patient < ApplicationRecord
   scope :by_arrival_time, -> { order(arrival_time: :asc) }
   
   scope :by_priority_time, -> {
+    needs_room_status = location_statuses[:needs_room_assignment]
     order(
-      Arel.sql(sanitize_sql_array([
+      Arel.sql(
         "CASE 
-          WHEN location_status = ? 
+          WHEN location_status = #{connection.quote(needs_room_status)} 
           THEN COALESCE(triage_completed_at, arrival_time)
           ELSE arrival_time
-        END ASC",
-        location_statuses[:needs_room_assignment]
-      ]))
+        END ASC"
+      )
     )
   }
   

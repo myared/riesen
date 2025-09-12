@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_11_033934) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_12_134657) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -41,9 +41,15 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_11_033934) do
     t.jsonb "results"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.datetime "collected_at"
+    t.datetime "in_lab_at"
+    t.datetime "resulted_at"
+    t.string "timer_status", default: "green"
+    t.integer "last_status_duration_minutes"
     t.index ["care_pathway_id"], name: "index_care_pathway_orders_on_care_pathway_id"
     t.index ["order_type"], name: "index_care_pathway_orders_on_order_type"
     t.index ["status"], name: "index_care_pathway_orders_on_status"
+    t.index ["timer_status"], name: "index_care_pathway_orders_on_timer_status"
   end
 
   create_table "care_pathway_procedures", force: :cascade do |t|

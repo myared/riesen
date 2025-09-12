@@ -1,21 +1,85 @@
-<div id="add-endpoint-modal" class="modal-overlay" style="display: none;">
+<!-- Add Clinical Endpoint Modal -->
+<div id="addEndpointModal" class="modal" style="display: none;">
   <div class="modal-content">
-    <button type="button" class="modal-close" id="close-add-endpoint">&times;</button>
-    <h3>Add New Clinical Endpoint</h3>
-    <%= form_with(url: '#', method: :post, id: 'add-endpoint-form') do |form| %>
-      <%= form.label :name, "Endpoint Name" %>
-      <%= form.select :name, 
-                      options_for_select(['Pain Controlled', 'Ready for Discharge', 'Admit to Inpatient']), 
-                      {}, 
-                      { id: 'endpoint-select', class: 'form-control' } %>
+    <div class="modal-header">
+      <h3>Add Clinical Goal</h3>
+      <button class="modal-close" onclick="closeAddEndpointModal()">&times;</button>
+    </div>
+    
+    <%= form_with url: add_clinical_endpoint_patient_care_pathway_path(@patient, @care_pathway),
+                  method: :post,
+                  data: { turbo: true },
+                  id: "add-endpoint-form" do |f| %>
+      <div class="modal-body">
+        <input type="hidden" name="active_tab" value="endpoints">
+        <div class="form-group">
+          <label for="endpoint_name">Goal Name</label>
+          <select name="endpoint[name]" id="endpoint_name" class="form-control" onchange="updateEndpointDescription()">
+            <option value="">Select goal...</option>
+            <% CarePathwayClinicalEndpoint::CLINICAL_ENDPOINTS.each do |endpoint| %>
+              <option value="<%= endpoint %>"><%= endpoint %></option>
+            <% end %>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="endpoint_description">Description</label>
+          <textarea name="endpoint[description]" id="endpoint_description" class="form-control" rows="2" required></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="endpoint_notes">Notes (Optional)</label>
+          <textarea name="endpoint[notes]" id="endpoint_notes" class="form-control" rows="3"></textarea>
+        </div>
+      </div>
       
-      <%= form.label :description, "Description (optional)" %>
-      <%= form.text_area :description, rows: 3 %>
-      
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="cancel-add-endpoint">Cancel</button>
-        <%= form.submit "Add Endpoint", class: "btn btn-primary" %>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeAddEndpointModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Goal</button>
       </div>
     <% end %>
   </div>
 </div>
+
+<script>
+  function showAddEndpointModal(patientId, pathwayId) {
+    document.getElementById('addEndpointModal').style.display = 'flex';
+  }
+  
+  function closeAddEndpointModal() {
+    document.getElementById('addEndpointModal').style.display = 'none';
+    // Reset form
+    document.getElementById('add-endpoint-form').reset();
+  }
+  
+  function updateEndpointDescription() {
+    const select = document.getElementById('endpoint_name');
+    const description = document.getElementById('endpoint_description');
+    
+    // Auto-populate description based on selected endpoint
+    const descriptions = {
+      'Pain Control (Score < 4)': 'Patient reports pain score less than 4/10',
+      'Hemodynamic Stability': 'Vital signs stable for at least 30 minutes',
+      'Normal Vital Signs': 'All vital signs within normal limits',
+      'Afebrile (Temp < 38°C)': 'Temperature below 38°C',
+      'Adequate Oxygenation (SpO2 > 94%)': 'Oxygen saturation consistently above 94%',
+      'Symptom Resolution': 'Primary symptoms have resolved',
+      'Safe for Discharge': 'Patient meets all discharge criteria',
+      'Follow-up Arranged': 'Appropriate follow-up care scheduled'
+    };
+    
+    if (descriptions[select.value]) {
+      description.value = descriptions[select.value];
+    }
+  }
+  
+  // Handle form submission with Turbo
+  document.addEventListener('turbo:submit-end', (event) => {
+    if (event.target.id === 'add-endpoint-form') {
+      if (event.detail.success) {
+        closeAddEndpointModal();
+        // Form was successful, page will be updated by redirect
+      }
+    }
+  });
+</script>

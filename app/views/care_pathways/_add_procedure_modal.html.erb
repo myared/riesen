@@ -1,21 +1,64 @@
-<div id="add-procedure-modal" class="modal-overlay" style="display: none;">
+<!-- Add Procedure Modal -->
+<div id="addProcedureModal" class="modal" style="display: none;">
   <div class="modal-content">
-    <button type="button" class="modal-close" id="close-add-procedure">&times;</button>
-    <h3>Add New Procedure</h3>
-    <%= form_with(url: '#', method: :post, id: 'add-procedure-form') do |form| %>
-      <%= form.label :name, "Procedure Name" %>
-      <%= form.select :name, 
-                      options_for_select(['IV Start', 'Blood Draw', 'Splint Application', 'Wound Care']), 
-                      {}, 
-                      { id: 'procedure-select', class: 'form-control' } %>
+    <div class="modal-header">
+      <h3>Add New Procedure</h3>
+      <button class="modal-close" onclick="closeAddProcedureModal()">&times;</button>
+    </div>
+    
+    <%= form_with url: add_procedure_patient_care_pathway_path(@patient, @care_pathway),
+                  method: :post,
+                  data: { turbo: true },
+                  id: "add-procedure-form" do |f| %>
+      <div class="modal-body">
+        <input type="hidden" name="active_tab" value="procedures">
+        <div class="form-group">
+          <label for="procedure_name">Procedure Name</label>
+          <select name="procedure[name]" id="procedure_name" class="form-control">
+            <option value="">Select procedure...</option>
+            <% CarePathwayProcedure::PROCEDURES.each do |procedure| %>
+              <option value="<%= procedure %>"><%= procedure %></option>
+            <% end %>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label for="procedure_description">Description (Optional)</label>
+          <textarea name="procedure[description]" id="procedure_description" class="form-control" rows="2"></textarea>
+        </div>
+        
+        <div class="form-group">
+          <label for="procedure_notes">Notes (Optional)</label>
+          <textarea name="procedure[notes]" id="procedure_notes" class="form-control" rows="3"></textarea>
+        </div>
+      </div>
       
-      <%= form.label :description, "Description (optional)" %>
-      <%= form.text_area :description, rows: 3 %>
-      
-      <div class="modal-actions">
-        <button type="button" class="btn btn-secondary" id="cancel-add-procedure">Cancel</button>
-        <%= form.submit "Add Procedure", class: "btn btn-primary" %>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" onclick="closeAddProcedureModal()">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Procedure</button>
       </div>
     <% end %>
   </div>
 </div>
+
+<script>
+  function showAddProcedureModal(patientId, pathwayId) {
+    document.getElementById('addProcedureModal').style.display = 'flex';
+  }
+  
+  function closeAddProcedureModal() {
+    document.getElementById('addProcedureModal').style.display = 'none';
+    // Reset form
+    document.getElementById('add-procedure-form').reset();
+  }
+  
+  // Handle form submission with Turbo
+  document.addEventListener('turbo:submit-end', (event) => {
+    if (event.target.id === 'add-procedure-form') {
+      if (event.detail.success) {
+        closeAddProcedureModal();
+        // Form was successful, page will be updated by redirect
+      }
+    }
+  });
+</script>
