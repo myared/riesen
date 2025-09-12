@@ -102,7 +102,7 @@ class DashboardController < ApplicationController
       
       nurses[nurse_name] = {
         tasks: tasks.sort_by { |t| [-t.priority, t.created_at] },
-        total_time: tasks.sum { |t| t.time_remaining || 20 }
+        total_time: tasks.sum { |t| t.elapsed_time }
       }
     end
     

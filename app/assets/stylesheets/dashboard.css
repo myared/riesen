@@ -475,6 +475,11 @@
   background: #eff6ff;
 }
 
+.task-item.priority-success {
+  border-left-color: #10b981;
+  background: #d1fae5;
+}
+
 .task-item.overdue {
   animation: pulse-red 2s infinite;
 }
@@ -503,6 +508,12 @@
 
 .task-time .remaining-time {
   color: #6b7280;
+  font-size: 14px;
+}
+
+.task-time .elapsed-time {
+  color: #6b7280;
+  font-weight: 500;
   font-size: 14px;
 }
 

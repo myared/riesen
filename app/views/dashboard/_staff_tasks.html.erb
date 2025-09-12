@@ -22,10 +22,10 @@
                 <%= task.description %>
               </div>
               <div class="task-time">
-                <% if task.overdue? %>
-                  <span class="overdue-time"><%= task.minutes_overdue %> minutes Overdue</span>
+                <% if task.severely_overdue? %>
+                  <span class="overdue-time"><%= task.elapsed_time %> min</span>
                 <% else %>
-                  <span class="remaining-time"><%= task.time_remaining %> min</span>
+                  <span class="elapsed-time"><%= task.elapsed_time %> min</span>
                 <% end %>
               </div>
             </div>

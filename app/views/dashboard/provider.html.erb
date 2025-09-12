@@ -4,12 +4,12 @@
       <div class="stat-label">My Patients</div>
       <div class="stat-value"><%= @patients.count %></div>
     </div>
-    
+
     <div class="stat-card">
       <div class="stat-label">Urgent (ESI 1-2)</div>
       <div class="stat-value"><%= @patients.where(esi_level: [1, 2]).count %></div>
     </div>
-    
+
     <div class="stat-card">
       <div class="stat-label">Ready for Discharge</div>
       <div class="stat-value">0</div>
@@ -19,7 +19,7 @@
 
 <div class="dashboard-main">
   <h2>Provider Patients</h2>
-  
+
   <% if @patients.empty? %>
     <div class="empty-state">
       <p>No patients currently assigned to providers</p>
@@ -50,7 +50,7 @@
               </td>
               <td>
                 <div class="care-pathway-bar">
-                  <%= link_to patient_care_pathways_path(patient, referrer: 'provider'), 
+                  <%= link_to patient_care_pathways_path(patient, referrer: 'provider'),
                               class: "btn-action" do %>
                     <%= patient.active_care_pathway&.progress_percentage || 0 %>%
                   <% end %>
@@ -67,8 +67,8 @@
               <td><%= patient.location %></td>
               <td>
                 <div class="action-buttons">
-                  <button class="btn-action" data-patient-id="<%= patient.id %>">Chart</button>
-                  <button class="btn-action" data-patient-id="<%= patient.id %>">Orders</button>
+                  <button class="btn-action" data-patient-id="<%= patient.id %>">Admit</button>
+                  <button class="btn-action" data-patient-id="<%= patient.id %>">Discharge</button>
                 </div>
               </td>
             </tr>

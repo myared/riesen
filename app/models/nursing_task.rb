@@ -1,4 +1,6 @@
 class NursingTask < ApplicationRecord
+  # Constants
+  OVERDUE_THRESHOLD_MINUTES = 15
   belongs_to :patient
   
   # Task types
@@ -31,7 +33,9 @@ class NursingTask < ApplicationRecord
   validates :priority, presence: true
   
   scope :pending_tasks, -> { status_pending }
-  scope :overdue, -> { where('due_at < ?', Time.current).status_pending }
+  scope :overdue, -> { 
+    where('started_at < ? AND status = ?', OVERDUE_THRESHOLD_MINUTES.minutes.ago, statuses[:pending]) 
+  }
   scope :by_priority, -> { order(priority: :desc, created_at: :asc) }
   scope :for_nurse, ->(nurse_type) { where(assigned_to: nurse_type) }
   
@@ -46,7 +50,7 @@ class NursingTask < ApplicationRecord
       assigned_to: nurse_type,
       priority: patient.esi_level <= 2 ? :urgent : :high,
       status: :pending,
-      due_at: 20.minutes.from_now
+      started_at: Time.current  # Track when task started instead of due_at
     )
   end
   
@@ -67,33 +71,42 @@ class NursingTask < ApplicationRecord
     end
   end
   
-  # Check if task is overdue
+  # Check if task is severely overdue (more than threshold)
+  def severely_overdue?
+    return false unless started_at && status_pending?
+    elapsed_time > OVERDUE_THRESHOLD_MINUTES
+  end
+  
+  # Time elapsed since task started (in minutes)
+  def elapsed_time
+    return 0 unless started_at
+    ((Time.current - started_at) / 60).round
+  end
+  
+  # For backward compatibility
   def overdue?
-    due_at && due_at < Time.current && status_pending?
+    severely_overdue?
   end
   
-  # Time remaining until due
+  # For backward compatibility - now returns elapsed time
   def time_remaining
-    return nil unless due_at
-    return 0 if overdue?
-    
-    ((due_at - Time.current) / 60).round # in minutes
+    elapsed_time
   end
   
-  # Minutes overdue
+  # For backward compatibility
   def minutes_overdue
-    return 0 unless overdue?
-    
-    ((Time.current - due_at) / 60).round
+    return 0 unless severely_overdue?
+    elapsed_time - OVERDUE_THRESHOLD_MINUTES  # Minutes past the threshold
   end
   
   # Get CSS class for priority
   def priority_class
-    case priority
-    when 'urgent' then 'priority-urgent'
-    when 'high' then 'priority-high'
-    when 'medium' then 'priority-medium'
-    else 'priority-low'
+    # Return urgent styling only if severely overdue
+    if severely_overdue?
+      'priority-urgent'
+    else
+      # Default to green (success) styling for new tasks
+      'priority-success'
     end
   end
 end

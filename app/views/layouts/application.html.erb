@@ -38,7 +38,6 @@
         </nav>
         <div class="dashboard-actions">
           <%= button_to "+ Add Patient", simulation_add_patient_path, method: :post, class: "btn btn-primary" %>
-          <%= button_to "⏱ Advance Time", simulation_advance_time_path, method: :post, class: "btn btn-secondary", params: { minutes: 10 } %>
         </div>
       </header>
       <main class="dashboard-content">

@@ -29,7 +29,7 @@ class NursingTaskTest < ActiveSupport::TestCase
       assigned_to: "ED RN",
       priority: :high,
       status: :pending,
-      due_at: 30.minutes.from_now
+      started_at: Time.current
     )
     
     @room = Room.create!(
@@ -99,7 +99,7 @@ class NursingTaskTest < ActiveSupport::TestCase
       assigned_to: "ED RN",
       priority: :medium,
       status: :completed,
-      due_at: 1.hour.ago
+      started_at: 2.hours.ago
     )
     
     overdue_task = NursingTask.create!(
@@ -109,7 +109,7 @@ class NursingTaskTest < ActiveSupport::TestCase
       assigned_to: "ED RN",
       priority: :high,
       status: :pending,
-      due_at: 1.hour.ago
+      started_at: 20.minutes.ago
     )
     
     # Test pending_tasks scope
@@ -145,8 +145,8 @@ class NursingTaskTest < ActiveSupport::TestCase
     assert_equal "high", task.priority
     assert task.status_pending?
     assert_includes task.description, "ED area"
-    assert_not_nil task.due_at
-    assert task.due_at > Time.current
+    assert_not_nil task.started_at
+    assert task.started_at <= Time.current
   end
 
   test "create_room_assignment_task for RP patient" do
@@ -208,63 +208,58 @@ class NursingTaskTest < ActiveSupport::TestCase
   end
 
   test "overdue? returns correct status" do
-    # Task due in future should not be overdue
+    # Task just started should not be overdue
     assert_not @task.overdue?
     
-    # Update task to be overdue
-    @task.update!(due_at: 1.hour.ago)
+    # Update task to be overdue (started more than 15 minutes ago)
+    @task.update!(started_at: 20.minutes.ago)
     assert @task.overdue?
     
     # Completed task should not be overdue
     @task.update!(status: :completed)
     assert_not @task.overdue?
     
-    # Task without due date should not be overdue
-    @task.update!(due_at: nil, status: :pending)
+    # Task without started_at should not be overdue
+    @task.update!(started_at: nil, status: :pending)
     assert_not @task.overdue?
   end
 
-  test "time_remaining calculates correctly" do
-    future_time = 2.hours.from_now
-    @task.update!(due_at: future_time)
+  test "elapsed_time calculates correctly" do
+    # Task just started should have 0 elapsed time
+    @task.update!(started_at: Time.current)
+    assert_equal 0, @task.elapsed_time
     
-    # Should return time in minutes
-    time_remaining = @task.time_remaining
-    assert time_remaining > 0
-    assert time_remaining <= 120 # 2 hours in minutes
+    # Task started 10 minutes ago should show 10 minutes
+    @task.update!(started_at: 10.minutes.ago)
+    elapsed = @task.elapsed_time
+    assert elapsed >= 9
+    assert elapsed <= 11
     
-    # Overdue task should return 0
-    @task.update!(due_at: 1.hour.ago)
-    assert_equal 0, @task.time_remaining
-    
-    # Task without due date should return nil
-    @task.update!(due_at: nil)
-    assert_nil @task.time_remaining
+    # Task without started_at should return 0
+    @task.update!(started_at: nil)
+    assert_equal 0, @task.elapsed_time
   end
 
   test "minutes_overdue calculates correctly" do
-    # Future task should return 0
+    # Task not overdue should return 0
+    @task.update!(started_at: 10.minutes.ago)
     assert_equal 0, @task.minutes_overdue
     
-    # Overdue task should return positive minutes
-    @task.update!(due_at: 90.minutes.ago)
+    # Overdue task should return minutes past threshold
+    @task.update!(started_at: 25.minutes.ago)
     minutes_overdue = @task.minutes_overdue
-    assert minutes_overdue > 0
-    assert minutes_overdue >= 90
+    assert minutes_overdue >= 9  # 25 - 15 = 10, allow for time drift
+    assert minutes_overdue <= 11
   end
 
   test "priority_class returns correct CSS class" do
-    @task.update!(priority: :urgent)
+    # Task not overdue should show success (green)
+    @task.update!(started_at: 5.minutes.ago)
+    assert_equal "priority-success", @task.priority_class
+    
+    # Severely overdue task should show urgent (red)
+    @task.update!(started_at: 20.minutes.ago)
     assert_equal "priority-urgent", @task.priority_class
-    
-    @task.update!(priority: :high)
-    assert_equal "priority-high", @task.priority_class
-    
-    @task.update!(priority: :medium)
-    assert_equal "priority-medium", @task.priority_class
-    
-    @task.update!(priority: :low)
-    assert_equal "priority-low", @task.priority_class
   end
 
   test "task creation with all required attributes" do
