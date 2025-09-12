@@ -176,6 +176,16 @@ class CarePathwaysController < ApplicationController
     @order.ordered_by = current_user_name
 
     if @order.save
+      # Log the order creation to patient event log
+      Event.create!(
+        patient: @patient,
+        action: "Order placed: #{@order.name}",
+        details: "#{@order.order_type.capitalize} order '#{@order.name}' was placed",
+        performed_by: current_user_name,
+        time: Time.current,
+        category: "diagnostic"
+      )
+
       respond_to do |format|
         format.html { 
           redirect_to patient_care_pathway_path(@patient, @care_pathway), 
@@ -220,6 +230,16 @@ class CarePathwaysController < ApplicationController
     @procedure = @care_pathway.care_pathway_procedures.build(procedure_params)
 
     if @procedure.save
+      # Log the procedure creation to patient event log
+      Event.create!(
+        patient: @patient,
+        action: "Procedure ordered: #{@procedure.name}",
+        details: "Procedure '#{@procedure.name}' was ordered#{@procedure.description.present? ? ": #{@procedure.description}" : ""}",
+        performed_by: current_user_name,
+        time: Time.current,
+        category: "clinical"
+      )
+
       respond_to do |format|
         format.html { 
           redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
@@ -246,6 +266,16 @@ class CarePathwaysController < ApplicationController
     @procedure = @care_pathway.care_pathway_procedures.find(params[:procedure_id])
 
     if @procedure.complete!(current_user_name)
+      # Log the procedure completion to patient event log
+      Event.create!(
+        patient: @patient,
+        action: "Procedure completed: #{@procedure.name}",
+        details: "Procedure '#{@procedure.name}' was completed",
+        performed_by: current_user_name,
+        time: Time.current,
+        category: "clinical"
+      )
+
       respond_to do |format|
         format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'procedures') }
         format.json { render json: { success: true, progress: @care_pathway.progress_percentage } }
@@ -264,6 +294,16 @@ class CarePathwaysController < ApplicationController
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.build(endpoint_params)
 
     if @endpoint.save
+      # Log the clinical goal creation to patient event log
+      Event.create!(
+        patient: @patient,
+        action: "Clinical goal set: #{@endpoint.name}",
+        details: "Clinical goal '#{@endpoint.name}' was established#{@endpoint.description.present? ? ": #{@endpoint.description}" : ""}",
+        performed_by: current_user_name,
+        time: Time.current,
+        category: "clinical"
+      )
+
       respond_to do |format|
         format.html { 
           redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
@@ -290,6 +330,16 @@ class CarePathwaysController < ApplicationController
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.find(params[:endpoint_id])
 
     if @endpoint.achieve!(current_user_name)
+      # Log the clinical goal achievement to patient event log
+      Event.create!(
+        patient: @patient,
+        action: "Clinical goal achieved: #{@endpoint.name}",
+        details: "Clinical goal '#{@endpoint.name}' was achieved",
+        performed_by: current_user_name,
+        time: Time.current,
+        category: "clinical"
+      )
+
       respond_to do |format|
         format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'endpoints') }
         format.json { render json: { success: true, progress: @care_pathway.progress_percentage } }
@@ -394,37 +444,11 @@ class CarePathwaysController < ApplicationController
   end
 
   def create_emergency_room_components
-    # Create initial orders for emergency room pathway
-    orders = [
-      { name: "CBC", order_type: "lab", status: "ordered" },
-      { name: "Basic Metabolic Panel", order_type: "lab", status: "ordered" },
-      { name: "Chest X-Ray", order_type: "imaging", status: "ordered" }
-    ]
-
-    orders.each do |order_data|
-      @care_pathway.care_pathway_orders.create!(order_data)
-    end
-
-    # Create initial procedures
-    procedures = [
-      { name: "IV Access", completed: false },
-      { name: "Pain Assessment", completed: false }
-    ]
-
-    procedures.each do |procedure_data|
-      @care_pathway.care_pathway_procedures.create!(procedure_data)
-    end
-
-    # Create clinical endpoints
-    endpoints = [
-      { name: "Stable for Discharge", description: "Patient meets discharge criteria" },
-      { name: "Admit to Floor", description: "Patient requires inpatient admission" },
-      { name: "Transfer to ICU", description: "Patient requires intensive care" }
-    ]
-
-    endpoints.each do |endpoint_data|
-      @care_pathway.care_pathway_clinical_endpoints.create!(endpoint_data)
-    end
+    # No default orders - providers will add orders as needed
+    
+    # No default procedures - will be added based on clinical needs
+    
+    # No default clinical endpoints - will be added based on patient condition
   end
 
   def care_pathway_json
