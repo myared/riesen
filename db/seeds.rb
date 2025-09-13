@@ -19,13 +19,13 @@ patients_data = [
     mrn: '2001',
     location: 'Waiting Room',
     provider: 'Dr. Johnson',
-    chief_complaint: 'Wrist pain after skateboard fall, knee laceration',
+    chief_complaint: 'Skateboard fall, wrist pain + knee laceration',
     esi_level: 3,
     pain_score: 8,
     arrival_time: Time.current - 12.minutes,
     wait_time_minutes: 12,
     care_pathway: '0%',
-    rp_eligible: false
+    rp_eligible: true
   },
   {
     first_name: 'Sarah',
@@ -34,9 +34,9 @@ patients_data = [
     mrn: '2002',
     location: 'Waiting Room',
     provider: nil,
-    chief_complaint: 'LLQ abdominal pain x3 days, vomiting',
+    chief_complaint: 'LLQ pain x3 days, vomiting',
     esi_level: 3,
-    pain_score: 7,
+    pain_score: 8,
     arrival_time: Time.current - 9.minutes,
     wait_time_minutes: 9,
     care_pathway: '0%',
@@ -47,17 +47,44 @@ patients_data = [
 patients_data.each do |patient_data|
   patient = Patient.create!(patient_data)
   
-  # Create initial vitals
-  patient.vitals.create!(
-    heart_rate: rand(70..95),
-    blood_pressure_systolic: 120,
-    blood_pressure_diastolic: 90,
-    respiratory_rate: 18,
-    temperature: 37.1,
-    spo2: 99,
-    weight: 68,
-    recorded_at: patient.arrival_time
-  )
+  # Create initial vitals based on patient
+  vitals_data = case patient.first_name
+  when 'Marcus'
+    {
+      heart_rate: 95,
+      blood_pressure_systolic: 120,
+      blood_pressure_diastolic: 90,
+      respiratory_rate: 18,
+      temperature: 98.7,
+      spo2: 99,
+      weight: 68,
+      recorded_at: patient.arrival_time
+    }
+  when 'Sarah'
+    {
+      heart_rate: 130,
+      blood_pressure_systolic: 155,
+      blood_pressure_diastolic: 110,
+      respiratory_rate: 22,
+      temperature: 103.0,
+      spo2: 97,
+      weight: 72,
+      recorded_at: patient.arrival_time
+    }
+  else
+    {
+      heart_rate: rand(70..95),
+      blood_pressure_systolic: 120,
+      blood_pressure_diastolic: 80,
+      respiratory_rate: 18,
+      temperature: 98.6,
+      spo2: 99,
+      weight: 70,
+      recorded_at: patient.arrival_time
+    }
+  end
+  
+  patient.vitals.create!(vitals_data)
   
   # Create initial event
   patient.events.create!(

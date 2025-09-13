@@ -1,4 +1,5 @@
 <%= turbo_frame_tag "patient_modal" do %>
+<div class="modal-overlay" data-return-path="<%= @return_path %>"></div>
 <div class="patient-detail-modal">
   <div class="modal-header">
     <div class="patient-header-info">
@@ -170,6 +171,17 @@
       document.getElementById(targetTab).classList.add('active');
     });
   });
+  
+  // Handle clicking outside modal to close
+  const overlay = document.querySelector('.modal-overlay');
+  if (overlay) {
+    overlay.addEventListener('click', function() {
+      const returnPath = this.getAttribute('data-return-path');
+      if (returnPath) {
+        window.location.href = returnPath;
+      }
+    });
+  }
 })();
 </script>
 <% end %>
