@@ -95,8 +95,8 @@ class DashboardController < ApplicationController
     
     NursingTask.pending_tasks.group_by(&:assigned_to).each do |nurse_type, tasks|
       nurse_name = case nurse_type
-                   when 'RP RN' then ['Emily Thompson', 'Jennifer Chen'].sample
-                   when 'ED RN' then ['David Kim', 'Sarah Martinez'].sample
+                   when 'RP RN' then 'Emily Thompson'
+                   when 'ED RN' then 'David Kim'
                    else 'Unassigned'
                    end
       
