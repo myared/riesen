@@ -18,56 +18,60 @@ class CarePathwayOrder < ApplicationRecord
 
   # Common lab orders
   LAB_ORDERS = [
-    "CBC with Differential",
+    "Arterial Blood Gas",
     "Basic Metabolic Panel",
+    "Blood Culture",
+    "BNP",
+    "CBC with Differential",
     "Comprehensive Metabolic Panel",
-    "Liver Function Tests",
+    "COVID-19 PCR",
+    "D-Dimer",
+    "Human Chorionic Gonadotropin",
+    "Influenza A/B",
+    "Lactate",
     "Lipid Panel",
+    "Liver Function Tests",
     "PT/INR",
     "PTT",
-    "Troponin",
-    "BNP",
-    "D-Dimer",
-    "Urinalysis",
-    "Urine Culture",
-    "Blood Culture",
-    "Lactate",
-    "Arterial Blood Gas",
-    "COVID-19 PCR",
     "Rapid Strep",
-    "Influenza A/B"
+    "Troponin",
+    "Urinalysis",
+    "Urine Culture"
   ].freeze
 
   # Common medications
   MEDICATIONS = [
     "Acetaminophen 650mg PO",
-    "Ibuprofen 400mg PO",
-    "Morphine 2mg IV",
-    "Zofran 4mg IV",
-    "Normal Saline 1L IV",
-    "Ceftriaxone 1g IV",
-    "Azithromycin 500mg PO",
-    "Prednisone 40mg PO",
     "Albuterol Nebulizer",
-    "Epinephrine 0.3mg IM",
-    "Nitroglycerin 0.4mg SL",
     "Aspirin 325mg PO",
+    "Azithromycin 500mg PO",
+    "Ceftriaxone 1g IV",
+    "Epinephrine 0.3mg IM",
     "Heparin 5000 units SC",
-    "Lorazepam 1mg IV"
+    "Ibuprofen 400mg PO",
+    "Lorazepam 1mg IV",
+    "Morphine 2mg IV",
+    "Nitroglycerin 0.4mg SL",
+    "Normal Saline 1L IV",
+    "Prednisone 40mg PO",
+    "Reglan",
+    "Zofran 4mg IV" 
   ].freeze
 
   # Common imaging orders
   IMAGING_ORDERS = [
-    "Chest X-Ray",
-    "Abdominal X-Ray",
-    "CT Head without Contrast",
-    "CT Chest with PE Protocol",
     "CT Abdomen/Pelvis with Contrast",
+    "CT Chest with PE Protocol",
+    "CT Head without Contrast",
+    "Echocardiogram",
+    "EKG",
     "MRI Brain",
     "Ultrasound Abdomen",
     "Ultrasound Lower Extremity DVT",
-    "Echocardiogram",
-    "EKG"
+    "X-Ray Abdominal",
+    "X-Ray Chest",
+    "X-Ray Knee",
+    "X-Ray Wrist"
   ].freeze
 
   validates :name, presence: true
