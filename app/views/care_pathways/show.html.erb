@@ -166,21 +166,23 @@
                         </div>
                       </div>
                       <div class="order-status-tracker">
-                        <% %w[ordered collected in_lab resulted].each do |status| %>
-                          <div class="status-step <%= 'completed' if order.status_value >= order.class.statuses[status] %> <%= 'timer-' + order.timer_status if order.status == status %>">
-                            <%= status.humanize %>
-                            <% if order.status == status && !order.resulted? %>
-                              <div class="timer-indicator timer-<%= order.timer_status %>">
-                                <span class="timer-value" data-start-time="<%= order.status_updated_at&.iso8601 %>"></span>
-                              </div>
+                        <% order.workflow_states.each_with_index do |workflow_status, index| %>
+                          <% if order.class.statuses.key?(workflow_status.to_s) %>
+                            <div class="status-step <%= 'completed' if order.status_value >= order.class.statuses[workflow_status.to_s] %> <%= 'timer-' + order.timer_status if order.status == workflow_status.to_s %>">
+                              <%= workflow_status.to_s.humanize %>
+                              <% if order.status == workflow_status.to_s && !order.complete? %>
+                                <div class="timer-indicator timer-<%= order.timer_status %>">
+                                  <span class="timer-value" data-start-time="<%= order.status_updated_at&.iso8601 %>" data-order-type="<%= order.order_type %>"></span>
+                                </div>
+                              <% end %>
+                            </div>
+                            <% unless index == order.workflow_states.length - 1 %>
+                              <div class="status-connector <%= 'completed' if order.status_value > order.class.statuses[workflow_status.to_s] %>"></div>
                             <% end %>
-                          </div>
-                          <% unless status == 'resulted' %>
-                            <div class="status-connector <%= 'completed' if order.status_value > order.class.statuses[status] %>"></div>
                           <% end %>
                         <% end %>
                       </div>
-                      <% unless order.resulted? %>
+                      <% unless order.complete? %>
                         <button class="btn btn-sm btn-advance" 
                                 onclick="advanceOrderStatus(<%= @patient.id %>, <%= @care_pathway.id %>, <%= order.id %>)">
                           Advance →
@@ -1114,23 +1116,36 @@
   function updateTimers() {
     document.querySelectorAll('.timer-value').forEach(timer => {
       const startTime = timer.dataset.startTime;
+      const orderType = timer.dataset.orderType;
       if (startTime) {
         const start = new Date(startTime);
         const now = new Date();
         const diffMinutes = Math.floor((now - start) / 60000);
-        
+
         timer.textContent = diffMinutes + 'm';
-        
+
         // Update timer color class
         const indicator = timer.parentElement;
         indicator.classList.remove('timer-green', 'timer-yellow', 'timer-red');
-        
-        if (diffMinutes <= 20) {
-          indicator.classList.add('timer-green');
-        } else if (diffMinutes <= 40) {
-          indicator.classList.add('timer-yellow');
+
+        // Different timing for medications
+        if (orderType === 'medication') {
+          if (diffMinutes <= 5) {
+            indicator.classList.add('timer-green');
+          } else if (diffMinutes <= 10) {
+            indicator.classList.add('timer-yellow');
+          } else {
+            indicator.classList.add('timer-red');
+          }
         } else {
-          indicator.classList.add('timer-red');
+          // Standard timing for labs and imaging
+          if (diffMinutes <= 20) {
+            indicator.classList.add('timer-green');
+          } else if (diffMinutes <= 40) {
+            indicator.classList.add('timer-yellow');
+          } else {
+            indicator.classList.add('timer-red');
+          }
         }
       }
     });

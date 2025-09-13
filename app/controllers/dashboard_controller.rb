@@ -25,7 +25,7 @@ class DashboardController < ApplicationController
 
   def charge_rn
     @view_mode = params[:view] || 'staff_tasks'
-    
+
     if @view_mode == 'floor_view'
       # Load floor view data
       @ed_rooms = Room.ed_rooms.includes(:current_patient)
@@ -43,8 +43,9 @@ class DashboardController < ApplicationController
                                    .by_priority
       @overdue_tasks = @nursing_tasks.overdue
       @nurses = group_tasks_by_nurse
+      @medication_timers = load_medication_timers
     end
-    
+
     @patients = Patient.includes(:vitals, :events).all.by_arrival_time
   end
 
@@ -107,5 +108,41 @@ class DashboardController < ApplicationController
     end
     
     nurses
+  end
+
+  def load_medication_timers
+    # Load all active medication orders (not completed)
+    medication_orders = CarePathwayOrder.joins(care_pathway: :patient)
+                                        .includes(care_pathway: :patient)
+                                        .where(order_type: :medication)
+                                        .where.not(status: [:administered])
+                                        .order(:ordered_at)
+
+    medication_orders.map do |order|
+      patient = order.care_pathway.patient
+      elapsed_minutes = order.status_updated_at ? ((Time.current - order.status_updated_at) / 60).round : 0
+
+      # Determine timer status based on elapsed time
+      timer_status = if elapsed_minutes <= 5
+                      'timer-green'
+                    elsif elapsed_minutes <= 10
+                      'timer-yellow'
+                    else
+                      'timer-red'
+                    end
+
+      {
+        patient_name: patient.full_name,
+        room: patient.room_number || 'Unassigned',
+        medication_name: order.name,
+        ordered_at: order.ordered_at&.strftime("%l:%M %p"),
+        elapsed_time: elapsed_minutes,
+        current_status: order.status_label,
+        status_class: timer_status,
+        order_id: order.id,
+        patient_id: patient.id,
+        care_pathway_id: order.care_pathway_id
+      }
+    end
   end
 end

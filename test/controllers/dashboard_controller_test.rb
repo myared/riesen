@@ -288,25 +288,404 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       first_name: "Waiting", last_name: "Patient", age: 30, mrn: "WAIT001",
       location_status: :waiting_room, esi_level: 3
     )
-    
+
     triage_patient = Patient.create!(
       first_name: "Triage", last_name: "Patient", age: 25, mrn: "TRIAGE001",
       location_status: :triage, esi_level: 4
     )
-    
+
     assigned_patient = Patient.create!(
       first_name: "Assigned", last_name: "Patient", age: 35, mrn: "ASSIGN001",
       location_status: :needs_room_assignment, esi_level: 2
     )
-    
+
     get dashboard_triage_url
     assert_response :success
-    
+
     # Should include waiting and triage patients
     assert_match waiting_patient.full_name, response.body
     assert_match triage_patient.full_name, response.body
-    
+
     # Should not include patients who have completed triage
     assert_no_match assigned_patient.full_name, response.body
+  end
+
+  # Tests for medication timers functionality (load_medication_timers method)
+  test "charge_rn dashboard loads medication timers for staff view" do
+    # Create a patient with care pathway and medication orders
+    patient = Patient.create!(
+      first_name: "Med", last_name: "Patient", age: 35, mrn: "MED001",
+      location_status: :ed_room, room_number: "ED-12", esi_level: 3
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 2.hours.ago,
+      started_by: "Test RN"
+    )
+
+    # Create medication orders in different states
+    ordered_med = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Acetaminophen 650mg PO",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 30.minutes.ago,
+      status_updated_at: 30.minutes.ago
+    )
+
+    administered_med = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Ibuprofen 400mg PO",
+      order_type: :medication,
+      status: :administered,
+      ordered_at: 1.hour.ago,
+      administered_at: 30.minutes.ago
+    )
+
+    # Create non-medication order (should be excluded)
+    lab_order = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "CBC with Differential",
+      order_type: :lab,
+      status: :ordered,
+      ordered_at: 45.minutes.ago
+    )
+
+    get dashboard_charge_rn_url # defaults to staff_tasks view
+    assert_response :success
+
+    # Should load medication timers
+    assert_not_nil assigns(:medication_timers)
+
+    # Should include ordered medication but not administered or lab orders
+    medication_timers = assigns(:medication_timers)
+    assert_equal 1, medication_timers.length
+
+    timer = medication_timers.first
+    assert_equal patient.full_name, timer[:patient_name]
+    assert_equal "ED-12", timer[:room]
+    assert_equal "Acetaminophen 650mg PO", timer[:medication_name]
+    assert_equal "Ordered", timer[:current_status]
+    assert_equal ordered_med.id, timer[:order_id]
+    assert_equal patient.id, timer[:patient_id]
+    assert_equal care_pathway.id, timer[:care_pathway_id]
+  end
+
+  test "load_medication_timers calculates correct timer status based on elapsed time" do
+    patient = Patient.create!(
+      first_name: "Timer", last_name: "Patient", age: 40, mrn: "TIMER001",
+      location_status: :ed_room, room_number: "ED-15", esi_level: 2
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 2.hours.ago,
+      started_by: "Test RN"
+    )
+
+    freeze_time do
+      # Green timer (3 minutes elapsed)
+      green_med = CarePathwayOrder.create!(
+        care_pathway: care_pathway,
+        name: "Morphine 2mg IV",
+        order_type: :medication,
+        status: :ordered,
+        ordered_at: 10.minutes.ago,
+        status_updated_at: 3.minutes.ago
+      )
+
+      # Yellow timer (7 minutes elapsed)
+      yellow_med = CarePathwayOrder.create!(
+        care_pathway: care_pathway,
+        name: "Lorazepam 1mg IV",
+        order_type: :medication,
+        status: :ordered,
+        ordered_at: 15.minutes.ago,
+        status_updated_at: 7.minutes.ago
+      )
+
+      # Red timer (15 minutes elapsed)
+      red_med = CarePathwayOrder.create!(
+        care_pathway: care_pathway,
+        name: "Zofran 4mg IV",
+        order_type: :medication,
+        status: :ordered,
+        ordered_at: 20.minutes.ago,
+        status_updated_at: 15.minutes.ago
+      )
+
+      get dashboard_charge_rn_url
+      assert_response :success
+
+      medication_timers = assigns(:medication_timers)
+      assert_equal 3, medication_timers.length
+
+      # Find timers by medication name
+      green_timer = medication_timers.find { |t| t[:medication_name] == "Morphine 2mg IV" }
+      yellow_timer = medication_timers.find { |t| t[:medication_name] == "Lorazepam 1mg IV" }
+      red_timer = medication_timers.find { |t| t[:medication_name] == "Zofran 4mg IV" }
+
+      # Verify timer statuses
+      assert_equal 'timer-green', green_timer[:status_class]
+      assert_equal 3, green_timer[:elapsed_time]
+
+      assert_equal 'timer-yellow', yellow_timer[:status_class]
+      assert_equal 7, yellow_timer[:elapsed_time]
+
+      assert_equal 'timer-red', red_timer[:status_class]
+      assert_equal 15, red_timer[:elapsed_time]
+    end
+  end
+
+  test "load_medication_timers handles missing status_updated_at timestamp" do
+    patient = Patient.create!(
+      first_name: "Missing", last_name: "Timestamp", age: 28, mrn: "MISS001",
+      location_status: :ed_room, room_number: "ED-8", esi_level: 4
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 1.hour.ago,
+      started_by: "Test RN"
+    )
+
+    # Create medication order without status_updated_at
+    med_order = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Acetaminophen 650mg PO",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 30.minutes.ago,
+      status_updated_at: nil
+    )
+
+    get dashboard_charge_rn_url
+    assert_response :success
+
+    medication_timers = assigns(:medication_timers)
+    assert_equal 1, medication_timers.length
+
+    timer = medication_timers.first
+    assert_equal 0, timer[:elapsed_time]
+  end
+
+  test "load_medication_timers handles patient without room assignment" do
+    patient = Patient.create!(
+      first_name: "No", last_name: "Room", age: 32, mrn: "NOROOM001",
+      location_status: :needs_room_assignment, room_number: nil, esi_level: 3
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 1.hour.ago,
+      started_by: "Test RN"
+    )
+
+    med_order = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Normal Saline 1L IV",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 20.minutes.ago,
+      status_updated_at: 20.minutes.ago
+    )
+
+    get dashboard_charge_rn_url
+    assert_response :success
+
+    medication_timers = assigns(:medication_timers)
+    assert_equal 1, medication_timers.length
+
+    timer = medication_timers.first
+    assert_equal 'Unassigned', timer[:room]
+  end
+
+  test "load_medication_timers formats ordered_at time correctly" do
+    patient = Patient.create!(
+      first_name: "Time", last_name: "Format", age: 29, mrn: "TIME001",
+      location_status: :ed_room, room_number: "ED-3", esi_level: 3
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 2.hours.ago,
+      started_by: "Test RN"
+    )
+
+    # Create medication order with specific time
+    ordered_time = 30.minutes.ago
+
+    med_order = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Epinephrine 0.3mg IM",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: ordered_time,
+      status_updated_at: ordered_time
+    )
+
+    get dashboard_charge_rn_url
+    assert_response :success
+
+    medication_timers = assigns(:medication_timers)
+    timer = medication_timers.first
+
+    # Should format the time using strftime("%l:%M %p") format
+    expected_time = ordered_time.strftime("%l:%M %p")
+    assert_equal expected_time, timer[:ordered_at]
+  end
+
+  test "load_medication_timers handles nil ordered_at timestamp" do
+    patient = Patient.create!(
+      first_name: "Nil", last_name: "Ordered", age: 33, mrn: "NILORD001",
+      location_status: :ed_room, room_number: "ED-7", esi_level: 2
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 1.hour.ago,
+      started_by: "Test RN"
+    )
+
+    med_order = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Heparin 5000 units SC",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: nil,
+      status_updated_at: 10.minutes.ago
+    )
+
+    get dashboard_charge_rn_url
+    assert_response :success
+
+    medication_timers = assigns(:medication_timers)
+    timer = medication_timers.first
+
+    # Should handle nil gracefully
+    assert_nil timer[:ordered_at]
+  end
+
+  test "load_medication_timers excludes administered medications" do
+    patient = Patient.create!(
+      first_name: "Administered", last_name: "Patient", age: 27, mrn: "ADMIN001",
+      location_status: :ed_room, room_number: "ED-5", esi_level: 3
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 2.hours.ago,
+      started_by: "Test RN"
+    )
+
+    # Create both ordered and administered medications
+    ordered_med = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Reglan",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 30.minutes.ago,
+      status_updated_at: 30.minutes.ago
+    )
+
+    administered_med = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Prednisone 40mg PO",
+      order_type: :medication,
+      status: :administered,
+      ordered_at: 45.minutes.ago,
+      administered_at: 10.minutes.ago
+    )
+
+    get dashboard_charge_rn_url
+    assert_response :success
+
+    medication_timers = assigns(:medication_timers)
+
+    # Should only include ordered medication
+    assert_equal 1, medication_timers.length
+    timer = medication_timers.first
+    assert_equal "Reglan", timer[:medication_name]
+  end
+
+  test "load_medication_timers orders by ordered_at timestamp" do
+    patient = Patient.create!(
+      first_name: "Order", last_name: "Test", age: 41, mrn: "ORDER001",
+      location_status: :ed_room, room_number: "ED-1", esi_level: 3
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 2.hours.ago,
+      started_by: "Test RN"
+    )
+
+    # Create medications with different ordered_at times
+    later_med = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Later Med",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 10.minutes.ago,
+      status_updated_at: 10.minutes.ago
+    )
+
+    earlier_med = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Earlier Med",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 30.minutes.ago,
+      status_updated_at: 30.minutes.ago
+    )
+
+    get dashboard_charge_rn_url
+    assert_response :success
+
+    medication_timers = assigns(:medication_timers)
+    assert_equal 2, medication_timers.length
+
+    # Should be ordered by ordered_at (earliest first)
+    assert_equal "Earlier Med", medication_timers.first[:medication_name]
+    assert_equal "Later Med", medication_timers.second[:medication_name]
+  end
+
+  test "medication timers are not loaded for floor_view" do
+    # Create a medication order
+    patient = Patient.create!(
+      first_name: "Floor", last_name: "View", age: 30, mrn: "FLOOR001",
+      location_status: :ed_room, room_number: "ED-10", esi_level: 3
+    )
+
+    care_pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :completed,
+      started_at: 1.hour.ago,
+      started_by: "Test RN"
+    )
+
+    med_order = CarePathwayOrder.create!(
+      care_pathway: care_pathway,
+      name: "Azithromycin 500mg PO",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 20.minutes.ago,
+      status_updated_at: 20.minutes.ago
+    )
+
+    get dashboard_charge_rn_url, params: { view: 'floor_view' }
+    assert_response :success
+
+    # medication_timers should not be loaded for floor_view
+    assert_nil assigns(:medication_timers)
   end
 end

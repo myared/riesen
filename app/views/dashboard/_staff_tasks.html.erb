@@ -1,6 +1,8 @@
 <div class="staff-tasks">
   <h2>Nursing Task Priorities</h2>
-  
+
+  <%= render 'medication_timers' if @medication_timers && @medication_timers.any? %>
+
   <% if @nurses && @nurses.any? %>
     <% @nurses.each do |nurse_name, nurse_data| %>
       <div class="nurse-task-card">

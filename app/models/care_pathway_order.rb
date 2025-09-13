@@ -13,7 +13,10 @@ class CarePathwayOrder < ApplicationRecord
     ordered: 0,
     collected: 1,
     in_lab: 2,
-    resulted: 3
+    resulted: 3,
+    administered: 4,
+    exam_started: 5,
+    exam_completed: 6
   }, prefix: false
 
   # Common lab orders
@@ -91,7 +94,7 @@ class CarePathwayOrder < ApplicationRecord
 
   # Progress to next status
   def advance_status!(user_name = nil)
-    return false if resulted?
+    return false if complete?
 
     transaction do
       # Use lock to prevent concurrent updates
@@ -109,13 +112,8 @@ class CarePathwayOrder < ApplicationRecord
         timer_status = "green"
       end
 
-      next_status = case status.to_sym
-      when :ordered then :collected
-      when :collected then :in_lab
-      when :in_lab then :resulted
-      else
-                      return false
-      end
+      next_status = determine_next_status
+      return false unless next_status
 
       # Set the appropriate timestamp based on the new status
       timestamp_updates = {
@@ -133,6 +131,12 @@ class CarePathwayOrder < ApplicationRecord
         timestamp_updates[:in_lab_at] = current_time
       when :resulted
         timestamp_updates[:resulted_at] = current_time
+      when :administered
+        timestamp_updates[:administered_at] = current_time
+      when :exam_started
+        timestamp_updates[:exam_started_at] = current_time
+      when :exam_completed
+        timestamp_updates[:exam_completed_at] = current_time
       end
 
       update!(timestamp_updates)
@@ -160,7 +164,16 @@ class CarePathwayOrder < ApplicationRecord
 
   # Check if order is complete
   def complete?
-    resulted?
+    case order_type.to_sym
+    when :medication
+      administered?
+    when :imaging
+      resulted?
+    when :lab
+      resulted?
+    else
+      resulted?
+    end
   end
 
   # Get status label
@@ -170,6 +183,9 @@ class CarePathwayOrder < ApplicationRecord
     when :collected then "Collected"
     when :in_lab then "In Lab"
     when :resulted then "Resulted"
+    when :administered then "Administered"
+    when :exam_started then "Exam Started"
+    when :exam_completed then "Exam Completed"
     end
   end
 
@@ -181,7 +197,28 @@ class CarePathwayOrder < ApplicationRecord
     self.class.statuses[status]
   end
 
+  # Determine workflow states based on order type
+  def workflow_states
+    case order_type.to_sym
+    when :medication
+      [:ordered, :administered]
+    when :imaging
+      [:ordered, :exam_started, :exam_completed, :resulted]
+    when :lab
+      [:ordered, :collected, :in_lab, :resulted]
+    else
+      [:ordered, :collected, :in_lab, :resulted]
+    end
+  end
+
   private
+
+  def determine_next_status
+    workflow = workflow_states
+    current_index = workflow.index(status.to_sym)
+    return nil unless current_index && current_index < workflow.length - 1
+    workflow[current_index + 1]
+  end
 
   def get_previous_timestamp
     case status.to_sym
@@ -191,18 +228,38 @@ class CarePathwayOrder < ApplicationRecord
       collected_at
     when :in_lab
       in_lab_at
+    when :resulted
+      resulted_at
+    when :administered
+      administered_at
+    when :exam_started
+      exam_started_at
+    when :exam_completed
+      exam_completed_at
     else
       nil
     end
   end
 
   def calculate_timer_status(duration_minutes)
-    if duration_minutes <= 20
-      "green"
-    elsif duration_minutes <= 40
-      "yellow"
+    # Different timing for medications (faster expected response)
+    if order_type_medication?
+      if duration_minutes <= 5
+        "green"
+      elsif duration_minutes <= 10
+        "yellow"
+      else
+        "red"
+      end
     else
-      "red"
+      # Standard timing for labs and imaging
+      if duration_minutes <= 20
+        "green"
+      elsif duration_minutes <= 40
+        "yellow"
+      else
+        "red"
+      end
     end
   end
 
