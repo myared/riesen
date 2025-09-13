@@ -16,48 +16,71 @@ class MonitorWaitTimesJob < ApplicationJob
   private
   
   def check_and_create_wait_time_alerts(patient)
-    return unless patient.esi_level.present?
-    
-    target_minutes = patient.esi_target_minutes
     wait_minutes = patient.wait_time_minutes
-    
-    yellow_threshold = target_minutes * 0.75
-    red_threshold = target_minutes
-    
+    return unless wait_minutes.present?
+
+    # Hardcoded thresholds for three-color system
+    yellow_threshold = 45  # minutes - approaching due time
+    red_threshold = 60     # minutes - fully due
+    critical_threshold = 80  # minutes - over 20 minutes due (60 + 20)
+
+    # Check for existing tasks of each color
+    existing_green_task = NursingTask.where(
+      patient: patient,
+      task_type: :assessment,
+      description: "WAIT TIME STATUS: #{patient.full_name} is on track (green)",
+      status: [:pending, :in_progress]
+    ).first
+
     existing_yellow_task = NursingTask.where(
       patient: patient,
       task_type: :assessment,
-      description: "WAIT TIME ALERT: #{patient.full_name} approaching ESI #{patient.esi_level} target",
+      description: "WAIT TIME ALERT: #{patient.full_name} is overdue (yellow)",
       status: [:pending, :in_progress]
     ).first
-    
+
     existing_red_task = NursingTask.where(
       patient: patient,
       task_type: :assessment,
-      description: "CRITICAL WAIT TIME: #{patient.full_name} exceeded ESI #{patient.esi_level} target",
+      description: "CRITICAL WAIT TIME: #{patient.full_name} is critically overdue (red)",
       status: [:pending, :in_progress]
     ).first
-    
-    if wait_minutes >= red_threshold && !existing_red_task
+
+    # Create tasks based on wait time - prioritize red over yellow over green
+    if wait_minutes >= critical_threshold && !existing_red_task
+      # Red: Over 20 minutes due (80+ minutes)
       NursingTask.create!(
         patient: patient,
         task_type: :assessment,
-        description: "CRITICAL WAIT TIME: #{patient.full_name} exceeded ESI #{patient.esi_level} target",
+        description: "CRITICAL WAIT TIME: #{patient.full_name} is critically overdue (red)",
         assigned_to: 'Charge RN',
         priority: :urgent,
         status: :pending,
         due_at: 5.minutes.from_now,
         room_number: patient.location_status.humanize
       )
-    elsif wait_minutes >= yellow_threshold && wait_minutes < red_threshold && !existing_yellow_task && !existing_red_task
+    elsif wait_minutes >= yellow_threshold && wait_minutes < critical_threshold && !existing_yellow_task && !existing_red_task
+      # Yellow: Overdue (45-79 minutes)
       NursingTask.create!(
         patient: patient,
         task_type: :assessment,
-        description: "WAIT TIME ALERT: #{patient.full_name} approaching ESI #{patient.esi_level} target",
+        description: "WAIT TIME ALERT: #{patient.full_name} is overdue (yellow)",
         assigned_to: 'Charge RN',
         priority: :high,
         status: :pending,
         due_at: 10.minutes.from_now,
+        room_number: patient.location_status.humanize
+      )
+    elsif wait_minutes < yellow_threshold && !existing_green_task && !existing_yellow_task && !existing_red_task
+      # Green: Not yet due (under 45 minutes)
+      NursingTask.create!(
+        patient: patient,
+        task_type: :assessment,
+        description: "WAIT TIME STATUS: #{patient.full_name} is on track (green)",
+        assigned_to: 'Charge RN',
+        priority: :low,
+        status: :pending,
+        due_at: 15.minutes.from_now,
         room_number: patient.location_status.humanize
       )
     end

@@ -4,8 +4,8 @@ class Patient < ApplicationRecord
     1 => 0,    # Resuscitation - Immediate
     2 => 10,   # Emergent - 10 minutes
     3 => 30,   # Urgent - 30 minutes
-    4 => 60,   # Less Urgent - 60 minutes
-    5 => 120   # Non-Urgent - 120 minutes
+    4 => 30,   # Less Urgent - 30 minutes
+    5 => 30    # Non-Urgent - 30 minutes
   }.freeze
   
   # ESI Level descriptions
@@ -22,9 +22,6 @@ class Patient < ApplicationRecord
   
   # Timer thresholds (in minutes)
   ROOM_ASSIGNMENT_TARGET = 20   # Target time for room assignment
-  TIMER_WARNING_THRESHOLD = 20  # When timer turns yellow
-  TIMER_CRITICAL_THRESHOLD = 40 # When timer turns red
-  TIMER_MAX_DISPLAY = 60        # Max value for progress bar
   
   # Enum for location status
   enum :location_status, {
@@ -137,24 +134,26 @@ class Patient < ApplicationRecord
   end
   
   def wait_status
-    return :on_time if wait_time_minutes <= esi_target_minutes
+    target = esi_target_minutes
+    current_wait = wait_time_minutes
     
-    over_target = wait_time_minutes - esi_target_minutes
-    over_percentage = (over_target.to_f / esi_target_minutes * 100).round
-    
-    if over_percentage <= 50
-      :warning
+    if current_wait <= target
+      :green  # On time
+    elsif current_wait <= (target * 2)
+      :yellow  # Warning - over target but under 2x target
     else
-      :critical
+      :red  # Critical - over 2x target time
     end
   end
   
   def wait_status_class
     case wait_status
-    when :warning
-      'wait-warning'
-    when :critical
-      'wait-critical'
+    when :green
+      'wait-green'
+    when :yellow
+      'wait-yellow'
+    when :red
+      'wait-red'
     else
       ''
     end
@@ -181,5 +180,33 @@ class Patient < ApplicationRecord
   def time_waiting_for_room
     return 0 unless room_assignment_started_at
     ((Time.current - room_assignment_started_at) / 60).round
+  end
+  
+  def room_assignment_status
+    return :green if !location_needs_room_assignment?
+    
+    wait_time = time_waiting_for_room
+    target = ROOM_ASSIGNMENT_TARGET
+    
+    if wait_time <= target
+      :green  # On time (under 20 minutes)
+    elsif wait_time <= (target * 2)
+      :yellow  # Warning (20-40 minutes)
+    else
+      :red  # Critical (over 40 minutes)
+    end
+  end
+  
+  def room_assignment_status_class
+    case room_assignment_status
+    when :green
+      'timer-green'
+    when :yellow
+      'timer-yellow'
+    when :red
+      'timer-red'
+    else
+      ''
+    end
   end
 end

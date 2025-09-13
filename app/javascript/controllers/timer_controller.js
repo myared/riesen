@@ -70,43 +70,35 @@ export default class extends Controller {
   }
   
   updateState(elapsed) {
-    const warning = this.thresholdsValue.warning || this.constructor.DEFAULTS.WARNING_THRESHOLD
-    const critical = this.thresholdsValue.critical || this.constructor.DEFAULTS.CRITICAL_THRESHOLD
+    const target = this.thresholdsValue.target || this.targetMinutesValue
     
-    // Remove all timing classes
-    this.element.classList.remove('timing-normal', 'timing-warning', 'timing-critical')
+    // Remove all timer classes
+    this.element.classList.remove('wait-green', 'wait-yellow', 'wait-red', 'timer-green', 'timer-yellow', 'timer-red')
     
-    // For progress-based coloring (using target minutes)
-    if (this.thresholdsValue.useTarget || this.targetMinutesValue < 60) {
-      const percentage = (elapsed.minutes / this.targetMinutesValue) * 100
-      
-      if (percentage >= 100) {
-        this.element.classList.add('timing-critical')
-      } else if (percentage >= 80) {
-        this.element.classList.add('timing-warning')
-      } else {
-        this.element.classList.add('timing-normal')
-      }
+    // Determine status based on target time
+    // Green: 0 to target
+    // Yellow: target to 2x target  
+    // Red: over 2x target
+    let status
+    if (elapsed.minutes <= target) {
+      status = 'green'
+    } else if (elapsed.minutes <= (target * 2)) {
+      status = 'yellow'
     } else {
-      // For time-based coloring (fixed thresholds)
-      if (elapsed.minutes >= critical) {
-        this.element.classList.add('timing-critical')
-      } else if (elapsed.minutes >= warning) {
-        this.element.classList.add('timing-warning')
-      } else {
-        this.element.classList.add('timing-normal')
-      }
+      status = 'red'
+    }
+    
+    // Add appropriate classes
+    if (this.element.classList.contains('wait-progress')) {
+      this.element.classList.add(`wait-${status}`)
+    } else {
+      this.element.classList.add(`timer-${status}`)
     }
     
     // Update progress bar classes
     if (this.hasProgressTarget) {
-      this.progressTarget.classList.remove('progress-normal', 'progress-warning', 'progress-critical')
-      
-      const currentClass = Array.from(this.element.classList).find(c => c.startsWith('timing-'))
-      if (currentClass) {
-        const state = currentClass.replace('timing-', '')
-        this.progressTarget.classList.add(`progress-${state}`)
-      }
+      this.progressTarget.classList.remove('progress-green', 'progress-yellow', 'progress-red')
+      this.progressTarget.classList.add(`progress-${status}`)
     }
   }
 }

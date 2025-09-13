@@ -205,20 +205,24 @@
   transition: width 0.3s ease;
 }
 
-.wait-progress.wait-warning .progress-bar-fill {
+.wait-progress.wait-green .progress-bar-fill {
+  background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+}
+
+.wait-progress.wait-yellow .progress-bar-fill {
   background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
 }
 
-.wait-progress.wait-critical .progress-bar-fill {
+.wait-progress.wait-red .progress-bar-fill {
   background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
 }
 
-.wait-progress.wait-warning .wait-time {
+.wait-progress.wait-yellow .wait-time {
   color: #f59e0b;
   font-weight: 700;
 }
 
-.wait-progress.wait-critical .wait-time {
+.wait-progress.wait-red .wait-time {
   color: #ef4444;
   font-weight: 700;
 }
@@ -527,4 +531,42 @@
   100% {
     background: #fee2e2;
   }
+}
+
+/* Timer status colors */
+.timer-green {
+  color: #28a745;
+}
+
+.timer-yellow {
+  color: #f59e0b;
+  font-weight: 600;
+}
+
+.timer-red {
+  color: #ef4444;
+  font-weight: 700;
+  animation: pulse 2s infinite;
+}
+
+.timer-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.timer-badge.timer-green {
+  background: #d4edda;
+  color: #155724;
+}
+
+.timer-badge.timer-yellow {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.timer-badge.timer-red {
+  background: #f8d7da;
+  color: #721c24;
 }
