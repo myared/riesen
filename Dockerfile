@@ -46,8 +46,8 @@ COPY . .
 RUN bundle exec bootsnap precompile app/ lib/
 
 # Precompiling assets for production without requiring secret RAILS_MASTER_KEY
-# Set RAILS_ASSETS_PRECOMPILE to skip database-dependent initializers
-RUN SECRET_KEY_BASE_DUMMY=1 RAILS_ASSETS_PRECOMPILE=true ./bin/rails assets:precompile
+# DISABLE_JOB_ENQUEUE=1 prevents SolidQueue from trying to connect to database
+RUN DISABLE_JOB_ENQUEUE=1 SECRET_KEY_BASE_DUMMY=1 ./bin/rails assets:precompile
 
 
 
