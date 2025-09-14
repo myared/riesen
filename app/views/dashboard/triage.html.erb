@@ -42,10 +42,12 @@
             <% end %>
           </td>
           <td>
-            <div class="care-pathway-bar">
-              <%= link_to patient_care_pathways_path(patient, referrer: 'triage'), 
-                          class: "btn-action" do %>
-                <%= patient.active_care_pathway&.progress_percentage || 0 %>%
+            <div class="care-pathway-cell">
+              <% progress = patient.active_care_pathway&.progress_percentage || 0 %>
+              <%= link_to patient_care_pathways_path(patient, referrer: 'triage'),
+                          class: "progress-ring-button",
+                          style: "--progress: #{progress}" do %>
+                <span class="progress-text"><%= progress %>%</span>
               <% end %>
             </div>
           </td>

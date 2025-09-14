@@ -355,6 +355,56 @@ button {
   background: #f6f8fa;
 }
 
+.care-pathway-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.progress-ring-button {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    #22c55e 0deg,
+    #22c55e calc(var(--progress) * 3.6deg),
+    #e5e7eb calc(var(--progress) * 3.6deg),
+    #e5e7eb 360deg
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s ease, filter 0.2s ease;
+  text-decoration: none;
+}
+
+.progress-ring-button::before {
+  content: '';
+  position: absolute;
+  width: 43px;
+  height: 43px;
+  background: white;
+  border-radius: 50%;
+  z-index: 1;
+}
+
+.progress-ring-button .progress-text {
+  position: relative;
+  z-index: 2;
+  font-weight: bold;
+  font-size: 14px;
+  color: #24292e;
+}
+
+.progress-ring-button:hover {
+  transform: scale(1.1);
+  filter: brightness(1.1);
+}
+
 .care-pathway-bar {
   display: flex;
   align-items: center;
