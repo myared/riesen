@@ -111,18 +111,46 @@ class Patient < ApplicationRecord
   end
   
   def wait_progress_percentage
-    target = esi_target_minutes
+    timer = longest_wait_timer
+    return 0 unless timer
+
+    current_wait = timer[:time].to_f
+
+    # Determine target based on timer type
+    target = if timer[:type] == :order && timer[:order]
+      order = timer[:order]
+      if order.order_type_medication?
+        10  # Medication target is 10 minutes (yellow threshold)
+      else
+        40  # Lab/Imaging target is 40 minutes (yellow threshold)
+      end
+    else
+      esi_target_minutes
+    end
+
     return 100 if target.zero?
-    [(wait_time_minutes.to_f / target * 100).round, 100].min
+    [(current_wait / target * 100).round, 100].min
   end
-  
+
   def esi_target_minutes
     ESI_WAIT_TARGETS[esi_level] || 30
   end
-  
+
   def esi_target_label
-    return "Immediate" if esi_level == 1
-    "#{esi_target_minutes}m target"
+    timer = longest_wait_timer
+
+    if timer && timer[:type] == :order && timer[:order]
+      order = timer[:order]
+      if order.order_type_medication?
+        "10m target"
+      else
+        "40m target"
+      end
+    elsif esi_level == 1
+      "Immediate"
+    else
+      "#{esi_target_minutes}m target"
+    end
   end
   
   def esi_description
@@ -134,15 +162,44 @@ class Patient < ApplicationRecord
   end
   
   def wait_status
-    target = esi_target_minutes
-    current_wait = wait_time_minutes
-    
-    if current_wait <= target
-      :green  # On time
-    elsif current_wait <= (target * 2)
-      :yellow  # Warning - over target but under 2x target
+    timer = longest_wait_timer
+    return :green unless timer
+
+    current_wait = timer[:time]
+
+    # Determine thresholds based on timer type
+    if timer[:type] == :order && timer[:order]
+      # Use order-specific thresholds
+      order = timer[:order]
+      if order.order_type_medication?
+        # Medication thresholds: green <= 5, yellow <= 10, red > 10
+        if current_wait <= 5
+          :green
+        elsif current_wait <= 10
+          :yellow
+        else
+          :red
+        end
+      else
+        # Lab/Imaging thresholds: green <= 20, yellow <= 40, red > 40
+        if current_wait <= 20
+          :green
+        elsif current_wait <= 40
+          :yellow
+        else
+          :red
+        end
+      end
     else
-      :red  # Critical - over 2x target time
+      # Use ESI-based thresholds for arrival/room assignment
+      target = esi_target_minutes
+      if current_wait <= target
+        :green
+      elsif current_wait <= (target * 2)
+        :yellow
+      else
+        :red
+      end
     end
   end
   
@@ -167,9 +224,68 @@ class Patient < ApplicationRecord
     location_status == 'needs_room_assignment'
   end
   
+  # Calculate wait time based on the longest active timer
   def wait_time_minutes
-    return 0 unless arrival_time
-    ((Time.current - arrival_time) / 60).round
+    timers = []
+
+    # Only check arrival/triage timers if patient is not yet in a room
+    if !location_ed_room? && !location_treatment? && !location_results_pending?
+      # Check arrival time if not yet triaged
+      if arrival_time && !triage_completed_at
+        timers << {
+          time: ((Time.current - arrival_time) / 60).round,
+          type: :arrival,
+          order: nil
+        }
+      end
+
+      # Check triage completion time if waiting for room
+      if triage_completed_at && location_needs_room_assignment?
+        timers << {
+          time: ((Time.current - triage_completed_at) / 60).round,
+          type: :room_assignment,
+          order: nil
+        }
+      end
+    end
+
+    # Check all active care pathway orders
+    care_pathways.each do |pathway|
+      pathway.care_pathway_orders.where.not(status: [:resulted, :administered, :exam_completed]).each do |order|
+        # Get the appropriate timestamp based on order status
+        timestamp = case order.status.to_sym
+        when :ordered
+          order.ordered_at
+        when :collected
+          order.collected_at
+        when :in_lab
+          order.in_lab_at
+        when :exam_started
+          order.exam_started_at
+        else
+          order.status_updated_at || order.ordered_at
+        end
+
+        if timestamp
+          timers << {
+            time: ((Time.current - timestamp) / 60).round,
+            type: :order,
+            order: order
+          }
+        end
+      end
+    end
+
+    # Return the longest timer value, or 0 if no timers
+    longest_timer = timers.max_by { |t| t[:time] }
+    @longest_wait_timer = longest_timer  # Store for other methods to use
+    longest_timer ? longest_timer[:time] : 0
+  end
+
+  # Get the longest waiting order/task details
+  def longest_wait_timer
+    wait_time_minutes if @longest_wait_timer.nil?  # Calculate if not already done
+    @longest_wait_timer
   end
   
   def room_assignment_started_at

@@ -9,18 +9,22 @@ class DashboardController < ApplicationController
 
   def rp
     # Include both patients in RP and those waiting for RP room assignment
-    @patients = Patient.includes(:vitals, :events)
+    # Sort by wait time with highest minutes at top
+    @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_results_pending
                        .or(Patient.needs_rp_assignment)
-                       .by_priority_time
+                       .to_a
+                       .sort_by { |p| -p.wait_time_minutes }
   end
 
   def ed_rn
     # Include both patients in ED and those waiting for ED room assignment
-    @patients = Patient.includes(:vitals, :events)
+    # Sort by wait time with highest minutes at top
+    @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_ed_treatment
                        .or(Patient.needs_ed_assignment)
-                       .by_priority_time
+                       .to_a
+                       .sort_by { |p| -p.wait_time_minutes }
   end
 
   def charge_rn

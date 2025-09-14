@@ -30,6 +30,7 @@ Rails.application.routes.draw do
   end
   
   post "simulation/add_patient", to: "simulation#add_patient"
+  post "simulation/fast_forward_time", to: "simulation#fast_forward_time"
   
   # Define your application routes per the DSL in https://guides.rubyonrails.org/routing.html
 

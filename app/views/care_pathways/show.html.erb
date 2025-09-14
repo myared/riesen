@@ -24,8 +24,29 @@
       <% if @care_pathway.pathway_type_triage? %>
         <!-- Triage Pathway -->
         <div class="pathway-section">
+          <% current_step = @care_pathway.current_triage_step %>
+          <% if current_step && !@care_pathway.complete? %>
+            <% # Use the patient's wait_time_minutes which returns the highest running timer
+               time_waiting = @patient.wait_time_minutes
+               # Determine timer color based on wait status
+               timer_class = case @patient.wait_status
+                            when :green then 'timer-green'
+                            when :yellow then 'timer-yellow'
+                            when :red then 'timer-red'
+                            else ''
+                            end
+            %>
+            <div class="current-task-banner <%= timer_class %>">
+              <span class="current-task-label">CURRENT TASK:</span>
+              <span class="current-task-name">
+                <%= current_step.name == 'Intake' ? 'Triage Patient' : current_step.name %>
+                <span class="task-timer"><%= time_waiting %>m</span>
+              </span>
+            </div>
+          <% end %>
+
           <h2>Triage Pathway</h2>
-          
+
           <div class="pathway-progress">
             <% @steps.each do |step| %>
               <div class="pathway-step <%= step.status_class %>" data-step-id="<%= step.id %>">
@@ -93,6 +114,44 @@
       <% elsif @care_pathway.pathway_type_emergency_room? %>
         <!-- Emergency Room Pathway -->
         <div class="er-pathway-container">
+          <% # Determine current task for ER pathway
+             pending_orders = @orders.where.not(status: [:resulted, :administered, :exam_completed])
+             pending_procedures = @procedures.where(completed: false)
+             pending_endpoints = @clinical_endpoints.where(achieved: false)
+
+             current_task = nil
+             # Use the patient's wait_time_minutes which returns the highest running timer
+             task_timer = @patient.wait_time_minutes
+
+             if pending_orders.any?
+               oldest_order = pending_orders.min_by { |o| o.ordered_at || Time.current }
+               current_task = "Advance #{oldest_order.name} (#{oldest_order.status.humanize})"
+             elsif pending_procedures.any?
+               proc = pending_procedures.first
+               current_task = "Complete #{proc.name}"
+             elsif pending_endpoints.any?
+               endpoint = pending_endpoints.first
+               current_task = "Achieve #{endpoint.name}"
+             end
+          %>
+          <% if current_task %>
+            <% # Determine timer color based on wait status
+               timer_class = case @patient.wait_status
+                            when :green then 'timer-green'
+                            when :yellow then 'timer-yellow'
+                            when :red then 'timer-red'
+                            else ''
+                            end
+            %>
+            <div class="current-task-banner <%= timer_class %>">
+              <span class="current-task-label">CURRENT TASK:</span>
+              <span class="current-task-name">
+                <%= current_task %>
+                <span class="task-timer"><%= task_timer %>m</span>
+              </span>
+            </div>
+          <% end %>
+
           <div class="er-pathway-header">
             <h2>Emergency Room Care Pathway</h2>
             <p class="pathway-subtitle">Active Clinical Management</p>
@@ -338,6 +397,100 @@
 
   .care-pathway-body {
     padding: 30px;
+  }
+
+  /* Current Task Banner - Default (red) */
+  .current-task-banner {
+    background: #ffebee;
+    border: 2px solid #dc3545;
+    border-radius: 8px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 16px;
+  }
+
+  .current-task-label {
+    color: #dc3545;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+  }
+
+  .current-task-name {
+    color: #721c24;
+    font-weight: 600;
+    flex: 1;
+  }
+
+  .task-timer {
+    display: inline-block;
+    margin-left: 12px;
+    padding: 4px 8px;
+    background: #dc3545;
+    color: white;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 600;
+    min-width: 40px;
+    text-align: center;
+  }
+
+  /* Green timer status */
+  .current-task-banner.timer-green {
+    background: #d4edda;
+    border-color: #28a745;
+  }
+
+  .current-task-banner.timer-green .current-task-label {
+    color: #28a745;
+  }
+
+  .current-task-banner.timer-green .current-task-name {
+    color: #155724;
+  }
+
+  .current-task-banner.timer-green .task-timer {
+    background: #28a745;
+  }
+
+  /* Yellow timer status */
+  .current-task-banner.timer-yellow {
+    background: #fff3cd;
+    border-color: #ffc107;
+  }
+
+  .current-task-banner.timer-yellow .current-task-label {
+    color: #856404;
+  }
+
+  .current-task-banner.timer-yellow .current-task-name {
+    color: #856404;
+  }
+
+  .current-task-banner.timer-yellow .task-timer {
+    background: #ffc107;
+    color: #212529;
+  }
+
+  /* Red timer status */
+  .current-task-banner.timer-red {
+    background: #ffebee;
+    border-color: #dc3545;
+  }
+
+  .current-task-banner.timer-red .current-task-label {
+    color: #dc3545;
+  }
+
+  .current-task-banner.timer-red .current-task-name {
+    color: #721c24;
+  }
+
+  .current-task-banner.timer-red .task-timer {
+    background: #dc3545;
   }
 
   .pathway-section h2 {

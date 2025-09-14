@@ -76,12 +76,49 @@
                     <span class="wait-target" data-timer-target="label">ROOM ASSIGNMENT TIMER</span>
                   </div>
                 <% else %>
+                  <%
+                    # Get the backend calculated wait time and timer details
+                    backend_wait_time = patient.wait_time_minutes
+                    longest_timer = patient.longest_wait_timer
+
+                    # Determine the appropriate start time based on the backend logic
+                    start_time = if backend_wait_time > 0 && longest_timer
+                      case longest_timer[:type]
+                      when :arrival
+                        patient.arrival_time
+                      when :room_assignment
+                        patient.triage_completed_at
+                      when :order
+                        # For orders, get the appropriate timestamp from the order
+                        order = longest_timer[:order]
+                        case order.status.to_sym
+                        when :ordered
+                          order.ordered_at
+                        when :collected
+                          order.collected_at
+                        when :in_lab
+                          order.in_lab_at
+                        when :exam_started
+                          order.exam_started_at
+                        else
+                          order.status_updated_at || order.ordered_at
+                        end
+                      else
+                        nil
+                      end
+                    else
+                      nil
+                    end
+                  %>
+
                   <div class="wait-progress <%= patient.wait_status_class %>"
                        data-controller="timer"
-                       data-timer-start-time-value="<%= patient.arrival_time&.iso8601 %>"
+                       <% if start_time %>
+                         data-timer-start-time-value="<%= start_time&.iso8601 %>"
+                       <% end %>
                        data-timer-target-minutes-value="<%= patient.esi_target_minutes %>"
                        data-timer-thresholds-value='<%= { useTarget: true }.to_json %>'>
-                    <span class="wait-time" data-timer-target="display"><%= patient.wait_time_minutes %>m</span>
+                    <span class="wait-time" data-timer-target="display"><%= backend_wait_time %>m</span>
                     <div class="progress-bar">
                       <div class="progress-bar-fill"
                            data-timer-target="progress"

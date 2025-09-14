@@ -38,6 +38,9 @@
         </nav>
         <div class="dashboard-actions">
           <%= button_to "+ Add Patient", simulation_add_patient_path, method: :post, class: "btn btn-primary" %>
+          <%= button_to "⏩ Fast Forward +10m", simulation_fast_forward_time_path, method: :post,
+              class: "btn btn-warning",
+              data: { confirm: "This will advance ALL timers by 10 minutes. Continue?" } %>
         </div>
       </header>
       <main class="dashboard-content">

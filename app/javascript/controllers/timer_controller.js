@@ -37,10 +37,19 @@ export default class extends Controller {
   }
   
   calculateElapsed() {
+    // If no start time provided, return 0 (backend handles this case)
+    if (!this.startTimeValue || this.startTimeValue === "") {
+      return {
+        minutes: 0,
+        seconds: 0,
+        totalMs: 0
+      }
+    }
+
     const startTime = new Date(this.startTimeValue)
     const now = new Date()
     const elapsedMs = now - startTime
-    
+
     return {
       minutes: Math.floor(elapsedMs / 60000),
       seconds: Math.floor((elapsedMs % 60000) / 1000),
@@ -50,34 +59,49 @@ export default class extends Controller {
   
   updateDisplay(elapsed) {
     if (!this.hasDisplayTarget) return
-    
+
+    // If no start time provided, keep the backend-calculated value (don't update)
+    if (!this.startTimeValue || this.startTimeValue === "") {
+      return
+    }
+
     let displayText
     if (this.formatValue === "full") {
       displayText = `${String(elapsed.minutes).padStart(2, '0')}:${String(elapsed.seconds).padStart(2, '0')}`
     } else {
       displayText = `${elapsed.minutes}m`
     }
-    
+
     this.displayTarget.textContent = displayText
   }
   
   updateProgress(elapsed) {
     if (!this.hasProgressTarget) return
-    
+
+    // If no start time provided, don't update progress (keep backend-calculated value)
+    if (!this.startTimeValue || this.startTimeValue === "") {
+      return
+    }
+
     const maxMinutes = this.thresholdsValue.max || this.maxMinutesValue
     const progressPercentage = Math.min(100, (elapsed.minutes / maxMinutes) * 100)
     this.progressTarget.style.width = `${progressPercentage}%`
   }
   
   updateState(elapsed) {
+    // If no start time provided, don't update state (keep backend-calculated classes)
+    if (!this.startTimeValue || this.startTimeValue === "") {
+      return
+    }
+
     const target = this.thresholdsValue.target || this.targetMinutesValue
-    
+
     // Remove all timer classes
     this.element.classList.remove('wait-green', 'wait-yellow', 'wait-red', 'timer-green', 'timer-yellow', 'timer-red')
-    
+
     // Determine status based on target time
     // Green: 0 to target
-    // Yellow: target to 2x target  
+    // Yellow: target to 2x target
     // Red: over 2x target
     let status
     if (elapsed.minutes <= target) {
@@ -87,14 +111,14 @@ export default class extends Controller {
     } else {
       status = 'red'
     }
-    
+
     // Add appropriate classes
     if (this.element.classList.contains('wait-progress')) {
       this.element.classList.add(`wait-${status}`)
     } else {
       this.element.classList.add(`timer-${status}`)
     }
-    
+
     // Update progress bar classes
     if (this.hasProgressTarget) {
       this.progressTarget.classList.remove('progress-green', 'progress-yellow', 'progress-red')
