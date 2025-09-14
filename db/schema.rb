@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_13_221509) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_14_142404) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -49,6 +49,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_13_221509) do
     t.datetime "administered_at"
     t.datetime "exam_started_at"
     t.datetime "exam_completed_at"
+    t.string "assigned_to"
     t.index ["care_pathway_id"], name: "index_care_pathway_orders_on_care_pathway_id"
     t.index ["order_type"], name: "index_care_pathway_orders_on_order_type"
     t.index ["status"], name: "index_care_pathway_orders_on_status"

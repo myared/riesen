@@ -1,43 +1,141 @@
 <div class="staff-tasks">
   <h2>Nursing Task Priorities</h2>
 
-  <%= render 'active_orders' if @active_orders && @active_orders.any? %>
-
   <% if @nurses && @nurses.any? %>
     <% @nurses.each do |nurse_name, nurse_data| %>
       <div class="nurse-task-card">
         <div class="nurse-header">
           <h3><%= nurse_name %></h3>
           <div class="task-summary">
-            <span class="task-count"><%= nurse_data[:tasks].count %> tasks</span>
+            <span class="task-count">
+              <%= nurse_data[:tasks].count + nurse_data[:orders].count %> items
+            </span>
             <span class="total-time"><%= nurse_data[:total_time] %> min</span>
           </div>
         </div>
 
         <div class="task-list">
+          <% # Combine and sort all items (tasks and orders) by priority %>
+          <% all_items = [] %>
+
+          <% # Add nursing tasks %>
           <% nurse_data[:tasks].each do |task| %>
-            <div class="task-item <%= task.overdue? ? 'overdue' : '' %> <%= task.priority_class %>">
-              <div class="task-location">
-                <%= task.task_type_room_assignment? ? task.patient.location_status.humanize : task.room_number %>
-              </div>
-              <div class="task-description">
-                <%= task.description %>
-              </div>
-              <div class="task-time">
-                <% if task.severely_overdue? %>
-                  <span class="overdue-time"><%= task.elapsed_time %> min</span>
-                <% else %>
+            <% all_items << {
+              type: 'task',
+              item: task,
+              timer_status: task.timer_status,
+              elapsed_time: task.elapsed_time,
+              sort_priority: task.sort_priority
+            } %>
+          <% end %>
+
+          <% # Add orders %>
+          <% nurse_data[:orders].each do |order| %>
+            <% priority = case order[:timer_status]
+                         when 'red' then 3
+                         when 'yellow' then 2
+                         when 'green' then 1
+                         else 0
+                         end %>
+            <% all_items << {
+              type: 'order',
+              item: order,
+              timer_status: order[:timer_status],
+              elapsed_time: order[:elapsed_time],
+              sort_priority: priority
+            } %>
+          <% end %>
+
+          <% # Sort all items by priority %>
+          <% sorted_items = all_items.sort_by { |i| [-i[:sort_priority], -i[:elapsed_time]] } %>
+
+          <% sorted_items.each do |item_wrapper| %>
+            <% if item_wrapper[:type] == 'task' %>
+              <% task = item_wrapper[:item] %>
+              <div class="task-item <%= task.priority_class %>">
+                <div class="task-location">
+                  <%= task.task_type_room_assignment? ? task.patient.location_status.humanize : task.room_number %>
+                </div>
+                <div class="task-description">
+                  <%= task.description %>
+                </div>
+                <div class="task-time timer-<%= task.timer_status %>">
                   <span class="elapsed-time"><%= task.elapsed_time %> min</span>
-                <% end %>
+                </div>
               </div>
-            </div>
+            <% else %>
+              <% order = item_wrapper[:item] %>
+              <div class="task-item timer-<%= order[:timer_status] %>">
+                <div class="task-location">
+                  <%= order[:room] %>
+                </div>
+                <div class="task-description">
+                  <span class="order-type-icon"><%= order[:type_icon] %></span>
+                  <%= order[:order_name] %> - <%= order[:patient_name] %>
+                  <span class="order-status">(<%= order[:current_status] %>)</span>
+                </div>
+                <div class="task-time timer-<%= order[:timer_status] %>" data-start-time="<%= order[:timer_start_time] %>" data-order-type="<%= order[:order_type].downcase %>">
+                  <span class="elapsed-time"><%= order[:elapsed_time] %> min</span>
+                </div>
+              </div>
+            <% end %>
           <% end %>
         </div>
       </div>
     <% end %>
   <% else %>
     <div class="empty-state">
-      <p>No pending nursing tasks</p>
+      <p>No pending nursing tasks or active orders</p>
     </div>
   <% end %>
 </div>
+
+<script>
+  // Update task and order timers with dynamic color changes
+  function updateStaffTaskTimers() {
+    document.querySelectorAll('.task-item').forEach(item => {
+      const timerElement = item.querySelector('.task-time');
+      const elapsedElement = item.querySelector('.elapsed-time');
+
+      if (timerElement && elapsedElement) {
+        // Check if this is an order (has data-start-time) or a task
+        const startTime = timerElement.dataset.startTime;
+        const orderType = timerElement.dataset.orderType;
+
+        if (startTime) {
+          // This is an order with a start time
+          const start = new Date(startTime);
+          const now = new Date();
+          const diffMinutes = Math.floor((now - start) / 60000);
+
+          // Update timer text
+          elapsedElement.textContent = diffMinutes + ' min';
+
+          // Determine thresholds based on order type
+          const thresholds = orderType === 'medication' ? [5, 10] : [20, 40];
+          let newStatus;
+
+          if (diffMinutes <= thresholds[0]) {
+            newStatus = 'green';
+          } else if (diffMinutes <= thresholds[1]) {
+            newStatus = 'yellow';
+          } else {
+            newStatus = 'red';
+          }
+
+          // Update timer color classes
+          timerElement.classList.remove('timer-green', 'timer-yellow', 'timer-red');
+          timerElement.classList.add('timer-' + newStatus);
+
+          // Update item color classes
+          item.classList.remove('timer-green', 'timer-yellow', 'timer-red');
+          item.classList.add('timer-' + newStatus);
+        }
+      }
+    });
+  }
+
+  // Update timers every 30 seconds
+  updateStaffTaskTimers();
+  setInterval(updateStaffTaskTimers, 30000);
+</script>

@@ -378,4 +378,38 @@ button {
   }
 }
 
+/* Timer status colors for tasks and orders */
+.timer-green {
+  background-color: #d4edda;
+  border-left: 4px solid #28a745;
+}
+
+.timer-yellow {
+  background-color: #fff3cd;
+  border-left: 4px solid #ffc107;
+}
+
+.timer-red {
+  background-color: #f8d7da;
+  border-left: 4px solid #dc3545;
+}
+
+.timer-green .task-time,
+.task-time.timer-green {
+  color: #28a745;
+  font-weight: 600;
+}
+
+.timer-yellow .task-time,
+.task-time.timer-yellow {
+  color: #856404;
+  font-weight: 600;
+}
+
+.timer-red .task-time,
+.task-time.timer-red {
+  color: #dc3545;
+  font-weight: 700;
+}
+
 /* Legacy classes removed - use timing-* classes instead */

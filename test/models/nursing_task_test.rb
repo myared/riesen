@@ -253,13 +253,17 @@ class NursingTaskTest < ActiveSupport::TestCase
   end
 
   test "priority_class returns correct CSS class" do
-    # Task not overdue should show success (green)
+    # Task with green timer status
     @task.update!(started_at: 5.minutes.ago)
-    assert_equal "priority-success", @task.priority_class
-    
-    # Severely overdue task should show urgent (red)
-    @task.update!(started_at: 20.minutes.ago)
-    assert_equal "priority-urgent", @task.priority_class
+    assert_equal "timer-green", @task.priority_class
+
+    # Task with yellow timer status (between 20-40 min for non-medication)
+    @task.update!(started_at: 25.minutes.ago)
+    assert_equal "timer-yellow", @task.priority_class
+
+    # Task with red timer status (> 40 min for non-medication)
+    @task.update!(started_at: 45.minutes.ago)
+    assert_equal "timer-red", @task.priority_class
   end
 
   test "task creation with all required attributes" do
