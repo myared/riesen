@@ -168,7 +168,8 @@
                       <div class="order-status-tracker">
                         <% order.workflow_states.each_with_index do |workflow_status, index| %>
                           <% if order.class.statuses.key?(workflow_status.to_s) %>
-                            <div class="status-step <%= 'completed' if order.status_value >= order.class.statuses[workflow_status.to_s] %> <%= 'timer-' + order.timer_status if order.status == workflow_status.to_s %>">
+                            <% current_workflow_index = order.workflow_states.index(order.status.to_sym) %>
+                            <div class="status-step <%= 'completed' if current_workflow_index && index <= current_workflow_index %> <%= 'timer-' + order.timer_status if order.status == workflow_status.to_s %>">
                               <%= workflow_status.to_s.humanize %>
                               <% if order.status == workflow_status.to_s && !order.complete? %>
                                 <div class="timer-indicator timer-<%= order.timer_status %>">
@@ -177,7 +178,7 @@
                               <% end %>
                             </div>
                             <% unless index == order.workflow_states.length - 1 %>
-                              <div class="status-connector <%= 'completed' if order.status_value > order.class.statuses[workflow_status.to_s] %>"></div>
+                              <div class="status-connector <%= 'completed' if current_workflow_index && index < current_workflow_index %>"></div>
                             <% end %>
                           <% end %>
                         <% end %>
