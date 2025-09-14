@@ -631,3 +631,76 @@ button {
 }
 
 /* Legacy classes removed - use timing-* classes instead */
+
+/* Mobile Notice - Desktop Only Application */
+.mobile-notice {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #2b6cb0 100%);
+  z-index: 10000;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.mobile-notice__content {
+  background: white;
+  border-radius: 16px;
+  padding: 48px 32px;
+  text-align: center;
+  max-width: 400px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-notice__icon {
+  color: #dc3545;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 24px;
+}
+
+.mobile-notice__title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a365d;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+}
+
+.mobile-notice__message {
+  font-size: 16px;
+  color: #586069;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Show mobile notice on small screens, hide main app */
+@media screen and (max-width: 1024px) {
+  .mobile-notice {
+    display: flex;
+  }
+
+  .ed-dashboard {
+    display: none;
+  }
+}
+
+/* Additional breakpoint for tablets in portrait mode */
+@media screen and (max-width: 768px) {
+  .mobile-notice__content {
+    padding: 32px 24px;
+    margin: 0 16px;
+  }
+
+  .mobile-notice__title {
+    font-size: 24px;
+  }
+
+  .mobile-notice__message {
+    font-size: 15px;
+  }
+}
