@@ -291,7 +291,14 @@ class CarePathwaysController < ApplicationController
   # Add a clinical endpoint
   def add_clinical_endpoint
     @care_pathway = @patient.care_pathways.find(params[:id])
-    @endpoint = @care_pathway.care_pathway_clinical_endpoints.build(endpoint_params)
+    endpoint_data = endpoint_params
+
+    # Set a default description based on the goal name if not provided
+    if endpoint_data[:description].blank?
+      endpoint_data[:description] = generate_endpoint_description(endpoint_data[:name])
+    end
+
+    @endpoint = @care_pathway.care_pathway_clinical_endpoints.build(endpoint_data)
 
     if @endpoint.save
       # Log the clinical goal creation to patient event log
@@ -410,6 +417,27 @@ class CarePathwaysController < ApplicationController
     end
 
     permitted
+  end
+
+  def generate_endpoint_description(name)
+    # Generate default descriptions for clinical endpoints
+    descriptions = {
+      'Pain Control (Score < 4)' => 'Patient reports pain score less than 4/10',
+      'Hemodynamic Stability' => 'Vital signs stable for at least 30 minutes',
+      'Normal Vital Signs' => 'All vital signs within normal limits',
+      'Afebrile (Temp < 38°C)' => 'Temperature below 38°C',
+      'Adequate Oxygenation (SpO2 > 94%)' => 'Oxygen saturation consistently above 94%',
+      'Symptom Resolution' => 'Primary symptoms have resolved',
+      'Safe for Discharge' => 'Patient meets all discharge criteria',
+      'Follow-up Arranged' => 'Appropriate follow-up care scheduled',
+      'Infection Source Identified' => 'Source of infection has been identified',
+      'Antibiotic Started' => 'Appropriate antibiotic therapy initiated',
+      'Fluid Resuscitation Complete' => 'Adequate fluid resuscitation achieved',
+      'Diagnostic Workup Complete' => 'All necessary diagnostic tests completed',
+      'Specialist Consulted' => 'Appropriate specialist consultation completed',
+      'Family Updated' => 'Family has been informed of patient status'
+    }
+    descriptions[name] || "Goal: #{name}"
   end
 
   def current_user_name

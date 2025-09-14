@@ -1,0 +1,91 @@
+<div class="active-orders-section">
+  <h3>Active Orders</h3>
+
+  <% if @active_orders && @active_orders.any? %>
+    <div class="table-wrapper">
+      <table class="active-orders-table">
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Type</th>
+            <th>Order</th>
+            <th>Ordered By</th>
+            <th>Ordered At</th>
+            <th>Elapsed</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% @active_orders.each do |order| %>
+            <tr class="order-row timer-<%= order[:timer_status] %>">
+              <td class="patient-name"><%= order[:patient_name] %></td>
+              <td class="order-type">
+                <span class="type-icon"><%= order[:type_icon] %></span>
+                <span class="type-text"><%= order[:order_type] %></span>
+              </td>
+              <td class="order-name"><%= order[:order_name] %></td>
+              <td class="ordered-by"><%= order[:ordered_by] %></td>
+              <td class="ordered-at"><%= order[:ordered_at] %></td>
+              <td class="elapsed-time timer-<%= order[:timer_status] %>" data-start-time="<%= order[:timer_start_time] %>" data-order-type="<%= order[:order_type].downcase %>">
+                <span class="timer-value"><%= order[:elapsed_time] %> min</span>
+              </td>
+              <td class="status"><%= order[:current_status] %></td>
+            </tr>
+          <% end %>
+        </tbody>
+      </table>
+    </div>
+  <% else %>
+    <div class="empty-state">
+      <p>No active orders</p>
+    </div>
+  <% end %>
+</div>
+
+<script>
+  // Update active order timers
+  function updateActiveOrderTimers() {
+    document.querySelectorAll('.active-orders-table .elapsed-time').forEach(cell => {
+      const startTime = cell.dataset.startTime;
+      const orderType = cell.dataset.orderType;
+
+      if (startTime) {
+        const start = new Date(startTime);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - start) / 60000);
+
+        // Update timer text
+        const timerValue = cell.querySelector('.timer-value');
+        if (timerValue) {
+          timerValue.textContent = diffMinutes + ' min';
+        }
+
+        // Update timer color class
+        const thresholds = orderType === 'medication' ? [5, 10] : [20, 40];
+        let newStatus;
+
+        if (diffMinutes <= thresholds[0]) {
+          newStatus = 'green';
+        } else if (diffMinutes <= thresholds[1]) {
+          newStatus = 'yellow';
+        } else {
+          newStatus = 'red';
+        }
+
+        // Update cell and row classes
+        cell.classList.remove('timer-green', 'timer-yellow', 'timer-red');
+        cell.classList.add('timer-' + newStatus);
+
+        const row = cell.closest('tr');
+        if (row) {
+          row.classList.remove('timer-green', 'timer-yellow', 'timer-red');
+          row.classList.add('timer-' + newStatus);
+        }
+      }
+    });
+  }
+
+  // Update timers every 30 seconds
+  updateActiveOrderTimers();
+  setInterval(updateActiveOrderTimers, 30000);
+</script>

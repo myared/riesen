@@ -1,7 +1,7 @@
 <div class="staff-tasks">
   <h2>Nursing Task Priorities</h2>
 
-  <%= render 'medication_timers' if @medication_timers && @medication_timers.any? %>
+  <%= render 'active_orders' if @active_orders && @active_orders.any? %>
 
   <% if @nurses && @nurses.any? %>
     <% @nurses.each do |nurse_name, nurse_data| %>
@@ -13,7 +13,7 @@
             <span class="total-time"><%= nurse_data[:total_time] %> min</span>
           </div>
         </div>
-        
+
         <div class="task-list">
           <% nurse_data[:tasks].each do |task| %>
             <div class="task-item <%= task.overdue? ? 'overdue' : '' %> <%= task.priority_class %>">

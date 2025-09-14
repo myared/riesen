@@ -43,7 +43,7 @@ class DashboardController < ApplicationController
                                    .by_priority
       @overdue_tasks = @nursing_tasks.overdue
       @nurses = group_tasks_by_nurse
-      @medication_timers = load_medication_timers
+      @active_orders = load_active_orders
     end
 
     @patients = Patient.includes(:vitals, :events).all.by_arrival_time
@@ -110,39 +110,55 @@ class DashboardController < ApplicationController
     nurses
   end
 
-  def load_medication_timers
-    # Load all active medication orders (not completed)
-    medication_orders = CarePathwayOrder.joins(care_pathway: :patient)
-                                        .includes(care_pathway: :patient)
-                                        .where(order_type: :medication)
-                                        .where.not(status: [:administered])
-                                        .order(:ordered_at)
+  def load_active_orders
+    # Load all active orders (not completed)
+    active_orders = CarePathwayOrder.joins(care_pathway: :patient)
+                                    .includes(care_pathway: :patient)
+                                    .where.not(status: completed_statuses)
+                                    .order(:ordered_at)
 
-    medication_orders.map do |order|
-      patient = order.care_pathway.patient
-      elapsed_minutes = order.status_updated_at ? ((Time.current - order.status_updated_at) / 60).round : 0
+    active_orders.map do |order|
+      build_order_timer(order)
+    end
+  end
 
-      # Determine timer status based on elapsed time
-      timer_status = if elapsed_minutes <= 5
-                      'timer-green'
-                    elsif elapsed_minutes <= 10
-                      'timer-yellow'
-                    else
-                      'timer-red'
-                    end
+  def completed_statuses
+    [:resulted, :administered]
+  end
 
-      {
-        patient_name: patient.full_name,
-        room: patient.room_number || 'Unassigned',
-        medication_name: order.name,
-        ordered_at: order.ordered_at&.strftime("%l:%M %p"),
-        elapsed_time: elapsed_minutes,
-        current_status: order.status_label,
-        status_class: timer_status,
-        order_id: order.id,
-        patient_id: patient.id,
-        care_pathway_id: order.care_pathway_id
-      }
+  def build_order_timer(order)
+    patient = order.care_pathway.patient
+    # Use status_updated_at if available, otherwise fall back to ordered_at
+    timestamp = order.status_updated_at || order.ordered_at
+    elapsed_minutes = timestamp ? ((Time.current - timestamp) / 60).round : 0
+
+    {
+      patient_name: patient.full_name,
+      room: patient.room_number || 'Unassigned',
+      order_type: order.order_type.humanize,
+      type_icon: order.type_icon,
+      order_name: order.name,
+      ordered_by: order.ordered_by || 'System',
+      ordered_at: order.ordered_at&.strftime("%l:%M %p"),
+      elapsed_time: elapsed_minutes,
+      current_status: order.status_label,
+      timer_status: timer_status_for(elapsed_minutes, order.order_type),
+      timer_start_time: timestamp&.iso8601,
+      order_id: order.id,
+      patient_id: patient.id,
+      care_pathway_id: order.care_pathway_id
+    }
+  end
+
+  def timer_status_for(minutes, order_type)
+    thresholds = order_type == 'medication' ? [5, 10] : [20, 40]
+
+    if minutes <= thresholds[0]
+      'green'
+    elsif minutes <= thresholds[1]
+      'yellow'
+    else
+      'red'
     end
   end
 end
