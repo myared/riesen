@@ -1,0 +1,43 @@
+<header class="ed-header">
+  <div class="ed-header__brand">
+    <%= image_tag "heartbeat.svg", class: "ed-header__icon", alt: "Heartbeat" %>
+    <div class="ed-header__title-group">
+      <h1 class="ed-header__title">Riesen ED App</h1>
+      <span class="ed-header__subtitle">Real-Time Clinical Status</span>
+    </div>
+    <div class="ed-header__role-selector" data-controller="role-navigation">
+      <%= select_tag :role,
+          options_for_select([
+            ['Triage', dashboard_triage_path],
+            ['RP', dashboard_rp_path],
+            ['ED RN', dashboard_ed_rn_path],
+            ['Charge RN', dashboard_charge_rn_path],
+            ['Provider', dashboard_provider_path]
+          ], request.path),
+          class: "ed-header__role-dropdown",
+          data: {
+            action: "change->role-navigation#navigate"
+          } %>
+    </div>
+  </div>
+
+  <div class="ed-header__status">
+    <div class="ed-header__patient-count">
+      <span class="ed-header__count-number"><%= @active_patient_count %></span>
+      <span class="ed-header__count-label">Active Patients</span>
+    </div>
+
+    <div class="ed-header__actions">
+      <%= button_to "+ Patient", simulation_add_patient_path,
+          method: :post,
+          class: "ed-header__button ed-header__button--primary" %>
+
+      <%= button_to "+ 10m", simulation_fast_forward_time_path,
+          method: :post,
+          class: "ed-header__button ed-header__button--secondary",
+          data: {
+            turbo_confirm: "This will advance ALL timers by 10 minutes. Continue?"
+          } %>
+    </div>
+  </div>
+</header>
