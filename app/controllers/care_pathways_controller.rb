@@ -208,18 +208,56 @@ class CarePathwaysController < ApplicationController
 
   # Update order status
   def update_order_status
-    @care_pathway = @patient.care_pathways.find(params[:id])
-    @order = @care_pathway.care_pathway_orders.find(params[:order_id])
+    begin
+      Rails.logger.info "update_order_status called - Patient: #{params[:patient_id]}, Care Pathway: #{params[:id]}, Order: #{params[:order_id]}"
 
-    if @order.advance_status!(current_user_name)
-      respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), status: :see_other }
-        format.json { render json: { success: true, status: @order.status, progress: @care_pathway.progress_percentage } }
+      @care_pathway = @patient.care_pathways.find(params[:id])
+
+      # Verify care pathway belongs to the patient
+      unless @care_pathway.patient_id == @patient.id
+        raise ActiveRecord::RecordNotFound, "Care pathway does not belong to patient"
       end
-    else
+
+      @order = @care_pathway.care_pathway_orders.find(params[:order_id])
+
+      Rails.logger.info "Found order: #{@order.name} (#{@order.order_type}) with status: #{@order.status}"
+
+      unless @order.can_advance_status?
+        Rails.logger.warn "Order cannot be advanced - ID: #{@order.id}, Status: #{@order.status}, Complete: #{@order.complete?}"
+        respond_to do |format|
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), alert: "Order is already complete or cannot be advanced", status: :unprocessable_entity }
+          format.json { render json: { success: false, error: "Order cannot be advanced from current status" }, status: :unprocessable_entity }
+        end
+        return
+      end
+
+      if @order.advance_status!(current_user_name)
+        Rails.logger.info "Successfully advanced order #{@order.id} to status: #{@order.status}"
+        respond_to do |format|
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), status: :see_other }
+          format.json { render json: { success: true, status: @order.status, progress: @care_pathway.progress_percentage } }
+        end
+      else
+        Rails.logger.error "Failed to advance order status for Order ID: #{params[:order_id]}, Current Status: #{@order.status}"
+        respond_to do |format|
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), alert: "Failed to update order status", status: :unprocessable_entity }
+          format.json { render json: { success: false, error: "Cannot advance order status from current state" }, status: :unprocessable_entity }
+        end
+      end
+    rescue ActiveRecord::RecordNotFound => e
+      Rails.logger.error "Record not found in update_order_status: #{e.message}"
+      Rails.logger.error "Patient ID: #{params[:patient_id]}, Care Pathway ID: #{params[:id]}, Order ID: #{params[:order_id]}"
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), alert: "Failed to update order status", status: :unprocessable_entity }
-        format.json { render json: { success: false }, status: :unprocessable_entity }
+        format.html { redirect_to patient_path(@patient), alert: "Order or care pathway not found", status: :not_found }
+        format.json { render json: { success: false, error: "Record not found" }, status: :not_found }
+      end
+    rescue => e
+      Rails.logger.error "Unexpected error in update_order_status: #{e.class}: #{e.message}"
+      Rails.logger.error "Patient ID: #{params[:patient_id]}, Care Pathway ID: #{params[:id]}, Order ID: #{params[:order_id]}"
+      Rails.logger.error e.backtrace.join("\n")
+      respond_to do |format|
+        format.html { redirect_to patient_path(@patient), alert: "An error occurred while updating the order status", status: :internal_server_error }
+        format.json { render json: { success: false, error: "Internal server error" }, status: :internal_server_error }
       end
     end
   end

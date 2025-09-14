@@ -113,7 +113,10 @@ class CarePathwayOrder < ApplicationRecord
       end
 
       next_status = determine_next_status
-      return false unless next_status
+      unless next_status
+        Rails.logger.warn "Cannot determine next status for Order ID: #{id}, Current Status: #{status}, Order Type: #{order_type}"
+        return false
+      end
 
       # Set the appropriate timestamp based on the new status
       timestamp_updates = {
@@ -141,7 +144,7 @@ class CarePathwayOrder < ApplicationRecord
 
       update!(timestamp_updates)
 
-      # Create event in patient log
+      # Create event in patient log - with error handling
       create_status_event(next_status, duration_minutes, timer_status, user_name)
 
       # Reset timer for next phase
@@ -149,7 +152,11 @@ class CarePathwayOrder < ApplicationRecord
 
       true
     end
-  rescue ActiveRecord::RecordInvalid
+  rescue ActiveRecord::RecordInvalid => e
+    Rails.logger.error "RecordInvalid in advance_status! for Order ID: #{id}: #{e.record.errors.full_messages.join(', ')}"
+    false
+  rescue => e
+    Rails.logger.error "Unexpected error in advance_status! for Order ID: #{id}: #{e.class}: #{e.message}"
     false
   end
 
@@ -174,6 +181,12 @@ class CarePathwayOrder < ApplicationRecord
     else
       resulted?
     end
+  end
+
+  # Check if status can be advanced
+  def can_advance_status?
+    return false if complete?
+    determine_next_status.present?
   end
 
   # Get status label
@@ -264,26 +277,34 @@ class CarePathwayOrder < ApplicationRecord
   end
 
   def create_status_event(new_status, duration_minutes, timer_status, user_name = nil)
-    patient = care_pathway.patient
+    begin
+      patient = care_pathway.patient
 
-    details = "Order '#{name}' status changed to #{new_status.to_s.humanize}. " \
-              "Duration: #{duration_minutes} minutes (#{timer_status})"
+      details = "Order '#{name}' status changed to #{new_status.to_s.humanize}. " \
+                "Duration: #{duration_minutes} minutes (#{timer_status})"
 
-    # Ensure the performed_by value is from the allowed list
-    performer = if user_name && Event::PERFORMED_BY_OPTIONS.include?(user_name)
-                  user_name
-                else
-                  "System"
-                end
+      # Ensure the performed_by value is from the allowed list
+      performer = if user_name && Event::PERFORMED_BY_OPTIONS.include?(user_name)
+                    user_name
+                  else
+                    "System"
+                  end
 
-    Event.create!(
-      patient: patient,
-      action: "Order status updated: #{new_status.to_s.humanize}",
-      details: details,
-      performed_by: performer,
-      time: Time.current,
-      category: "diagnostic"
-    )
+      Event.create!(
+        patient: patient,
+        action: "Order status updated: #{new_status.to_s.humanize}",
+        details: details,
+        performed_by: performer,
+        time: Time.current,
+        category: "diagnostic"
+      )
+    rescue ActiveRecord::RecordInvalid => e
+      Rails.logger.error "Failed to create status event for Order ID: #{id}: #{e.record.errors.full_messages.join(', ')}"
+      # Don't re-raise - this is a non-critical failure
+    rescue => e
+      Rails.logger.error "Unexpected error creating status event for Order ID: #{id}: #{e.class}: #{e.message}"
+      # Don't re-raise - this is a non-critical failure
+    end
   end
 
   def reset_patient_timer
