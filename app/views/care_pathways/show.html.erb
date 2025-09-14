@@ -154,49 +154,169 @@
 
           <div class="er-pathway-header">
             <h2>Emergency Room Care Pathway</h2>
-            <p class="pathway-subtitle">Active Clinical Management</p>
-            <div class="progress-bar-container">
-              <div class="progress-bar">
-                <div class="progress-fill" style="width: <%= @care_pathway.progress_percentage %>%"></div>
+
+            <!-- Interactive Flowchart Journey moved here -->
+          <div class="er-pathway-flowchart">
+            <%
+              # Calculate node states
+              orders_complete = @orders.all? { |o| o.complete? }
+              orders_in_progress = @orders.any? && !orders_complete
+              orders_delayed = @orders.any? { |o| o.timer_status == 'yellow' && !o.complete? }
+              orders_very_delayed = @orders.any? { |o| o.timer_status == 'red' && !o.complete? }
+
+              procedures_complete = @procedures.all? { |p| p.completed? }
+              procedures_in_progress = @procedures.any? && !procedures_complete && orders_complete
+              procedures_delayed = false # Add logic if needed
+
+              endpoints_complete = @clinical_endpoints.all? { |e| e.achieved? }
+              endpoints_in_progress = @clinical_endpoints.any? && !endpoints_complete && procedures_complete && orders_complete
+              endpoints_missing = @clinical_endpoints.count == 0
+
+              discharge_ready = orders_complete && procedures_complete && endpoints_complete && !endpoints_missing
+
+              # Determine node classes
+              orders_class = if orders_very_delayed
+                              'node-very-delayed'
+                            elsif orders_delayed
+                              'node-delayed'
+                            elsif orders_complete
+                              'node-complete'
+                            elsif orders_in_progress
+                              'node-in-progress'
+                            else
+                              'node-pending'
+                            end
+
+              procedures_class = if procedures_complete
+                                  'node-complete'
+                                elsif procedures_in_progress
+                                  'node-in-progress'
+                                else
+                                  'node-pending'
+                                end
+
+              endpoints_class = if endpoints_missing
+                                 'node-missing'
+                               elsif endpoints_complete
+                                 'node-complete'
+                               elsif endpoints_in_progress
+                                 'node-in-progress'
+                               else
+                                 'node-pending'
+                               end
+
+              discharge_class = discharge_ready ? 'node-complete' : 'node-pending'
+            %>
+
+            <div class="flowchart-container">
+              <!-- Orders Node -->
+              <div class="flowchart-node <%= orders_class %>" data-node="orders">
+                <% if orders_complete %>
+                  <span class="node-checkmark">✓</span>
+                <% elsif orders_very_delayed %>
+                  <span class="node-warning">⚠️</span>
+                <% end %>
+                <span class="node-title">Orders: <%= @orders.completed.count %>/<%= @orders.count %></span>
               </div>
-              <span class="progress-text"><%= @care_pathway.progress_percentage %>% Complete</span>
+
+              <!-- Arrow 1 -->
+              <div class="flowchart-arrow-horizontal <%= orders_complete ? 'arrow-complete' : '' %>"></div>
+
+              <!-- Procedures Node -->
+              <div class="flowchart-node <%= procedures_class %>" data-node="procedures">
+                <% if procedures_complete %>
+                  <span class="node-checkmark">✓</span>
+                <% end %>
+                <span class="node-title">Procedures: <%= @procedures.completed.count %>/<%= @procedures.count %></span>
+              </div>
+
+              <!-- Arrow 2 -->
+              <div class="flowchart-arrow-horizontal <%= procedures_complete ? 'arrow-complete' : '' %>"></div>
+
+              <!-- Clinical Goals Node -->
+              <div class="flowchart-node <%= endpoints_class %>" data-node="endpoints">
+                <% if endpoints_missing %>
+                  <div class="critical-warning-bubble">!</div>
+                <% elsif endpoints_complete %>
+                  <span class="node-checkmark">✓</span>
+                <% end %>
+                <span class="node-title">
+                  Clinical Goals:
+                  <% if endpoints_missing %>
+                    <span class="warning-text">Missing</span>
+                  <% else %>
+                    <%= @clinical_endpoints.achieved.count %>/<%= @clinical_endpoints.count %>
+                  <% end %>
+                </span>
+              </div>
+
+              <!-- Arrow 3 -->
+              <div class="flowchart-arrow-horizontal <%= endpoints_complete && !endpoints_missing ? 'arrow-complete' : '' %>"></div>
+
+              <!-- Discharge Node -->
+              <div class="flowchart-node <%= discharge_class %>" data-node="discharge">
+                <% if discharge_ready %>
+                  <span class="node-checkmark">✓</span>
+                <% end %>
+                <span class="node-title">Ready for Discharge</span>
+              </div>
             </div>
+
+            <% if endpoints_missing %>
+              <div class="critical-alert">
+                <span class="alert-icon">⚠️</span>
+                <span class="alert-text">Define clinical endpoints to unlock discharge</span>
+              </div>
+            <% elsif discharge_ready %>
+              <div class="discharge-ready-alert">
+                <span class="success-icon">🎉</span>
+                <span class="success-text">Patient is ready for discharge! All clinical requirements met.</span>
+              </div>
+            <% end %>
           </div>
-        
-          <div class="er-pathway-summary">
-            <div class="summary-item">
-              <span class="summary-icon" aria-label="Orders">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <rect x="8" y="3" width="8" height="11" rx="1"/>
-                  <path d="M8 7h8M8 10h8"/>
-                </svg>
-              </span>
-              <span class="summary-label">Orders:</span>
-              <span class="summary-value"><%= @orders.completed.count %>/<%= @orders.count %></span>
+
+          <div class="progress-bar-container">
+            <div class="progress-bar">
+              <div class="progress-fill" style="width: <%= @care_pathway.progress_percentage %>%"></div>
             </div>
-            <div class="summary-item">
-              <span class="summary-icon" aria-label="Procedures">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
-                </svg>
-              </span>
-              <span class="summary-label">Procedures:</span>
-              <span class="summary-value"><%= @procedures.completed.count %>/<%= @procedures.count %></span>
-            </div>
-            <div class="summary-item">
-              <span class="summary-icon" aria-label="Clinical Goals">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"/>
-                  <circle cx="12" cy="12" r="6"/>
-                  <circle cx="12" cy="12" r="2"/>
-                </svg>
-              </span>
-              <span class="summary-label">Goals:</span>
-              <span class="summary-value"><%= @clinical_endpoints.achieved.count %>/<%= @clinical_endpoints.count %></span>
-            </div>
+            <span class="progress-text"><%= @care_pathway.progress_percentage %>% Complete</span>
           </div>
-          
-          <div class="er-pathway-tabs">
+        </div>
+
+        <div class="er-pathway-summary">
+          <div class="summary-item">
+            <span class="summary-icon" aria-label="Orders">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="8" y="3" width="8" height="11" rx="1"/>
+                <path d="M8 7h8M8 10h8"/>
+              </svg>
+            </span>
+            <span class="summary-label">Orders:</span>
+            <span class="summary-value"><%= @orders.completed.count %>/<%= @orders.count %></span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-icon" aria-label="Procedures">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/>
+              </svg>
+            </span>
+            <span class="summary-label">Procedures:</span>
+            <span class="summary-value"><%= @procedures.completed.count %>/<%= @procedures.count %></span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-icon" aria-label="Clinical Goals">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="12" r="6"/>
+                <circle cx="12" cy="12" r="2"/>
+              </svg>
+            </span>
+            <span class="summary-label">Goals:</span>
+            <span class="summary-value"><%= @clinical_endpoints.achieved.count %>/<%= @clinical_endpoints.count %></span>
+          </div>
+        </div>
+
+        <div class="er-pathway-tabs">
             <button class="tab-button active" data-tab="orders">Orders</button>
             <button class="tab-button" data-tab="procedures">Procedures</button>
             <button class="tab-button" data-tab="endpoints">Clinical Endpoints</button>
@@ -1136,17 +1256,271 @@
     50% { opacity: 0.7; }
     100% { opacity: 1; }
   }
-  
+
   .status-step {
     position: relative;
   }
-  
+
   .status-step.timer-yellow {
     border: 2px solid #ffc107;
   }
-  
+
   .status-step.timer-red {
     border: 2px solid #dc3545;
+  }
+
+  /* Interactive Flowchart Journey Styles */
+  .er-pathway-flowchart {
+    margin: 20px 0;
+    padding: 25px 15px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  }
+
+  .flowchart-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    overflow-x: auto;
+    padding: 10px 0;
+  }
+
+  .flowchart-node {
+    flex: 0 0 auto;
+    width: 180px;
+    min-width: 150px;
+    padding: 15px 12px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    font-size: 14px;
+    text-align: center;
+    border: 2px solid transparent;
+  }
+
+  .flowchart-node:hover {
+    transform: scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  /* Node States */
+  .node-pending {
+    background: linear-gradient(135deg, #e9ecef 0%, #dee2e6 100%);
+    color: #6c757d;
+    border-color: #ced4da;
+  }
+
+  .node-complete {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+    border-color: #16a34a;
+  }
+
+  .node-in-progress {
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: white;
+    border-color: #2563eb;
+    animation: node-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes node-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+  }
+
+  .node-delayed {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #000;
+    border-color: #f59e0b;
+  }
+
+  .node-very-delayed,
+  .node-missing {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+    border-color: #dc2626;
+    animation: node-flash 1s ease-in-out infinite;
+  }
+
+  @keyframes node-flash {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+
+  /* Node Content */
+  .node-checkmark {
+    margin-right: 10px;
+    font-size: 20px;
+  }
+
+  .node-warning {
+    margin-right: 10px;
+    font-size: 20px;
+  }
+
+  .node-title {
+    flex: 1;
+  }
+
+  .warning-text {
+    color: #fbbf24;
+    font-weight: 700;
+  }
+
+  /* Critical Warning Bubble */
+  .critical-warning-bubble {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    width: 30px;
+    height: 30px;
+    background: #ef4444;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 18px;
+    border: 2px solid white;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+    animation: bounce 1s ease-in-out infinite;
+  }
+
+  @keyframes bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-5px); }
+  }
+
+  /* Horizontal Flowchart Arrows */
+  .flowchart-arrow-horizontal {
+    width: 0;
+    height: 0;
+    border-top: 15px solid transparent;
+    border-bottom: 15px solid transparent;
+    border-left: 20px solid #e5e7eb;
+    transition: border-color 0.3s ease;
+    flex-shrink: 0;
+  }
+
+  .flowchart-arrow-horizontal.arrow-complete {
+    border-left-color: #22c55e;
+  }
+
+  /* Critical Alert Box */
+  .critical-alert {
+    background: #fef2f2;
+    border: 2px solid #ef4444;
+    border-radius: 8px;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+  }
+
+  .alert-icon {
+    font-size: 20px;
+    flex-shrink: 0;
+  }
+
+  .alert-text {
+    font-weight: 700;
+    color: #ef4444;
+    font-size: 16px;
+  }
+
+  /* Discharge Ready Alert */
+  .discharge-ready-alert {
+    background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%);
+    border: 2px solid #28a745;
+    border-radius: 8px;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    animation: glow 2s ease-in-out infinite;
+  }
+
+  @keyframes glow {
+    0%, 100% { box-shadow: 0 0 10px rgba(40, 167, 69, 0.3); }
+    50% { box-shadow: 0 0 20px rgba(40, 167, 69, 0.6); }
+  }
+
+  .success-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+    animation: celebrate 1s ease-in-out infinite;
+  }
+
+  @keyframes celebrate {
+    0%, 100% { transform: rotate(0deg) scale(1); }
+    25% { transform: rotate(-10deg) scale(1.1); }
+    75% { transform: rotate(10deg) scale(1.1); }
+  }
+
+  .success-text {
+    font-weight: 700;
+    color: #155724;
+    font-size: 16px;
+  }
+
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .flowchart-container {
+      justify-content: flex-start;
+      padding: 10px;
+    }
+
+    .flowchart-node {
+      width: 140px;
+      min-width: 120px;
+      font-size: 12px;
+      padding: 10px 8px;
+    }
+
+    .flowchart-arrow-horizontal {
+      border-left-width: 15px;
+      border-top-width: 12px;
+      border-bottom-width: 12px;
+    }
+
+    .critical-warning-bubble {
+      width: 25px;
+      height: 25px;
+      font-size: 16px;
+      top: -8px;
+      right: -8px;
+    }
+
+    .alert-text {
+      font-size: 14px;
+    }
+
+    .node-checkmark,
+    .node-warning {
+      font-size: 16px;
+      margin-right: 6px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .flowchart-node {
+      width: 110px;
+      min-width: 100px;
+      font-size: 11px;
+      padding: 8px 6px;
+    }
   }
 </style>
 
@@ -1158,6 +1532,70 @@
   document.addEventListener('DOMContentLoaded', () => {
     const tabButtons = document.querySelectorAll('.tab-button');
     const tabContents = document.querySelectorAll('.tab-content');
+
+    // Check for discharge readiness and fire confetti for ER pathway
+    const erPathwayContainer = document.querySelector('.er-pathway-container');
+    if (erPathwayContainer) {
+      const dischargeNode = document.querySelector('[data-node="discharge"].node-complete');
+      if (dischargeNode && !window.erConfettiFired) {
+        window.erConfettiFired = true; // Prevent multiple firings
+
+        // Fire confetti 5 times with delays for extra celebration
+        setTimeout(() => {
+          // First burst
+          confetti({
+            particleCount: 150,
+            spread: 100,
+            origin: { y: 0.6 },
+            colors: ['#22c55e', '#16a34a', '#ffd700', '#3b82f6', '#ef4444']
+          });
+
+          // Second burst (left side)
+          setTimeout(() => {
+            confetti({
+              particleCount: 100,
+              angle: 60,
+              spread: 80,
+              origin: { x: 0, y: 0.7 },
+              colors: ['#22c55e', '#16a34a', '#ffd700', '#3b82f6', '#ef4444']
+            });
+          }, 200);
+
+          // Third burst (right side)
+          setTimeout(() => {
+            confetti({
+              particleCount: 100,
+              angle: 120,
+              spread: 80,
+              origin: { x: 1, y: 0.7 },
+              colors: ['#22c55e', '#16a34a', '#ffd700', '#3b82f6', '#ef4444']
+            });
+          }, 400);
+
+          // Fourth burst (center top)
+          setTimeout(() => {
+            confetti({
+              particleCount: 120,
+              spread: 90,
+              origin: { y: 0.4 },
+              colors: ['#22c55e', '#16a34a', '#ffd700', '#3b82f6', '#ef4444']
+            });
+          }, 600);
+
+          // Fifth burst (grand finale)
+          setTimeout(() => {
+            confetti({
+              particleCount: 200,
+              spread: 120,
+              origin: { y: 0.9 },
+              colors: ['#22c55e', '#16a34a', '#ffd700', '#3b82f6', '#ef4444'],
+              startVelocity: 45,
+              gravity: 0.8
+            });
+          }, 800);
+        }, 300); // Small initial delay
+      }
+    }
     
     // Function to activate a tab
     function activateTab(tabId) {
