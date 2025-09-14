@@ -5,7 +5,7 @@
     "buildCommand": "bundle install && bundle exec rails db:create db:migrate && RAILS_ASSETS_PRECOMPILE=true bundle exec rails assets:precompile"
   },
   "deploy": {
-    "startCommand": "bundle exec rails db:migrate && bundle exec puma -C config/puma.rb",
+    "startCommand": "bundle exec puma -C config/puma.rb",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
