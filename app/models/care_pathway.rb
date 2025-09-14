@@ -79,21 +79,21 @@ class CarePathway < ApplicationRecord
   end
   
   def calculate_emergency_room_progress
-    total_items = care_pathway_orders.count + 
-                  care_pathway_procedures.count + 
+    total_items = care_pathway_orders.count +
+                  care_pathway_procedures.count +
                   care_pathway_clinical_endpoints.count
-    
+
     return 0 if total_items.zero?
-    
-    completed_items = care_pathway_orders.where(status: 'resulted').count +
+
+    completed_items = care_pathway_orders.completed.count +
                       care_pathway_procedures.where(completed: true).count +
                       care_pathway_clinical_endpoints.where(achieved: true).count
-    
+
     (completed_items.to_f / total_items * 100).round
   end
   
   def all_orders_complete?
-    care_pathway_orders.where.not(status: 'resulted').none?
+    care_pathway_orders.pending.none?
   end
   
   def all_procedures_complete?

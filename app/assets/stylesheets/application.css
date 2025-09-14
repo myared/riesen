@@ -417,13 +417,15 @@ button {
 }
 
 .rp-eligible {
-  color: #28a745;
-  font-weight: 600;
+  color: #22c55e;
+  font-size: 18px;
+  font-weight: 500;
 }
 
 .not-rp-eligible {
-  color: #dc3545;
-  font-weight: 600;
+  color: #9ca3af;
+  font-size: 18px;
+  font-weight: 400;
 }
 
 .action-buttons {

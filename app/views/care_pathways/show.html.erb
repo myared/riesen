@@ -115,7 +115,7 @@
         <!-- Emergency Room Pathway -->
         <div class="er-pathway-container">
           <% # Determine current task for ER pathway
-             pending_orders = @orders.where.not(status: [:resulted, :administered, :exam_completed])
+             pending_orders = @orders.pending
              pending_procedures = @procedures.where(completed: false)
              pending_endpoints = @clinical_endpoints.where(achieved: false)
 

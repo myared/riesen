@@ -89,8 +89,20 @@ class CarePathwayOrder < ApplicationRecord
   scope :labs, -> { order_type_lab }
   scope :medications, -> { order_type_medication }
   scope :imaging, -> { order_type_imaging }
-  scope :pending, -> { where.not(status: :resulted) }
-  scope :completed, -> { where(status: :resulted) }
+  scope :pending, -> {
+    where.not(
+      "(order_type = ? AND status = ?) OR (order_type IN (?, ?) AND status = ?)",
+      order_types[:medication], statuses[:administered],
+      order_types[:lab], order_types[:imaging], statuses[:resulted]
+    )
+  }
+  scope :completed, -> {
+    where(
+      "(order_type = ? AND status = ?) OR (order_type IN (?, ?) AND status = ?)",
+      order_types[:medication], statuses[:administered],
+      order_types[:lab], order_types[:imaging], statuses[:resulted]
+    )
+  }
 
   # Progress to next status
   def advance_status!(user_name = nil)
