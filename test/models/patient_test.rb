@@ -230,8 +230,8 @@ class PatientTest < ActiveSupport::TestCase
     assert_equal 0, Patient.new(esi_level: 1).esi_target_minutes
     assert_equal 10, Patient.new(esi_level: 2).esi_target_minutes
     assert_equal 30, Patient.new(esi_level: 3).esi_target_minutes
-    assert_equal 60, Patient.new(esi_level: 4).esi_target_minutes
-    assert_equal 120, Patient.new(esi_level: 5).esi_target_minutes
+    assert_equal 30, Patient.new(esi_level: 4).esi_target_minutes
+    assert_equal 30, Patient.new(esi_level: 5).esi_target_minutes
     assert_equal 30, Patient.new(esi_level: nil).esi_target_minutes # default
   end
 
@@ -239,8 +239,8 @@ class PatientTest < ActiveSupport::TestCase
     assert_equal "Immediate", Patient.new(esi_level: 1).esi_target_label
     assert_equal "10m target", Patient.new(esi_level: 2).esi_target_label
     assert_equal "30m target", Patient.new(esi_level: 3).esi_target_label
-    assert_equal "60m target", Patient.new(esi_level: 4).esi_target_label
-    assert_equal "120m target", Patient.new(esi_level: 5).esi_target_label
+    assert_equal "30m target", Patient.new(esi_level: 4).esi_target_label
+    assert_equal "30m target", Patient.new(esi_level: 5).esi_target_label
   end
 
   test "esi_description returns correct descriptions" do

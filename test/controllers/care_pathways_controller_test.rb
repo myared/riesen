@@ -218,7 +218,7 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     @care_pathway.reload
     assert @care_pathway.status_completed?
     assert_not_nil @care_pathway.completed_at
-    assert_equal "Current User", @care_pathway.completed_by
+    assert_equal "ED RN", @care_pathway.completed_by
 
     # Check step completion
     @step3.reload

@@ -209,4 +209,21 @@ class Patient < ApplicationRecord
       ''
     end
   end
+
+  def display_location
+    case location_status
+    when 'waiting_room'
+      'Waiting Room'
+    when 'triage'
+      'Triage'
+    when 'results_pending'
+      'RP'
+    when 'ed_room', 'treatment'
+      'ED'
+    when 'needs_room_assignment'
+      rp_eligible? ? 'RP' : 'ED'
+    else
+      'Waiting Room'
+    end
+  end
 end

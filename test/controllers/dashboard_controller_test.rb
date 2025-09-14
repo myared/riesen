@@ -470,7 +470,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, medication_timers.length
 
     timer = medication_timers.first
-    assert_equal 0, timer[:elapsed_time]
+    assert_equal 30, timer[:elapsed_time]  # Should use ordered_at when status_updated_at is nil
   end
 
   test "load_medication_timers handles patient without room assignment" do

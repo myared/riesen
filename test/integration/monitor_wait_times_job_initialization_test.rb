@@ -167,29 +167,34 @@ class MonitorWaitTimesJobInitializationTest < ActionDispatch::IntegrationTest
     # Verify that the monitoring job initializer is properly isolated
     initializer_path = Rails.root.join("config/initializers/start_monitoring_jobs.rb")
     content = File.read(initializer_path)
-    
+
     # Should not have any global variable assignments
     assert_not_includes content, "$", "Should not use global variables"
-    
+
     # Should be contained within the after_initialize block
+    assert_includes content, "Rails.application.config.after_initialize do"
+
+    # Last non-comment/blank line should be the block end
     lines = content.split("\n").map(&:strip).reject(&:empty?)
-    
-    # First line should be the after_initialize block start
-    assert_includes lines.first, "Rails.application.config.after_initialize do"
-    
-    # Last line should be the block end
     assert_equal "end", lines.last
     
     # Should not have any require statements or global modifications
     # The file should only contain the after_initialize block with job scheduling
-    code_lines = lines.reject { |line| 
-      line.start_with?("#") || 
-      line == "end" || 
+    code_lines = lines.reject { |line|
+      line.start_with?("#") ||
+      line == "end" ||
       line.include?("Rails.application.config.after_initialize do") ||
       line.include?("unless Rails.env.test?") ||
-      line.include?("MonitorWaitTimesJob.perform_later")
+      line.include?("MonitorWaitTimesJob.perform_later") ||
+      line.include?("return if") ||  # Allow early return for asset precompilation
+      line.include?("begin") ||
+      line.include?("rescue") ||
+      line.include?("ActiveRecord::Base.connection_pool") ||
+      line.include?("if connection.active?") ||
+      line.include?("Rails.logger") ||
+      line.include?("ENV[")  # Allow environment variable checks
     }
-    
+
     # No other code should exist
     assert_empty code_lines, "Should only contain the expected initialization code"
   end

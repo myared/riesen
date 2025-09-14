@@ -44,6 +44,7 @@ class DashboardController < ApplicationController
       @overdue_tasks = @nursing_tasks.overdue
       @nurses = group_tasks_by_nurse
       @active_orders = load_active_orders
+      @medication_timers = load_medication_timers
     end
 
     @patients = Patient.includes(:vitals, :events).all.by_arrival_time
@@ -148,6 +149,35 @@ class DashboardController < ApplicationController
       patient_id: patient.id,
       care_pathway_id: order.care_pathway_id
     }
+  end
+
+  def load_medication_timers
+    # Load only medication orders (not completed)
+    medication_orders = CarePathwayOrder.joins(care_pathway: :patient)
+                                        .includes(care_pathway: :patient)
+                                        .where(order_type: :medication)
+                                        .where.not(status: [:administered])
+                                        .order(:ordered_at)
+
+    medication_orders.map do |order|
+      patient = order.care_pathway.patient
+      timestamp = order.status_updated_at || order.ordered_at
+      elapsed_minutes = timestamp ? ((Time.current - timestamp) / 60).round : 0
+
+      {
+        patient_name: patient.full_name,
+        room: patient.room_number || 'Unassigned',
+        medication_name: order.name,
+        current_status: order.status.to_s.capitalize,
+        ordered_at: order.ordered_at&.strftime("%l:%M %p"),
+        elapsed_time: elapsed_minutes,
+        timer_status: timer_status_for(elapsed_minutes, 'medication'),
+        status_class: "timer-#{timer_status_for(elapsed_minutes, 'medication')}",
+        order_id: order.id,
+        patient_id: patient.id,
+        care_pathway_id: order.care_pathway_id
+      }
+    end
   end
 
   def timer_status_for(minutes, order_type)

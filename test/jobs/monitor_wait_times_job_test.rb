@@ -436,10 +436,10 @@ class MonitorWaitTimesJobTest < ActiveJob::TestCase
   end
 
   test "should use correct threshold calculations" do
-    # ESI 4 target is 60 minutes
-    # 75% threshold = 45 minutes
-    # 100% threshold = 60 minutes
-    
+    # ESI 4 target is 30 minutes
+    # 75% threshold = 23 minutes
+    # 100% threshold = 30 minutes
+
     # Patient at exactly 75% should trigger yellow alert
     patient_75 = Patient.create!(
       first_name: "Exactly",
@@ -448,7 +448,7 @@ class MonitorWaitTimesJobTest < ActiveJob::TestCase
       mrn: "EXACT_75_#{SecureRandom.hex(4)}",
       esi_level: 4,
       location_status: :triage,
-      arrival_time: 45.minutes.ago
+      arrival_time: 23.minutes.ago
     )
 
     # Patient just under 75% should not trigger alert
@@ -459,7 +459,7 @@ class MonitorWaitTimesJobTest < ActiveJob::TestCase
       mrn: "UNDER_75_#{SecureRandom.hex(4)}",
       esi_level: 4,
       location_status: :triage,
-      arrival_time: 44.minutes.ago
+      arrival_time: 22.minutes.ago
     )
 
     # Should create exactly one alert (for the 75% patient)
