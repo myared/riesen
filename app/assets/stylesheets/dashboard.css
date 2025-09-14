@@ -549,6 +549,14 @@
   animation: pulse 2s infinite;
 }
 
+/* No tasks pending status - matches wait-target styling */
+.wait-time.no-tasks {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: normal;
+  font-style: normal;
+}
+
 .timer-badge {
   padding: 4px 8px;
   border-radius: 4px;

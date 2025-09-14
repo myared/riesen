@@ -76,19 +76,64 @@
                     <span class="wait-target" data-timer-target="label">ROOM ASSIGNMENT TIMER</span>
                   </div>
                 <% else %>
-                  <div class="wait-progress <%= patient.wait_status_class %>"
-                       data-controller="timer"
-                       data-timer-start-time-value="<%= patient.arrival_time&.iso8601 %>"
-                       data-timer-target-minutes-value="<%= patient.esi_target_minutes %>"
-                       data-timer-thresholds-value='<%= { useTarget: true }.to_json %>'>
-                    <span class="wait-time" data-timer-target="display"><%= patient.wait_time_minutes %>m</span>
-                    <div class="progress-bar">
-                      <div class="progress-bar-fill"
-                           data-timer-target="progress"
-                           style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
+                  <%
+                    # Get the backend calculated wait time and timer details
+                    backend_wait_time = patient.wait_time_minutes
+                    longest_timer = patient.longest_wait_timer
+
+                    # Determine the appropriate start time based on the backend logic
+                    start_time = if backend_wait_time > 0 && longest_timer
+                      case longest_timer[:type]
+                      when :arrival
+                        patient.arrival_time
+                      when :room_assignment
+                        patient.triage_completed_at
+                      when :order
+                        if longest_timer[:order]
+                          case longest_timer[:order].status.to_sym
+                          when :ordered
+                            longest_timer[:order].ordered_at
+                          when :collected
+                            longest_timer[:order].collected_at
+                          when :in_lab
+                            longest_timer[:order].in_lab_at
+                          when :exam_started
+                            longest_timer[:order].exam_started_at
+                          else
+                            longest_timer[:order].status_updated_at || longest_timer[:order].ordered_at
+                          end
+                        else
+                          nil
+                        end
+                      else
+                        nil
+                      end
+                    else
+                      nil
+                    end
+                  %>
+
+                  <% if backend_wait_time == 0 %>
+                    <div class="wait-progress">
+                      <span class="wait-time no-tasks">No tasks pending</span>
                     </div>
-                    <span class="wait-target" data-timer-target="label"><%= patient.esi_target_label %></span>
-                  </div>
+                  <% else %>
+                    <div class="wait-progress <%= patient.wait_status_class %>"
+                         data-controller="timer"
+                         <% if start_time %>
+                           data-timer-start-time-value="<%= start_time&.iso8601 %>"
+                         <% end %>
+                         data-timer-target-minutes-value="<%= patient.esi_target_minutes %>"
+                         data-timer-thresholds-value='<%= { useTarget: true }.to_json %>'>
+                      <span class="wait-time" data-timer-target="display"><%= backend_wait_time %>m</span>
+                      <div class="progress-bar">
+                        <div class="progress-bar-fill"
+                             data-timer-target="progress"
+                             style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
+                      </div>
+                      <span class="wait-target" data-timer-target="label"><%= patient.esi_target_label %></span>
+                    </div>
+                  <% end %>
                 <% end %>
               </td>
               <td><%= patient.chief_complaint %></td>

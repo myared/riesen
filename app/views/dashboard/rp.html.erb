@@ -111,21 +111,27 @@
                     end
                   %>
 
-                  <div class="wait-progress <%= patient.wait_status_class %>"
-                       data-controller="timer"
-                       <% if start_time %>
-                         data-timer-start-time-value="<%= start_time&.iso8601 %>"
-                       <% end %>
-                       data-timer-target-minutes-value="<%= patient.esi_target_minutes %>"
-                       data-timer-thresholds-value='<%= { useTarget: true }.to_json %>'>
-                    <span class="wait-time" data-timer-target="display"><%= backend_wait_time %>m</span>
-                    <div class="progress-bar">
-                      <div class="progress-bar-fill"
-                           data-timer-target="progress"
-                           style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
+                  <% if backend_wait_time == 0 %>
+                    <div class="wait-progress">
+                      <span class="wait-time no-tasks">No tasks pending</span>
                     </div>
-                    <span class="wait-target" data-timer-target="label"><%= patient.esi_target_label %></span>
-                  </div>
+                  <% else %>
+                    <div class="wait-progress <%= patient.wait_status_class %>"
+                         data-controller="timer"
+                         <% if start_time %>
+                           data-timer-start-time-value="<%= start_time&.iso8601 %>"
+                         <% end %>
+                         data-timer-target-minutes-value="<%= patient.esi_target_minutes %>"
+                         data-timer-thresholds-value='<%= { useTarget: true }.to_json %>'>
+                      <span class="wait-time" data-timer-target="display"><%= backend_wait_time %>m</span>
+                      <div class="progress-bar">
+                        <div class="progress-bar-fill"
+                             data-timer-target="progress"
+                             style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
+                      </div>
+                      <span class="wait-target" data-timer-target="label"><%= patient.esi_target_label %></span>
+                    </div>
+                  <% end %>
                 <% end %>
               </td>
               <td><%= patient.chief_complaint %></td>
