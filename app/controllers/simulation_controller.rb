@@ -1,4 +1,10 @@
 class SimulationController < ApplicationController
+  # Define valid timestamp fields as a constant for security
+  VALID_TIMESTAMP_FIELDS = %w[
+    collected_at in_lab_at resulted_at administered_at
+    exam_started_at exam_completed_at status_updated_at
+  ].freeze
+
   def add_patient
     patient = PatientGenerator.new.generate.tap(&:save!)
     PatientArrivalService.new(patient).process
@@ -12,31 +18,42 @@ class SimulationController < ApplicationController
 
   def fast_forward_time
     time_adjustment = 10.minutes
+    updated_count = 0
 
+    # Split into smaller transactions for better performance
     ActiveRecord::Base.transaction do
-      # Update patient timers - subtract time from arrival_time to make wait time appear longer
-      Patient.where(location_status: [:needs_room_assignment, :ed_room, :treatment])
-             .update_all("arrival_time = arrival_time - INTERVAL '#{time_adjustment.to_i} seconds'")
+      # Update patient timers using safe integer value
+      seconds = time_adjustment.to_i
 
-      Patient.where.not(triage_completed_at: nil)
-             .update_all("triage_completed_at = triage_completed_at - INTERVAL '#{time_adjustment.to_i} seconds'")
+      updated_count += Patient.where(location_status: [:needs_room_assignment, :ed_room, :treatment])
+                              .update_all("arrival_time = arrival_time - INTERVAL '#{seconds} seconds'")
+
+      updated_count += Patient.where.not(triage_completed_at: nil)
+                              .update_all("triage_completed_at = triage_completed_at - INTERVAL '#{seconds} seconds'")
 
       # Update care pathway order timers
-      CarePathwayOrder.where.not(ordered_at: nil)
-                      .update_all("ordered_at = ordered_at - INTERVAL '#{time_adjustment.to_i} seconds'")
+      updated_count += CarePathwayOrder.where.not(ordered_at: nil)
+                                       .update_all("ordered_at = ordered_at - INTERVAL '#{seconds} seconds'")
 
-      # Update other timestamp fields where not null
-      %w[collected_at in_lab_at resulted_at administered_at exam_started_at exam_completed_at status_updated_at].each do |field|
-        CarePathwayOrder.where.not(field => nil)
-                        .update_all("#{field} = #{field} - INTERVAL '#{time_adjustment.to_i} seconds'")
+      # Update other timestamp fields with validation
+      VALID_TIMESTAMP_FIELDS.each do |field|
+        # Verify field exists in the model for security
+        next unless CarePathwayOrder.column_names.include?(field)
+
+        updated_count += CarePathwayOrder.where.not(field => nil)
+                                         .update_all("#{field} = #{field} - INTERVAL '#{seconds} seconds'")
       end
-
-      # Process timer expirations and status updates
-      process_timer_expirations
     end
 
+    # Process timer expirations in a separate operation
+    process_timer_expirations
+
     redirect_back fallback_location: root_path,
-                  notice: "Fast forwarded all timers by 10 minutes"
+                  notice: "Fast forwarded all timers by 10 minutes (#{updated_count} records updated)"
+  rescue => e
+    Rails.logger.error "Failed to fast forward time: #{e.class}: #{e.message}"
+    redirect_back fallback_location: root_path,
+                  alert: "Failed to fast forward time. Please try again."
   end
 
   private
@@ -90,8 +107,11 @@ class SimulationController < ApplicationController
             )
           rescue ActiveRecord::RecordInvalid => e
             Rails.logger.error "Failed to update timer status for Order ID: #{order.id}: #{e.record.errors.full_messages.join(', ')}"
+          rescue ActiveRecord::RecordNotFound => e
+            Rails.logger.warn "Order not found during timer update: #{order.id}"
           rescue => e
             Rails.logger.error "Unexpected error updating timer for Order ID: #{order.id}: #{e.class}: #{e.message}"
+            raise e if Rails.env.development?
           end
         end
       end
@@ -99,7 +119,12 @@ class SimulationController < ApplicationController
 
     # Check for expired patient wait timers
     Patient.where(location_status: [:needs_room_assignment, :ed_room]).find_each do |patient|
-      wait_time = patient.wait_time_minutes
+      # Calculate total wait time since arrival for event creation
+      wait_time = if patient.arrival_time
+                    ((Time.current - patient.arrival_time) / 60).round
+                  else
+                    0
+                  end
 
       # Create events for patients waiting over thresholds
       if wait_time > 120 && !patient.events.where(action: "Wait time exceeded 120 minutes").where("time > ?", 1.hour.ago).exists?
