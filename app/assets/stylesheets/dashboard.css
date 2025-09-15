@@ -354,19 +354,29 @@
   border-color: #f87171;
 }
 
-.room-card.occupied.esi-1, .room-card.occupied.esi-2 {
-  background: #fecaca;
-  border-color: #ef4444;
+.room-card.occupied.esi-1 {
+  background: rgba(46, 0, 62, 0.1);
+  border-color: #2E003E;
+}
+
+.room-card.occupied.esi-2 {
+  background: rgba(75, 0, 130, 0.1);
+  border-color: #4B0082;
 }
 
 .room-card.occupied.esi-3 {
-  background: #fed7aa;
-  border-color: #fb923c;
+  background: rgba(128, 0, 128, 0.1);
+  border-color: #800080;
 }
 
 .room-card.occupied.esi-4 {
-  background: #fef3c7;
-  border-color: #fbbf24;
+  background: rgba(186, 85, 211, 0.1);
+  border-color: #BA55D3;
+}
+
+.room-card.occupied.esi-5 {
+  background: #E6E6FA;
+  border-color: #BA55D3;
 }
 
 .room-card.rp-room.occupied {

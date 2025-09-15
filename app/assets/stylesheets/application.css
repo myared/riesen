@@ -60,7 +60,7 @@ button {
     #26a69a
   );
   background-size: 200% 200%;
-  animation: gradientLoop 16s linear infinite;
+  animation: gradientLoop 32s linear infinite;
   padding: 20px 32px;
   display: flex;
   align-items: center;
@@ -451,28 +451,28 @@ button {
 }
 
 .esi-1 {
-  background: #dc3545;
+  background: #2E003E;
   color: white;
 }
 
 .esi-2 {
-  background: #fd7e14;
+  background: #4B0082;
   color: white;
 }
 
 .esi-3 {
-  background: #ffc107;
-  color: #000;
+  background: #800080;
+  color: white;
 }
 
 .esi-4 {
-  background: #28a745;
+  background: #BA55D3;
   color: white;
 }
 
 .esi-5 {
-  background: #17a2b8;
-  color: white;
+  background: #E6E6FA;
+  color: #2E003E;
 }
 
 .rp-eligible {
