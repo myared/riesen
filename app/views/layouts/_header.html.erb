@@ -6,32 +6,18 @@
       <span class="ed-header__subtitle">Real-Time Clinical Status</span>
     </div>
     <div class="ed-header__role-selector" data-controller="role-navigation">
-      <% if session[:current_role] == 'provider' %>
-        <%= select_tag :role,
-            options_for_select([
-              ['RP', dashboard_rp_path],
-              ['ED RN', dashboard_ed_rn_path],
-              ['Charge RN', dashboard_charge_rn_path],
-              ['Provider', dashboard_provider_path]
-            ], request.path),
-            class: "ed-header__role-dropdown",
-            data: {
-              action: "change->role-navigation#navigate"
-            } %>
-      <% else %>
-        <%= select_tag :role,
-            options_for_select([
-              ['Triage', dashboard_triage_path],
-              ['RP', dashboard_rp_path],
-              ['ED RN', dashboard_ed_rn_path],
-              ['Charge RN', dashboard_charge_rn_path],
-              ['Provider', dashboard_provider_path]
-            ], request.path),
-            class: "ed-header__role-dropdown",
-            data: {
-              action: "change->role-navigation#navigate"
-            } %>
-      <% end %>
+      <%= select_tag :role,
+          options_for_select([
+            ['Triage', dashboard_triage_path],
+            ['RP', dashboard_rp_path],
+            ['ED RN', dashboard_ed_rn_path],
+            ['Charge RN', dashboard_charge_rn_path],
+            ['Provider', dashboard_provider_path]
+          ], request.path),
+          class: "ed-header__role-dropdown",
+          data: {
+            action: "change->role-navigation#navigate"
+          } %>
     </div>
   </div>
 
