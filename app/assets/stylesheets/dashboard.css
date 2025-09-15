@@ -578,3 +578,38 @@
   background: #f8d7da;
   color: #721c24;
 }
+
+/* Button styles for discharge functionality */
+.btn-action.btn-warning {
+  background: #fbbf24;
+  color: #78350f;
+  border-color: #f59e0b;
+}
+
+.btn-action.btn-warning:hover {
+  background: #f59e0b;
+  color: #451a03;
+}
+
+.btn-action.btn-success {
+  background: #22c55e;
+  color: white;
+  border-color: #16a34a;
+}
+
+.btn-action.btn-success:hover {
+  background: #16a34a;
+}
+
+.btn-action.btn-disabled {
+  background: #e5e7eb;
+  color: #9ca3af;
+  border-color: #d1d5db;
+  cursor: not-allowed;
+  opacity: 0.6;
+  display: inline-block;
+  padding: 4px 12px;
+  font-size: 12px;
+  border-radius: 4px;
+  font-weight: 500;
+}

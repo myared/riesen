@@ -397,6 +397,21 @@ class CarePathwaysController < ApplicationController
     end
   end
 
+  # Discharge a patient
+  def discharge
+    @patient.discharge!(performed_by: current_user_name)
+
+    respond_to do |format|
+      format.html { redirect_to dashboard_path_for_role, notice: "Patient successfully discharged" }
+      format.json { render json: { success: true, message: "Patient discharged successfully" } }
+    end
+  rescue Patient::NotDischargeable => e
+    respond_to do |format|
+      format.html { redirect_back(fallback_location: root_path, alert: e.message) }
+      format.json { render json: { error: e.message }, status: :unprocessable_entity }
+    end
+  end
+
   private
 
   def set_patient
@@ -482,6 +497,24 @@ class CarePathwaysController < ApplicationController
     # Placeholder - replace with actual current user logic
     # For now, return a valid performer role
     "ED RN"
+  end
+
+  def dashboard_path_for_role
+    # Determine which dashboard to redirect to based on referrer
+    case session[:care_pathway_referrer]
+    when 'triage'
+      dashboard_triage_path
+    when 'rp'
+      dashboard_rp_path
+    when 'ed_rn'
+      dashboard_ed_rn_path
+    when 'provider'
+      dashboard_provider_path
+    when 'charge_rn'
+      dashboard_charge_rn_path
+    else
+      dashboard_ed_rn_path
+    end
   end
 
   def create_triage_steps

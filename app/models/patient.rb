@@ -46,6 +46,8 @@ class Patient < ApplicationRecord
   validates :pain_score, inclusion: { in: PAIN_SCORE_RANGE }, allow_nil: true
   
   # Scopes
+  scope :active, -> { where(discharged: false) }
+  scope :discharged_patients, -> { where(discharged: true) }
   scope :waiting, -> { location_waiting_room }
   scope :in_triage, -> { where(location_status: [:waiting_room, :triage]) }
   scope :in_ed, -> { where(location_status: [:ed_room, :treatment]) }
@@ -69,19 +71,19 @@ class Patient < ApplicationRecord
   }
   
   scope :needs_rp_assignment, -> {
-    where(location_status: :needs_room_assignment, rp_eligible: true)
+    active.where(location_status: :needs_room_assignment, rp_eligible: true)
   }
-  
+
   scope :needs_ed_assignment, -> {
-    where(location_status: :needs_room_assignment, rp_eligible: false)
+    active.where(location_status: :needs_room_assignment, rp_eligible: false)
   }
-  
+
   scope :in_results_pending, -> {
-    where(location_status: :results_pending)
+    active.where(location_status: :results_pending)
   }
-  
+
   scope :in_ed_treatment, -> {
-    where(location_status: [:ed_room, :treatment])
+    active.where(location_status: [:ed_room, :treatment])
   }
   
   def full_name
@@ -342,4 +344,63 @@ class Patient < ApplicationRecord
       'Waiting Room'
     end
   end
+
+  def can_be_discharged?
+    # Patient can be discharged if:
+    # 1. They have an ER care pathway
+    # 2. All clinical endpoints are achieved
+    # 3. There is at least one clinical endpoint
+    pathway = active_care_pathway
+    return false unless pathway&.pathway_type_emergency_room?
+
+    endpoints = pathway.care_pathway_clinical_endpoints
+    endpoints.any? && endpoints.all?(&:achieved?)
+  end
+
+  def needs_clinical_endpoints?
+    # Check if patient needs clinical endpoints defined
+    pathway = active_care_pathway
+    return false unless pathway&.pathway_type_emergency_room?
+
+    pathway.care_pathway_clinical_endpoints.empty?
+  end
+
+  # Discharge the patient with all necessary updates and logging
+  def discharge!(performed_by:)
+    transaction do
+      # Check if patient can be discharged
+      unless can_be_discharged?
+        raise NotDischargeable, "Patient cannot be discharged. Ensure all clinical endpoints are achieved."
+      end
+
+      # Update patient discharge status
+      update!(
+        discharged: true,
+        discharged_at: Time.current,
+        discharged_by: performed_by
+      )
+
+      # Mark care pathway as completed
+      if active_care_pathway
+        active_care_pathway.update!(
+          status: :completed,
+          completed_at: Time.current,
+          completed_by: performed_by
+        )
+      end
+
+      # Log the discharge event
+      Event.create!(
+        patient: self,
+        action: "Patient discharged",
+        details: "Patient discharged from #{display_location}",
+        performed_by: performed_by,
+        time: Time.current,
+        category: "administrative"
+      )
+    end
+  end
+
+  # Custom exception for discharge failures
+  class NotDischargeable < StandardError; end
 end

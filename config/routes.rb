@@ -25,6 +25,7 @@ Rails.application.routes.draw do
         post 'complete_procedure/:procedure_id', to: 'care_pathways#complete_procedure', as: :complete_procedure
         post 'add_clinical_endpoint', to: 'care_pathways#add_clinical_endpoint'
         post 'achieve_endpoint/:endpoint_id', to: 'care_pathways#achieve_endpoint', as: :achieve_endpoint
+        post 'discharge', to: 'care_pathways#discharge'
       end
     end
   end

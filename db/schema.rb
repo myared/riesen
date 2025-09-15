@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_14_142404) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_15_014226) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -151,6 +151,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_14_142404) do
     t.string "room_number"
     t.datetime "triage_completed_at"
     t.datetime "room_assignment_needed_at"
+    t.boolean "discharged", default: false, null: false
+    t.datetime "discharged_at"
+    t.string "discharged_by"
     t.index ["location_status"], name: "index_patients_on_location_status"
   end
 

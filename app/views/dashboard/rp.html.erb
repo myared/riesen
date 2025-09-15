@@ -140,18 +140,7 @@
               <td><%= patient.provider || 'Not Assigned' %></td>
               <td>
                 <div class="action-buttons">
-                  <% if patient.location_needs_room_assignment? %>
-                    <%= button_to 'Assign Room',
-                        assign_room_patient_path(patient),
-                        method: :post,
-                        class: 'btn-action btn-primary',
-                        data: {
-                          turbo: false,
-                          patient_id: patient.id
-                        } %>
-                  <% else %>
-                    <button class="btn-action" data-patient-id="<%= patient.id %>">Discharge</button>
-                  <% end %>
+                  <%= patient_action_button(patient, 'rp') %>
                 </div>
               </td>
             </tr>
