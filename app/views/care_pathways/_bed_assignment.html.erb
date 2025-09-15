@@ -11,28 +11,6 @@
                 class: "bed-assignment-form" do |f| %>
 
     <div class="destination-section">
-      <div class="destination-options">
-        <label class="destination-option">
-          <%= radio_button_tag "destination", "rp", false, class: "destination-radio", required: true %>
-          <div class="option-card">
-            <div class="option-header">
-              <span class="option-title">Results Pending (RP) Area</span>
-            </div>
-            <p class="option-description">For stable patients awaiting test results</p>
-          </div>
-        </label>
-
-        <label class="destination-option">
-          <%= radio_button_tag "destination", "ed", false, class: "destination-radio", required: true %>
-          <div class="option-card">
-            <div class="option-header">
-              <span class="option-title">Emergency Department (ED) Bed</span>
-            </div>
-            <p class="option-description">For patients requiring immediate care</p>
-          </div>
-        </label>
-      </div>
-
       <% if patient.rp_eligible? %>
         <div class="status-notice info">
           <span class="notice-icon">ℹ️</span>
@@ -44,6 +22,28 @@
           <span class="notice-text">Recommendation: Patient should go to Emergency Department based on triage assessment</span>
         </div>
       <% end %>
+
+      <div class="destination-options">
+        <label class="destination-option">
+          <%= radio_button_tag "destination", "rp", patient.rp_eligible?, class: "destination-radio", required: true %>
+          <div class="option-card">
+            <div class="option-header">
+              <span class="option-title">Results Pending (RP) Area</span>
+            </div>
+            <p class="option-description">For stable patients awaiting test results</p>
+          </div>
+        </label>
+
+        <label class="destination-option">
+          <%= radio_button_tag "destination", "ed", !patient.rp_eligible?, class: "destination-radio", required: true %>
+          <div class="option-card">
+            <div class="option-header">
+              <span class="option-title">Emergency Department (ED) Bed</span>
+            </div>
+            <p class="option-description">For patients requiring immediate care</p>
+          </div>
+        </label>
+      </div>
     </div>
 
     <div class="form-actions">
