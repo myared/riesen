@@ -1,9 +1,7 @@
 class DashboardController < ApplicationController
   before_action :load_dashboard_stats
-  before_action :restrict_provider_access, only: [:triage]
 
   def triage
-    # Clear provider role
     session[:current_role] = 'triage'
     @patients = Patient.includes(:vitals, :events).in_triage.by_arrival_time
     wait_times = @patients.map(&:wait_time_minutes).compact
@@ -77,13 +75,6 @@ class DashboardController < ApplicationController
   end
 
   private
-
-  def restrict_provider_access
-    # Check if user is coming from provider view or if session indicates provider role
-    if session[:current_role] == 'provider' || request.referer&.include?('provider')
-      redirect_to dashboard_provider_path, alert: "Providers do not have access to the Triage view"
-    end
-  end
 
   def load_dashboard_stats
     @total_waiting = Patient.waiting.count
