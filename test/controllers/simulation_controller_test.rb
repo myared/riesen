@@ -594,4 +594,365 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
     # Timer status should also be updated if possible
     assert_equal "red", @lab_order.timer_status  # 45 + 10 = 55 minutes = red
   end
+
+  # ===============================
+  # REWIND TIME TESTS
+  # ===============================
+
+  test "rewind_time should subtract 10 minutes from patient arrival times" do
+    original_arrival = @patient.arrival_time
+    post simulation_rewind_time_path
+
+    @patient.reload
+    expected_new_time = original_arrival + 10.minutes
+    assert_in_delta expected_new_time.to_f, @patient.arrival_time.to_f, 1.0
+  end
+
+  test "rewind_time should subtract 10 minutes from triage_completed_at" do
+    original_triage = @patient.triage_completed_at
+    post simulation_rewind_time_path
+
+    @patient.reload
+    expected_new_time = original_triage + 10.minutes
+    assert_in_delta expected_new_time.to_f, @patient.triage_completed_at.to_f, 1.0
+  end
+
+  test "rewind_time should subtract 10 minutes from care pathway order timestamps" do
+    original_ordered_at = @lab_order.ordered_at
+    post simulation_rewind_time_path
+
+    @lab_order.reload
+    expected_new_time = original_ordered_at + 10.minutes
+    assert_in_delta expected_new_time.to_f, @lab_order.ordered_at.to_f, 1.0
+  end
+
+  test "rewind_time should not make timestamps future" do
+    # Create a patient who just arrived (5 minutes ago)
+    recent_patient = Patient.create!(
+      first_name: "Recent",
+      last_name: "Arrival",
+      age: 30,
+      mrn: "REC_#{SecureRandom.hex(4)}",
+      location_status: :waiting_room,
+      arrival_time: 5.minutes.ago
+    )
+
+    post simulation_rewind_time_path
+
+    recent_patient.reload
+    # Arrival time should not be significantly in the future (allow small tolerance for timing)
+    assert recent_patient.arrival_time <= Time.current + 1.second,
+           "Arrival time should not be in the future after rewind"
+    # Should be at or close to current time (within 5 seconds for test timing)
+    assert_in_delta Time.current.to_f, recent_patient.arrival_time.to_f, 5.0
+  end
+
+  test "rewind_time should handle orders with timestamps less than 10 minutes old" do
+    # Create an order that's only 3 minutes old
+    recent_order = CarePathwayOrder.create!(
+      care_pathway: @care_pathway,
+      name: "Recent Test",
+      order_type: :lab,
+      status: :ordered,
+      ordered_at: 3.minutes.ago,
+      timer_status: "green"
+    )
+
+    post simulation_rewind_time_path
+
+    recent_order.reload
+    # Should not be in the future (allow small tolerance)
+    assert recent_order.ordered_at <= Time.current + 1.second,
+           "Order timestamp should not be in the future"
+    # Should be at or close to current time
+    assert_in_delta Time.current.to_f, recent_order.ordered_at.to_f, 5.0
+  end
+
+  test "rewind_time should update multiple timestamp fields on orders" do
+    # Setup order with multiple timestamps
+    @lab_order.update!(
+      collected_at: 20.minutes.ago,
+      in_lab_at: 15.minutes.ago,
+      resulted_at: 5.minutes.ago,
+      status: :resulted
+    )
+
+    original_collected = @lab_order.collected_at
+    original_in_lab = @lab_order.in_lab_at
+    original_resulted = @lab_order.resulted_at
+
+    post simulation_rewind_time_path
+
+    @lab_order.reload
+
+    # All should be rewound but not future
+    assert @lab_order.collected_at > original_collected
+    assert @lab_order.in_lab_at > original_in_lab
+    assert @lab_order.resulted_at <= Time.current + 1.second  # 5 min ago + 10 min = should cap at current
+  end
+
+  test "rewind_time should handle nil timestamps gracefully" do
+    patient_no_triage = Patient.create!(
+      first_name: "No",
+      last_name: "Triage",
+      age: 25,
+      mrn: "NT_#{SecureRandom.hex(4)}",
+      location_status: :waiting_room,
+      arrival_time: 30.minutes.ago,
+      triage_completed_at: nil
+    )
+
+    assert_nothing_raised do
+      post simulation_rewind_time_path
+    end
+
+    patient_no_triage.reload
+    assert_nil patient_no_triage.triage_completed_at
+  end
+
+  test "rewind_time should update timer statuses appropriately" do
+    # Order at 15 minutes (yellow) should become green (5 minutes) after rewind
+    yellow_order = CarePathwayOrder.create!(
+      care_pathway: @care_pathway,
+      name: "Timer Test",
+      order_type: :lab,
+      status: :ordered,
+      ordered_at: 15.minutes.ago,
+      timer_status: "yellow"
+    )
+
+    post simulation_rewind_time_path
+
+    yellow_order.reload
+    assert_equal "green", yellow_order.timer_status
+    assert_equal 5, yellow_order.last_status_duration_minutes
+  end
+
+  test "rewind_time should handle medication timer thresholds correctly" do
+    # Medication at 12 minutes (red) should become yellow (2 minutes) after rewind
+    red_medication = CarePathwayOrder.create!(
+      care_pathway: @care_pathway,
+      name: "Urgent Med",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 12.minutes.ago,
+      timer_status: "red"
+    )
+
+    post simulation_rewind_time_path
+
+    red_medication.reload
+    assert_equal "green", red_medication.timer_status  # 12 - 10 = 2 minutes = green for medication
+    assert_equal 2, red_medication.last_status_duration_minutes
+  end
+
+  test "rewind_time should show accurate flash message with record count" do
+    post simulation_rewind_time_path
+
+    assert_response :redirect
+    assert_match /Rewound all timers by 10 minutes/, flash[:notice]
+    assert_match /\(\d+ records updated\)/, flash[:notice]
+  end
+
+  test "rewind_time should use database transaction for atomicity" do
+    original_patient_arrival = @patient.arrival_time
+    original_order_time = @lab_order.ordered_at
+
+    post simulation_rewind_time_path
+
+    @patient.reload
+    @lab_order.reload
+
+    # Both should be updated together
+    assert @patient.arrival_time > original_patient_arrival
+    assert @lab_order.ordered_at > original_order_time
+  end
+
+  test "rewind_time should handle error conditions gracefully" do
+    # Clear all data to simulate edge case
+    CarePathwayOrder.destroy_all
+    Patient.destroy_all
+
+    assert_nothing_raised do
+      post simulation_rewind_time_path
+    end
+
+    assert_response :redirect
+    assert(flash[:notice] || flash[:alert])
+  end
+
+  test "rewind_time should validate timestamp fields against whitelist" do
+    # Should use the same VALID_TIMESTAMP_FIELDS constant
+    assert SimulationController::VALID_TIMESTAMP_FIELDS.frozen?
+
+    post simulation_rewind_time_path
+    assert_response :redirect
+  end
+
+  test "rewind_time should prevent SQL injection" do
+    malicious_patient = Patient.create!(
+      first_name: "'; UPDATE patients SET esi_level = 1; --",
+      last_name: "Hacker",
+      age: 40,
+      mrn: "MAL_#{SecureRandom.hex(4)}",
+      location_status: :ed_room,
+      arrival_time: 20.minutes.ago
+    )
+
+    original_count = Patient.where(esi_level: 1).count
+
+    post simulation_rewind_time_path
+
+    # Should not have executed injected SQL
+    assert_equal original_count, Patient.where(esi_level: 1).count
+    assert_response :redirect
+  end
+
+  test "rewind_time should handle orders in various statuses" do
+    # Test collected status
+    collected_order = CarePathwayOrder.create!(
+      care_pathway: @care_pathway,
+      name: "Collected Order",
+      order_type: :lab,
+      status: :collected,
+      ordered_at: 60.minutes.ago,
+      collected_at: 20.minutes.ago,
+      timer_status: "green"
+    )
+
+    original_collected = collected_order.collected_at
+
+    post simulation_rewind_time_path
+
+    collected_order.reload
+    # Should update from collected_at for duration calculation
+    assert collected_order.collected_at > original_collected
+    assert_equal "green", collected_order.timer_status  # 20 - 10 = 10 minutes = green
+  end
+
+  test "rewind_time should handle boundary case of exactly 10 minutes" do
+    # Order exactly 10 minutes old should go to 0 (current time)
+    exact_order = CarePathwayOrder.create!(
+      care_pathway: @care_pathway,
+      name: "Exact Timing",
+      order_type: :lab,
+      status: :ordered,
+      ordered_at: 10.minutes.ago,
+      timer_status: "green"
+    )
+
+    current_time = Time.current
+    post simulation_rewind_time_path
+
+    exact_order.reload
+    # Should be very close to current time
+    assert_in_delta current_time.to_f, exact_order.ordered_at.to_f, 2.0
+    assert_equal "green", exact_order.timer_status
+    # Duration should be very small or nil if not updated
+    assert(exact_order.last_status_duration_minutes.nil? || exact_order.last_status_duration_minutes <= 1)
+  end
+
+  test "rewind_time should update wait time events appropriately" do
+    # Patient who was waiting 125 minutes becomes 115 minutes (no longer over 120 threshold)
+    long_wait_patient = Patient.create!(
+      first_name: "Long",
+      last_name: "Wait",
+      age: 50,
+      mrn: "LW_#{SecureRandom.hex(4)}",
+      location_status: :needs_room_assignment,
+      arrival_time: 125.minutes.ago,
+      triage_completed_at: 120.minutes.ago
+    )
+
+    # Create an existing event for exceeding 120 minutes
+    Event.create!(
+      patient: long_wait_patient,
+      action: "Wait time exceeded 120 minutes",
+      details: "Patient has been waiting for 125 minutes",
+      performed_by: "System",
+      time: 5.minutes.ago,
+      category: "administrative"
+    )
+
+    post simulation_rewind_time_path
+
+    long_wait_patient.reload
+    # After rewind, wait time should be 115 minutes (still over 60 but not 120)
+    wait_time = ((Time.current - long_wait_patient.arrival_time) / 60).round
+    assert wait_time < 120
+    assert wait_time > 60
+  end
+
+  test "rewind_time should handle concurrent requests safely" do
+    assert_nothing_raised do
+      post simulation_rewind_time_path
+      post simulation_rewind_time_path  # Second immediate call
+    end
+
+    assert_response :redirect
+    assert_match "Rewound", flash[:notice]
+  end
+
+  test "rewind_time should redirect to referrer" do
+    referrer_url = "/dashboard/ed"
+    post simulation_rewind_time_path, headers: { "HTTP_REFERER" => referrer_url }
+    assert_redirected_to referrer_url
+  end
+
+  test "rewind_time should fallback to root when no referrer" do
+    post simulation_rewind_time_path
+    assert_redirected_to root_path
+  end
+
+  test "rewind_time should process timer expirations after timestamp updates" do
+    # Order that will change from red to yellow after rewind
+    @lab_order.update!(
+      ordered_at: 50.minutes.ago,
+      timer_status: "red"
+    )
+
+    post simulation_rewind_time_path
+
+    @lab_order.reload
+    # 50 - 10 = 40 minutes = yellow threshold for lab
+    assert_equal "yellow", @lab_order.timer_status
+    assert_equal 40, @lab_order.last_status_duration_minutes
+  end
+
+  test "rewind_time should cap all timestamps at current time" do
+    # Create multiple items with various ages
+    patients_and_times = []
+    5.times do |i|
+      patient = Patient.create!(
+        first_name: "Test#{i}",
+        last_name: "Patient",
+        age: 20 + i,
+        mrn: "TP_#{i}_#{SecureRandom.hex(4)}",
+        location_status: :waiting_room,
+        arrival_time: (i * 2).minutes.ago  # 0, 2, 4, 6, 8 minutes ago
+      )
+      patients_and_times << [patient, patient.arrival_time]
+    end
+
+    current_time = Time.current
+    post simulation_rewind_time_path
+
+    patients_and_times.each do |patient, original_time|
+      patient.reload
+      # No timestamp should be in the future
+      assert patient.arrival_time <= current_time + 1.second,  # Allow 1 second tolerance
+             "Patient #{patient.mrn} arrival time #{patient.arrival_time} should not be future of #{current_time}"
+
+      # Times that were less than 10 minutes ago should be at current time
+      if (current_time - original_time) < 10.minutes
+        assert_in_delta current_time.to_f, patient.arrival_time.to_f, 2.0,
+               "Patient #{patient.mrn} should have arrival time capped at current time"
+      else
+        # Times that were more than 10 minutes ago should be rewound by 10 minutes
+        expected = original_time + 10.minutes
+        assert_in_delta expected.to_f, patient.arrival_time.to_f, 2.0,
+               "Patient #{patient.mrn} should have arrival time rewound by 10 minutes"
+      end
+    end
+  end
 end

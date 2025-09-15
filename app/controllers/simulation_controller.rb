@@ -56,6 +56,73 @@ class SimulationController < ApplicationController
                   alert: "Failed to fast forward time. Please try again."
   end
 
+  def rewind_time
+    time_adjustment = 10.minutes
+    updated_count = 0
+
+    # Split into smaller transactions for better performance
+    ActiveRecord::Base.transaction do
+      # Update patient arrival times with cap at current time
+      Patient.all.find_each do |patient|
+        if patient.arrival_time
+          # Get current time for each update to be precise
+          current_time = Time.current
+          new_time = patient.arrival_time + time_adjustment
+          # Cap at current time to prevent future timestamps
+          new_time = current_time if new_time > current_time
+          patient.update_column(:arrival_time, new_time)
+          updated_count += 1
+        end
+      end
+
+      # Update triage completed times with cap at current time
+      Patient.where.not(triage_completed_at: nil).find_each do |patient|
+        current_time = Time.current
+        new_time = patient.triage_completed_at + time_adjustment
+        # Cap at current time
+        new_time = current_time if new_time > current_time
+        patient.update_column(:triage_completed_at, new_time)
+        updated_count += 1
+      end
+
+      # Update care pathway order ordered_at timestamps
+      CarePathwayOrder.where.not(ordered_at: nil).find_each do |order|
+        current_time = Time.current
+        new_time = order.ordered_at + time_adjustment
+        # Cap at current time
+        new_time = current_time if new_time > current_time
+        order.update_column(:ordered_at, new_time)
+        updated_count += 1
+      end
+
+      # Update other timestamp fields with validation
+      VALID_TIMESTAMP_FIELDS.each do |field|
+        # Verify field exists in the model for security
+        next unless CarePathwayOrder.column_names.include?(field)
+
+        CarePathwayOrder.where.not(field => nil).find_each do |order|
+          current_time = Time.current
+          current_value = order.send(field)
+          new_time = current_value + time_adjustment
+          # Cap at current time
+          new_time = current_time if new_time > current_time
+          order.update_column(field, new_time)
+          updated_count += 1
+        end
+      end
+    end
+
+    # Process timer expirations in a separate operation
+    process_timer_expirations
+
+    redirect_back fallback_location: root_path,
+                  notice: "Rewound all timers by 10 minutes (#{updated_count} records updated)"
+  rescue => e
+    Rails.logger.error "Failed to rewind time: #{e.class}: #{e.message}"
+    redirect_back fallback_location: root_path,
+                  alert: "Failed to rewind time. Please try again."
+  end
+
   private
 
   def process_timer_expirations

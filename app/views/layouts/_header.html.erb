@@ -34,10 +34,11 @@
 
       <%= button_to "+ 10m", simulation_fast_forward_time_path,
           method: :post,
-          class: "ed-header__button ed-header__button--secondary",
-          data: {
-            turbo_confirm: "This will advance ALL timers by 10 minutes. Continue?"
-          } %>
+          class: "ed-header__button ed-header__button--secondary" %>
+
+      <%= button_to "- 10m", simulation_rewind_time_path,
+          method: :post,
+          class: "ed-header__button ed-header__button--secondary" %>
     </div>
   </div>
 </header>
