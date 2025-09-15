@@ -31,10 +31,8 @@
           <tr>
             <th>Patient</th>
             <th>Care Pathway</th>
-            <th>ESI</th>
             <th>Wait / Progress</th>
             <th>Chief Complaint</th>
-            <th>Provider</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -56,11 +54,6 @@
                     <span class="progress-text"><%= progress %>%</span>
                   <% end %>
                 </div>
-              </td>
-              <td>
-                <span class="esi-badge esi-<%= patient.esi_level %>">
-                  ESI <%= patient.esi_level %>
-                </span>
               </td>
               <td>
                 <% if patient.location_needs_room_assignment? %>
@@ -137,7 +130,6 @@
                 <% end %>
               </td>
               <td><%= patient.chief_complaint %></td>
-              <td><%= patient.provider || 'Not Assigned' %></td>
               <td>
                 <div class="action-buttons">
                   <%= patient_action_button(patient, 'rp') %>
