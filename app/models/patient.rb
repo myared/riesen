@@ -289,6 +289,22 @@ class Patient < ApplicationRecord
     wait_time_minutes if @longest_wait_timer.nil?  # Calculate if not already done
     @longest_wait_timer
   end
+
+  # Override setters to clear cache when relevant attributes change
+  def arrival_time=(value)
+    @longest_wait_timer = nil if value != arrival_time
+    super
+  end
+
+  def triage_completed_at=(value)
+    @longest_wait_timer = nil if value != triage_completed_at
+    super
+  end
+
+  def location_status=(value)
+    @longest_wait_timer = nil if value != location_status
+    super
+  end
   
   def room_assignment_started_at
     return nil unless location_needs_room_assignment?
