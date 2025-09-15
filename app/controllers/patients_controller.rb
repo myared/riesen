@@ -1,5 +1,5 @@
 class PatientsController < ApplicationController
-  before_action :set_patient, only: [:show, :add_event, :update_vitals, :assign_room]
+  before_action :set_patient, only: [:show, :add_event, :update_vitals, :assign_room, :add_demo_orders]
   
   def show
     @vitals = @patient.latest_vital
@@ -65,7 +65,84 @@ class PatientsController < ApplicationController
       end
     end
   end
-  
+
+  def add_demo_orders
+    # Find or create care pathway for this patient
+    care_pathway = @patient.care_pathways.find_or_create_by(
+      pathway_type: 'emergency_room',
+      status: 'in_progress'
+    )
+
+    # Demo medications to add
+    medications = [
+      "Morphine 2mg IV",
+      "Reglan",
+      "Zofran 4mg IV"
+    ]
+
+    # Demo imaging orders to add
+    imaging_orders = [
+      "X-Ray Knee",
+      "CT Abdomen/Pelvis with Contrast"
+    ]
+
+    # Demo lab orders to add
+    lab_orders = [
+      "CBC with Differential",
+      "Comprehensive Metabolic Panel",
+      "Urinalysis",
+      "Troponin",
+      "Urine Culture"
+    ]
+
+    # Add all medications
+    medications.each do |med_name|
+      care_pathway.care_pathway_orders.find_or_create_by(
+        name: med_name,
+        order_type: 'medication'
+      ) do |order|
+        order.status = 'ordered'
+        order.ordered_at = Time.current
+        order.ordered_by = "ED RN"
+      end
+    end
+
+    # Add all imaging orders
+    imaging_orders.each do |imaging_name|
+      care_pathway.care_pathway_orders.find_or_create_by(
+        name: imaging_name,
+        order_type: 'imaging'
+      ) do |order|
+        order.status = 'ordered'
+        order.ordered_at = Time.current
+        order.ordered_by = "ED RN"
+      end
+    end
+
+    # Add all lab orders
+    lab_orders.each do |lab_name|
+      care_pathway.care_pathway_orders.find_or_create_by(
+        name: lab_name,
+        order_type: 'lab'
+      ) do |order|
+        order.status = 'ordered'
+        order.ordered_at = Time.current
+        order.ordered_by = "ED RN"
+      end
+    end
+
+    # Record event in patient log
+    @patient.events.create(
+      time: Time.current,
+      action: 'Demo orders added',
+      details: "Added #{medications.count} medications, #{imaging_orders.count} imaging orders, and #{lab_orders.count} lab orders for demo purposes",
+      performed_by: 'System',
+      category: 'diagnostic'
+    )
+
+    redirect_to patient_path(@patient), notice: '✓ All demo orders have been added successfully!'
+  end
+
   def generate
     generator = PatientGenerator.new
     patient = generator.generate

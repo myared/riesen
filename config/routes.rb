@@ -14,6 +14,7 @@ Rails.application.routes.draw do
       post :add_event
       post :update_vitals
       post :assign_room
+      post :add_demo_orders
     end
     
     resources :care_pathways do
