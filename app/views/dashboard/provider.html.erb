@@ -31,11 +31,8 @@
           <tr>
             <th>Patient</th>
             <th>Care Pathway</th>
-            <th>Provider</th>
-            <th>ESI</th>
             <th>Time in Care</th>
             <th>Chief Complaint</th>
-            <th>Location</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -58,19 +55,11 @@
                   <% end %>
                 </div>
               </td>
-              <td><%= patient.provider %></td>
-              <td>
-                <span class="esi-badge esi-<%= patient.esi_level %>">
-                  ESI <%= patient.esi_level %>
-                </span>
-              </td>
               <td><%= patient.wait_time_minutes %>m</td>
               <td><%= patient.chief_complaint %></td>
-              <td><%= patient.display_location %></td>
               <td>
                 <div class="action-buttons">
-                  <button class="btn-action" data-patient-id="<%= patient.id %>">Admit</button>
-                  <button class="btn-action" data-patient-id="<%= patient.id %>">Discharge</button>
+                  <%= patient_action_button(patient, 'provider') %>
                 </div>
               </td>
             </tr>
