@@ -1,6 +1,6 @@
 Rails.application.routes.draw do
   root to: redirect('/dashboard/triage')
-  
+
   namespace :dashboard do
     get "triage"
     get "rp"
@@ -8,6 +8,10 @@ Rails.application.routes.draw do
     get "charge_rn"
     get "provider"
   end
+
+  # Settings routes
+  resource :settings, only: [:show, :update]
+  get 'settings', to: 'settings#index'
   
   resources :patients, only: [:show] do
     member do

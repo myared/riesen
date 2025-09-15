@@ -1,12 +1,5 @@
 class Patient < ApplicationRecord
-  # Constants for ESI level wait time targets (in minutes)
-  ESI_WAIT_TARGETS = {
-    1 => 0,    # Resuscitation - Immediate
-    2 => 10,   # Emergent - 10 minutes
-    3 => 30,   # Urgent - 30 minutes
-    4 => 30,   # Less Urgent - 30 minutes
-    5 => 30    # Non-Urgent - 30 minutes
-  }.freeze
+  # ESI level descriptions (removed hardcoded targets - now in ApplicationSetting)
   
   # ESI Level descriptions
   ESI_DESCRIPTIONS = {
@@ -42,7 +35,7 @@ class Patient < ApplicationRecord
   validates :last_name, presence: true
   validates :age, presence: true, numericality: { greater_than: 0 }
   validates :mrn, presence: true, uniqueness: true
-  validates :esi_level, inclusion: { in: ESI_WAIT_TARGETS.keys }, allow_nil: true
+  validates :esi_level, inclusion: { in: (1..5) }, allow_nil: true
   validates :pain_score, inclusion: { in: PAIN_SCORE_RANGE }, allow_nil: true
   
   # Scopes
@@ -135,7 +128,8 @@ class Patient < ApplicationRecord
   end
 
   def esi_target_minutes
-    ESI_WAIT_TARGETS[esi_level] || 30
+    return 30 unless esi_level
+    ApplicationSetting.current.esi_target_for(esi_level)
   end
 
   def esi_target_label
@@ -143,12 +137,10 @@ class Patient < ApplicationRecord
 
     if timer && timer[:type] == :order && timer[:order]
       order = timer[:order]
-      if order.order_type_medication?
-        "10m target"
-      else
-        "40m target"
-      end
-    elsif esi_level == 1
+      settings = ApplicationSetting.current
+      target = settings.timer_target_for(order.order_type, order.status)
+      "#{target}m target"
+    elsif esi_level == 1 && esi_target_minutes == 0
       "Immediate"
     else
       "#{esi_target_minutes}m target"
@@ -168,36 +160,32 @@ class Patient < ApplicationRecord
     return :green unless timer
 
     current_wait = timer[:time]
+    settings = ApplicationSetting.current
 
     # Determine thresholds based on timer type
     if timer[:type] == :order && timer[:order]
-      # Use order-specific thresholds
+      # Use order-specific thresholds from settings
       order = timer[:order]
-      if order.order_type_medication?
-        # Medication thresholds: green <= 5, yellow <= 10, red > 10
-        if current_wait <= 5
-          :green
-        elsif current_wait <= 10
-          :yellow
-        else
-          :red
-        end
+      target = settings.timer_target_for(order.order_type, order.status)
+      warning_threshold = settings.warning_threshold_minutes(target)
+      critical_threshold = settings.critical_threshold_minutes(target)
+
+      if current_wait <= warning_threshold
+        :green
+      elsif current_wait <= critical_threshold
+        :yellow
       else
-        # Lab/Imaging thresholds: green <= 20, yellow <= 40, red > 40
-        if current_wait <= 20
-          :green
-        elsif current_wait <= 40
-          :yellow
-        else
-          :red
-        end
+        :red
       end
     else
       # Use ESI-based thresholds for arrival/room assignment
       target = esi_target_minutes
-      if current_wait <= target
+      warning_threshold = settings.warning_threshold_minutes(target)
+      critical_threshold = settings.critical_threshold_minutes(target)
+
+      if current_wait <= warning_threshold
         :green
-      elsif current_wait <= (target * 2)
+      elsif current_wait <= critical_threshold
         :yellow
       else
         :red

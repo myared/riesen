@@ -267,24 +267,17 @@ class CarePathwayOrder < ApplicationRecord
   end
 
   def calculate_timer_status(duration_minutes)
-    # Different timing for medications (faster expected response)
-    if order_type_medication?
-      if duration_minutes <= 5
-        "green"
-      elsif duration_minutes <= 10
-        "yellow"
-      else
-        "red"
-      end
+    settings = ApplicationSetting.current
+    target = settings.timer_target_for(order_type, status)
+    warning_threshold = settings.warning_threshold_minutes(target)
+    critical_threshold = settings.critical_threshold_minutes(target)
+
+    if duration_minutes <= warning_threshold
+      "green"
+    elsif duration_minutes <= critical_threshold
+      "yellow"
     else
-      # Standard timing for labs and imaging
-      if duration_minutes <= 20
-        "green"
-      elsif duration_minutes <= 40
-        "yellow"
-      else
-        "red"
-      end
+      "red"
     end
   end
 
