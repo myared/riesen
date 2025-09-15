@@ -34,7 +34,7 @@
           <div class="info-grid">
             <div class="info-item">
               <label>Arrival:</label>
-              <span><%= @patient.arrival_time&.strftime("%H:%M:%S") || "09:30:48" %></span>
+              <span><%= @patient.arrival_time&.in_time_zone&.strftime("%l:%M:%S %p PST") || "09:30:48 AM PST" %></span>
             </div>
             <div class="info-item">
               <label>Wait Time:</label>
@@ -127,7 +127,7 @@
             <% if @events.any? %>
               <% @events.each do |event| %>
                 <tr>
-                  <td><%= event.time.strftime("%H:%M:%S") %></td>
+                  <td><%= event.time.in_time_zone.strftime("%l:%M:%S %p PST") %></td>
                   <td><span class="category-badge <%= event.category&.downcase %>"><%= event.category || 'triage' %></span></td>
                   <td><%= event.action %></td>
                   <td><%= event.details %></td>
@@ -139,7 +139,7 @@
               <% end %>
             <% else %>
               <tr>
-                <td>09:30:48</td>
+                <td>09:30:48 AM PST</td>
                 <td><span class="category-badge triage">triage</span></td>
                 <td>Patient arrived</td>
                 <td>Chief complaint: Wrist pain after skateboard fall, knee laceration</td>

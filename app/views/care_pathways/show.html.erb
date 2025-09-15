@@ -61,7 +61,7 @@
                 </div>
                 <div class="step-label"><%= step.name %></div>
                 <% if step.completed_at %>
-                  <div class="step-time"><%= step.completed_at.strftime("%l:%M %p") %></div>
+                  <div class="step-time"><%= step.completed_at.in_time_zone.strftime("%l:%M %p PST") %></div>
                 <% end %>
               </div>
               <% unless step == @steps.last %>
@@ -308,7 +308,7 @@
                         <div class="order-name"><%= order.name %></div>
                         <div class="order-meta">
                           <span class="order-type"><%= order.order_type.humanize %></span>
-                          <span class="order-time">Ordered by <%= order.ordered_by %> at <%= order.ordered_at&.strftime("%l:%M %p") %></span>
+                          <span class="order-time">Ordered by <%= order.ordered_by %> at <%= order.ordered_at&.in_time_zone&.strftime("%l:%M %p PST") %></span>
                         </div>
                       </div>
                       <div class="order-status-tracker">
@@ -364,7 +364,7 @@
                         <% end %>
                         <% if procedure.completed? %>
                           <div class="procedure-meta">
-                            Completed by <%= procedure.completed_by %> at <%= procedure.completed_at&.strftime("%l:%M %p") %>
+                            Completed by <%= procedure.completed_by %> at <%= procedure.completed_at&.in_time_zone&.strftime("%l:%M %p PST") %>
                           </div>
                         <% end %>
                       </div>
@@ -403,7 +403,7 @@
                         <div class="endpoint-description"><%= endpoint.description %></div>
                         <% if endpoint.achieved? %>
                           <div class="endpoint-meta">
-                            Achieved by <%= endpoint.achieved_by %> at <%= endpoint.achieved_at&.strftime("%l:%M %p") %>
+                            Achieved by <%= endpoint.achieved_by %> at <%= endpoint.achieved_at&.in_time_zone&.strftime("%l:%M %p PST") %>
                           </div>
                         <% end %>
                       </div>
