@@ -1,13 +1,18 @@
 class DashboardController < ApplicationController
   before_action :load_dashboard_stats
+  before_action :restrict_provider_access, only: [:triage]
 
   def triage
+    # Clear provider role
+    session[:current_role] = 'triage'
     @patients = Patient.includes(:vitals, :events).in_triage.by_arrival_time
     wait_times = @patients.map(&:wait_time_minutes).compact
     @avg_wait_time = wait_times.any? ? (wait_times.sum / wait_times.size.to_f).round : 0
   end
 
   def rp
+    # Clear provider role
+    session[:current_role] = 'rp'
     # Include both patients in RP and those waiting for RP room assignment
     # Sort by wait time with highest minutes at top
     @patients = Patient.includes(:vitals, :events, :care_pathways)
@@ -18,6 +23,8 @@ class DashboardController < ApplicationController
   end
 
   def ed_rn
+    # Clear provider role
+    session[:current_role] = 'ed_rn'
     # Include both patients in ED and those waiting for ED room assignment
     # Sort by wait time with highest minutes at top
     @patients = Patient.includes(:vitals, :events, :care_pathways)
@@ -28,6 +35,8 @@ class DashboardController < ApplicationController
   end
 
   def charge_rn
+    # Clear provider role
+    session[:current_role] = 'charge_rn'
     @view_mode = params[:view] || "staff_tasks"
 
     if @view_mode == "floor_view"
@@ -57,10 +66,24 @@ class DashboardController < ApplicationController
   end
 
   def provider
-    @patients = Patient.includes(:vitals, :events).with_provider.by_arrival_time
+    # Set the role in session for access control
+    session[:current_role] = 'provider'
+
+    # Show all patients in RP (Results Pending) or ED RN (ED Room/Treatment)
+    @patients = Patient.includes(:vitals, :events, :care_pathways)
+                       .in_results_pending
+                       .or(Patient.in_ed_treatment)
+                       .by_arrival_time
   end
 
   private
+
+  def restrict_provider_access
+    # Check if user is coming from provider view or if session indicates provider role
+    if session[:current_role] == 'provider' || request.referer&.include?('provider')
+      redirect_to dashboard_provider_path, alert: "Providers do not have access to the Triage view"
+    end
+  end
 
   def load_dashboard_stats
     @total_waiting = Patient.waiting.count
