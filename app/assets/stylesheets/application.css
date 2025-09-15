@@ -51,7 +51,16 @@ button {
 
 /* ED Header - Following BEM conventions */
 .ed-header {
-  background: linear-gradient(135deg, #1a365d 0%, #2c5282 50%, #2b6cb0 85%, #38a89d 100%);
+  background: linear-gradient(
+    270deg,
+    #26a69a,
+    #0d47a1,
+    #26a69a,
+    #0d47a1,
+    #26a69a
+  );
+  background-size: 200% 200%;
+  animation: gradientLoop 16s linear infinite;
   padding: 20px 32px;
   display: flex;
   align-items: center;
@@ -593,6 +602,15 @@ button {
   }
   50% {
     opacity: 0.5;
+  }
+}
+
+@keyframes gradientLoop {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
   }
 }
 
