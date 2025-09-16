@@ -10,8 +10,9 @@ Rails.application.routes.draw do
   end
 
   # Settings routes
-  resource :settings, only: [:show, :update]
   get 'settings', to: 'settings#index'
+  patch 'settings', to: 'settings#update'
+  put 'settings', to: 'settings#update'
   
   resources :patients, only: [:show] do
     member do
