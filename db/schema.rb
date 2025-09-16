@@ -10,9 +10,33 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_15_014226) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_15_153425) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "application_settings", force: :cascade do |t|
+    t.integer "ed_rooms", default: 20, null: false
+    t.integer "rp_rooms", default: 12, null: false
+    t.integer "esi_1_target", default: 0, null: false
+    t.integer "esi_2_target", default: 10, null: false
+    t.integer "esi_3_target", default: 30, null: false
+    t.integer "esi_4_target", default: 60, null: false
+    t.integer "esi_5_target", default: 120, null: false
+    t.integer "medicine_ordered_target", default: 30, null: false
+    t.integer "medicine_administered_target", default: 60, null: false
+    t.integer "lab_ordered_target", default: 15, null: false
+    t.integer "lab_collected_target", default: 30, null: false
+    t.integer "lab_in_lab_target", default: 45, null: false
+    t.integer "lab_resulted_target", default: 60, null: false
+    t.integer "imaging_ordered_target", default: 20, null: false
+    t.integer "imaging_exam_started_target", default: 40, null: false
+    t.integer "imaging_exam_completed_target", default: 60, null: false
+    t.integer "imaging_resulted_target", default: 80, null: false
+    t.integer "warning_threshold_percentage", default: 75, null: false
+    t.integer "critical_threshold_percentage", default: 100, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
 
   create_table "care_pathway_clinical_endpoints", force: :cascade do |t|
     t.bigint "care_pathway_id", null: false

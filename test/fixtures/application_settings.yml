@@ -1,0 +1,43 @@
+# Read about fixtures at https://api.rubyonrails.org/classes/ActiveRecord/FixtureSet.html
+
+one:
+  ed_rooms: 1
+  rp_rooms: 1
+  esi_1_target: 1
+  esi_2_target: 1
+  esi_3_target: 1
+  esi_4_target: 1
+  esi_5_target: 1
+  medicine_ordered_target: 1
+  medicine_administered_target: 1
+  lab_ordered_target: 1
+  lab_collected_target: 1
+  lab_in_lab_target: 1
+  lab_resulted_target: 1
+  imaging_ordered_target: 1
+  imaging_exam_started_target: 1
+  imaging_exam_completed_target: 1
+  imaging_resulted_target: 1
+  warning_threshold_percentage: 1
+  critical_threshold_percentage: 1
+
+two:
+  ed_rooms: 1
+  rp_rooms: 1
+  esi_1_target: 1
+  esi_2_target: 1
+  esi_3_target: 1
+  esi_4_target: 1
+  esi_5_target: 1
+  medicine_ordered_target: 1
+  medicine_administered_target: 1
+  lab_ordered_target: 1
+  lab_collected_target: 1
+  lab_in_lab_target: 1
+  lab_resulted_target: 1
+  imaging_ordered_target: 1
+  imaging_exam_started_target: 1
+  imaging_exam_completed_target: 1
+  imaging_resulted_target: 1
+  warning_threshold_percentage: 1
+  critical_threshold_percentage: 1

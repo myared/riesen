@@ -1,0 +1,149 @@
+<div class="settings-container">
+  <div class="settings-content">
+    <div class="settings-header">
+      <h1>Application Settings</h1>
+      <p class="settings-subtitle">Configure system-wide timers and thresholds</p>
+    </div>
+
+    <%= form_with model: @settings, url: settings_path, method: :patch, local: true, class: 'settings-form' do |form| %>
+
+      <!-- Hospital Size Configuration -->
+      <div class="settings-section">
+        <h2>Hospital Size Configuration</h2>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <%= form.label :ed_rooms, 'ED Rooms', class: 'setting-label' %>
+            <%= form.number_field :ed_rooms, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">Currently showing <%= @settings.ed_rooms %> ED rooms</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :rp_rooms, 'RP Rooms', class: 'setting-label' %>
+            <%= form.number_field :rp_rooms, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">Currently showing <%= @settings.rp_rooms %> RP rooms</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ESI-based Triage Timers -->
+      <div class="settings-section">
+        <h2>Triage Timers (ESI-based)</h2>
+        <p class="section-description">Target wait times in minutes for each ESI level (Triage Only)</p>
+        <div class="settings-grid">
+          <% (1..5).each do |esi| %>
+            <div class="setting-group">
+              <%= form.label "esi_#{esi}_target", "ESI #{esi} Target", class: 'setting-label' %>
+              <%= form.number_field "esi_#{esi}_target", class: 'setting-input', min: 0 %>
+              <span class="setting-helper">minutes</span>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- Medicine Order Timers -->
+      <div class="settings-section">
+        <h2>RP/ED Order Timers - Medicine</h2>
+        <p class="section-description">Target completion times for medication orders (2 phases)</p>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <%= form.label :medicine_ordered_target, 'Ordered → Administered', class: 'setting-label' %>
+            <%= form.number_field :medicine_ordered_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :medicine_administered_target, 'Total Time (Administered)', class: 'setting-label' %>
+            <%= form.number_field :medicine_administered_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes total</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lab Order Timers -->
+      <div class="settings-section">
+        <h2>RP/ED Order Timers - Labs</h2>
+        <p class="section-description">Target completion times for lab orders (4 phases)</p>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <%= form.label :lab_ordered_target, 'Ordered → Collected', class: 'setting-label' %>
+            <%= form.number_field :lab_ordered_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :lab_collected_target, 'Collected → In Lab', class: 'setting-label' %>
+            <%= form.number_field :lab_collected_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :lab_in_lab_target, 'In Lab → Resulted', class: 'setting-label' %>
+            <%= form.number_field :lab_in_lab_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :lab_resulted_target, 'Total Time (Resulted)', class: 'setting-label' %>
+            <%= form.number_field :lab_resulted_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes total</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Imaging Order Timers -->
+      <div class="settings-section">
+        <h2>RP/ED Order Timers - Imaging</h2>
+        <p class="section-description">Target completion times for imaging orders (4 phases)</p>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <%= form.label :imaging_ordered_target, 'Ordered → Exam Started', class: 'setting-label' %>
+            <%= form.number_field :imaging_ordered_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :imaging_exam_started_target, 'Exam Started → Completed', class: 'setting-label' %>
+            <%= form.number_field :imaging_exam_started_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :imaging_exam_completed_target, 'Exam Completed → Resulted', class: 'setting-label' %>
+            <%= form.number_field :imaging_exam_completed_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :imaging_resulted_target, 'Total Time (Resulted)', class: 'setting-label' %>
+            <%= form.number_field :imaging_resulted_target, class: 'setting-input', min: 1 %>
+            <span class="setting-helper">minutes total</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Warning and Critical Thresholds -->
+      <div class="settings-section">
+        <h2>Warning & Critical Thresholds</h2>
+        <p class="section-description">Percentage of target time to trigger warnings</p>
+        <div class="settings-grid">
+          <div class="setting-group">
+            <%= form.label :warning_threshold_percentage, 'Warning Threshold', class: 'setting-label' %>
+            <%= form.number_field :warning_threshold_percentage, class: 'setting-input', min: 1, max: 100 %>
+            <span class="setting-helper">% of target time</span>
+          </div>
+
+          <div class="setting-group">
+            <%= form.label :critical_threshold_percentage, 'Critical Threshold', class: 'setting-label' %>
+            <%= form.number_field :critical_threshold_percentage, class: 'setting-input', min: 1, max: 200 %>
+            <span class="setting-helper">% of target time</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <%= form.submit 'Save Settings', class: 'btn-save-settings' %>
+        <%= link_to 'Back to Dashboard', root_path, class: 'btn-cancel' %>
+      </div>
+    <% end %>
+  </div>
+</div>
