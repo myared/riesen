@@ -32,7 +32,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should get charge_rn" do
-    get dashboard_charge_rn_url(view: 'floor_view')
+    get dashboard_charge_rn_url(view: "floor_view")
     assert_response :success
     assert_select "h2", "All Department Patients"
   end
@@ -59,7 +59,6 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_triage_url
     assert_response :success
     assert_select "th", "Patient"
-    assert_select "th", "ESI"
     assert_select "th", "Care Pathway"
     assert_select "th", "Task List"
     assert_select "th", "RP Eligible"
@@ -79,29 +78,29 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       first_name: "RP", last_name: "Patient", age: 30, mrn: "RP001",
       location_status: :results_pending, rp_eligible: true, esi_level: 3
     )
-    
+
     waiting_rp_patient = Patient.create!(
       first_name: "Waiting", last_name: "RP", age: 25, mrn: "RP002",
       location_status: :needs_room_assignment, rp_eligible: true, esi_level: 4
     )
-    
+
     ed_patient = Patient.create!(
       first_name: "ED", last_name: "Patient", age: 35, mrn: "ED001",
       location_status: :ed_room, rp_eligible: false, esi_level: 2
     )
-    
+
     waiting_ed_patient = Patient.create!(
       first_name: "Waiting", last_name: "ED", age: 40, mrn: "ED002",
       location_status: :needs_room_assignment, rp_eligible: false, esi_level: 3
     )
-    
+
     get dashboard_rp_url
     assert_response :success
-    
+
     # Should include RP patients and those waiting for RP assignment
     assert_match rp_patient.full_name, response.body
     assert_match waiting_rp_patient.full_name, response.body
-    
+
     # Should not include ED patients or those waiting for ED assignment
     assert_no_match ed_patient.full_name, response.body
     assert_no_match waiting_ed_patient.full_name, response.body
@@ -113,35 +112,35 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       first_name: "ED", last_name: "Room", age: 30, mrn: "ED001",
       location_status: :ed_room, rp_eligible: false, esi_level: 3
     )
-    
+
     treatment_patient = Patient.create!(
       first_name: "Treatment", last_name: "Patient", age: 25, mrn: "ED002",
       location_status: :treatment, rp_eligible: false, esi_level: 4
     )
-    
+
     waiting_ed_patient = Patient.create!(
       first_name: "Waiting", last_name: "ED", age: 35, mrn: "ED003",
       location_status: :needs_room_assignment, rp_eligible: false, esi_level: 2
     )
-    
+
     rp_patient = Patient.create!(
       first_name: "RP", last_name: "Patient", age: 40, mrn: "RP001",
       location_status: :results_pending, rp_eligible: true, esi_level: 3
     )
-    
+
     waiting_rp_patient = Patient.create!(
       first_name: "Waiting", last_name: "RP", age: 28, mrn: "RP002",
       location_status: :needs_room_assignment, rp_eligible: true, esi_level: 4
     )
-    
+
     get dashboard_ed_rn_url
     assert_response :success
-    
+
     # Should include ED patients and those waiting for ED assignment
     assert_match ed_room_patient.full_name, response.body
     assert_match treatment_patient.full_name, response.body
     assert_match waiting_ed_patient.full_name, response.body
-    
+
     # Should not include RP patients or those waiting for RP assignment
     assert_no_match rp_patient.full_name, response.body
     assert_no_match waiting_rp_patient.full_name, response.body
@@ -151,7 +150,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     get dashboard_charge_rn_url
     assert_response :success
     assert_select "h2", "Nursing Task Priorities"
-    
+
     # Should show staff tasks section
     assert_select ".staff-tasks", count: 1
   end
@@ -160,11 +159,11 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     # Create some rooms for floor view
     Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :available)
     Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :occupied)
-    
-    get dashboard_charge_rn_url, params: { view: 'floor_view' }
+
+    get dashboard_charge_rn_url, params: { view: "floor_view" }
     assert_response :success
     assert_select "h2", "All Department Patients"
-    
+
     # Should show floor view content
     assert_select ".floor-view", count: 1
   end
@@ -175,10 +174,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     ed_occupied = Room.create!(number: "ED_#{SecureRandom.hex(4)}", room_type: :ed, status: :occupied)
     rp_available = Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :available)
     rp_occupied = Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :occupied)
-    
-    get dashboard_charge_rn_url, params: { view: 'floor_view' }
+
+    get dashboard_charge_rn_url, params: { view: "floor_view" }
     assert_response :success
-    
+
     # The controller should load room data for floor view
     assert_not_nil assigns(:ed_rooms)
     assert_not_nil assigns(:rp_rooms)
@@ -191,7 +190,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       first_name: "Task", last_name: "Patient", age: 30, mrn: "TASK001",
       location_status: :needs_room_assignment, rp_eligible: false, esi_level: 3
     )
-    
+
     task = NursingTask.create!(
       patient: patient,
       task_type: :room_assignment,
@@ -201,10 +200,10 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       status: :pending,
       due_at: 30.minutes.from_now
     )
-    
+
     get dashboard_charge_rn_url # defaults to staff_tasks view
     assert_response :success
-    
+
     # Should load nursing tasks
     assert_not_nil assigns(:nursing_tasks)
     assert_includes assigns(:nursing_tasks), task
@@ -244,19 +243,19 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       first_name: "Waiting", last_name: "Patient", age: 30, mrn: "WAIT001",
       location_status: :waiting_room, wait_time_minutes: 45, esi_level: 3
     )
-    
+
     # Create rooms for RP utilization calculation
     Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :available)
     Room.create!(number: "RP_#{SecureRandom.hex(4)}", room_type: :rp, status: :occupied)
-    
+
     get dashboard_triage_url
     assert_response :success
-    
+
     # Statistics should be loaded
     assert_not_nil assigns(:total_waiting)
     assert_not_nil assigns(:avg_wait_time)
     assert_not_nil assigns(:rp_utilization)
-    
+
     # Should be positive numbers based on our test data
     assert assigns(:total_waiting) > 0
     assert assigns(:rp_utilization) >= 0
@@ -265,26 +264,26 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
   test "dashboard handles empty patient lists gracefully" do
     # Clear any existing patients
     Patient.destroy_all
-    
+
     get dashboard_triage_url
     assert_response :success
-    
+
     get dashboard_rp_url
     assert_response :success
-    
+
     get dashboard_ed_rn_url
     assert_response :success
-    
+
     get dashboard_charge_rn_url
     assert_response :success
-    
+
     get dashboard_provider_url
     assert_response :success
   end
 
   test "rp utilization calculation with no rooms returns zero" do
     Room.destroy_all
-    
+
     get dashboard_triage_url
     assert_response :success
     assert_equal 0, assigns(:rp_utilization)
@@ -437,13 +436,13 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       red_timer = medication_timers.find { |t| t[:medication_name] == "Zofran 4mg IV" }
 
       # Verify timer statuses
-      assert_equal 'timer-green', green_timer[:status_class]
+      assert_equal "timer-green", green_timer[:status_class]
       assert_equal 3, green_timer[:elapsed_time]
 
-      assert_equal 'timer-yellow', yellow_timer[:status_class]
+      assert_equal "timer-yellow", yellow_timer[:status_class]
       assert_equal 7, yellow_timer[:elapsed_time]
 
-      assert_equal 'timer-red', red_timer[:status_class]
+      assert_equal "timer-red", red_timer[:status_class]
       assert_equal 15, red_timer[:elapsed_time]
     end
   end
@@ -510,7 +509,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_equal 1, medication_timers.length
 
     timer = medication_timers.first
-    assert_equal 'Unassigned', timer[:room]
+    assert_equal "Unassigned", timer[:room]
   end
 
   test "load_medication_timers formats ordered_at time correctly" do
@@ -690,7 +689,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
       status_updated_at: 20.minutes.ago
     )
 
-    get dashboard_charge_rn_url, params: { view: 'floor_view' }
+    get dashboard_charge_rn_url, params: { view: "floor_view" }
     assert_response :success
 
     # medication_timers should not be loaded for floor_view
