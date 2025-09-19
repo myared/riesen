@@ -881,4 +881,79 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     # Should not cause any rendering errors
     assert_response :success
   end
+
+  test "rp dashboard only shows patients with Pending Transfer status (75% through triage)" do
+    # Create patient 25% through triage (should NOT appear on RP board)
+    patient_25 = Patient.create!(
+      first_name: "Triage", last_name: "Quarter", age: 30, mrn: "TRIAGE25",
+      location_status: :triage, rp_eligible: true, esi_level: 3
+    )
+    pathway_25 = patient_25.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+    # Create 4 steps, complete 1 (25%)
+    pathway_25.care_pathway_steps.create!(name: "Initial Assessment", sequence: 1, completed: true)
+    pathway_25.care_pathway_steps.create!(name: "Vitals", sequence: 2, completed: false)
+    pathway_25.care_pathway_steps.create!(name: "Triage Questions", sequence: 3, completed: false)
+    pathway_25.care_pathway_steps.create!(name: "Disposition", sequence: 4, completed: false)
+
+    # Create patient 50% through triage (should NOT appear on RP board)
+    patient_50 = Patient.create!(
+      first_name: "Triage", last_name: "Half", age: 31, mrn: "TRIAGE50",
+      location_status: :triage, rp_eligible: true, esi_level: 3
+    )
+    pathway_50 = patient_50.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+    # Create 4 steps, complete 2 (50%)
+    pathway_50.care_pathway_steps.create!(name: "Initial Assessment", sequence: 1, completed: true)
+    pathway_50.care_pathway_steps.create!(name: "Vitals", sequence: 2, completed: true)
+    pathway_50.care_pathway_steps.create!(name: "Triage Questions", sequence: 3, completed: false)
+    pathway_50.care_pathway_steps.create!(name: "Disposition", sequence: 4, completed: false)
+
+    # Create patient 75% through triage with Pending Transfer (SHOULD appear on RP board)
+    patient_75 = Patient.create!(
+      first_name: "James", last_name: "Jackson", age: 32, mrn: "TRIAGE75",
+      location_status: :pending_transfer, rp_eligible: true, esi_level: 3
+    )
+    pathway_75 = patient_75.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+    # Create 4 steps, complete 3 (75%)
+    pathway_75.care_pathway_steps.create!(name: "Initial Assessment", sequence: 1, completed: true)
+    pathway_75.care_pathway_steps.create!(name: "Vitals", sequence: 2, completed: true)
+    pathway_75.care_pathway_steps.create!(name: "Triage Questions", sequence: 3, completed: true)
+    pathway_75.care_pathway_steps.create!(name: "Disposition", sequence: 4, completed: false)
+
+    # Create patient already in RP (SHOULD appear on RP board)
+    patient_rp = Patient.create!(
+      first_name: "Already", last_name: "InRP", age: 35, mrn: "RP001",
+      location_status: :results_pending, rp_eligible: true, esi_level: 3
+    )
+
+    # Create ED patient with pending transfer (should NOT appear on RP board)
+    patient_ed_pending = Patient.create!(
+      first_name: "ED", last_name: "Pending", age: 28, mrn: "EDPEND001",
+      location_status: :pending_transfer, rp_eligible: false, esi_level: 2
+    )
+
+    get dashboard_rp_url
+    assert_response :success
+
+    # Should NOT include patients less than 75% through triage
+    assert_no_match patient_25.full_name, response.body
+    assert_no_match patient_50.full_name, response.body
+
+    # SHOULD include patient 75% through triage with pending transfer
+    assert_match patient_75.full_name, response.body
+
+    # Should include patient already in RP
+    assert_match patient_rp.full_name, response.body
+
+    # Should NOT include ED patient with pending transfer
+    assert_no_match patient_ed_pending.full_name, response.body
+  end
 end

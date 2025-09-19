@@ -2,7 +2,7 @@ class DashboardController < ApplicationController
   before_action :load_dashboard_stats
 
   def triage
-    session[:current_role] = 'triage'
+    session[:current_role] = "triage"
     @patients = Patient.includes(:vitals, :events).in_triage.by_arrival_time
     wait_times = @patients.map(&:wait_time_minutes).compact
     @avg_wait_time = wait_times.any? ? (wait_times.sum / wait_times.size.to_f).round : 0
@@ -10,22 +10,21 @@ class DashboardController < ApplicationController
 
   def rp
     # Clear provider role
-    session[:current_role] = 'rp'
-    # Include patients in RP, those waiting for RP room assignment, those pending transfer to RP,
-    # and RP-eligible patients still in the waiting room
+    session[:current_role] = "rp"
+    # Include patients in RP, those waiting for RP room assignment, and those pending transfer to RP (75% through triage)
+    # Do NOT include RP-eligible patients still in waiting room (not yet 75% through triage)
     # Sort by wait time with highest minutes at top
     @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_results_pending
                        .or(Patient.needs_rp_assignment)
                        .or(Patient.pending_transfer_to_rp)
-                       .or(Patient.rp_eligible_in_waiting_room)
                        .to_a
                        .sort_by { |p| -p.wait_time_minutes }
   end
 
   def ed_rn
     # Clear provider role
-    session[:current_role] = 'ed_rn'
+    session[:current_role] = "ed_rn"
     # Include patients in ED, those waiting for ED room assignment, and those pending transfer to ED
     # Sort by wait time with highest minutes at top
     @patients = Patient.includes(:vitals, :events, :care_pathways)
@@ -38,7 +37,7 @@ class DashboardController < ApplicationController
 
   def charge_rn
     # Clear provider role
-    session[:current_role] = 'charge_rn'
+    session[:current_role] = "charge_rn"
     @view_mode = params[:view] || "staff_tasks"
 
     if @view_mode == "floor_view"
@@ -69,7 +68,7 @@ class DashboardController < ApplicationController
 
   def provider
     # Set the role in session for access control
-    session[:current_role] = 'provider'
+    session[:current_role] = "provider"
 
     # Show all patients in RP (Results Pending) or ED RN (ED Room/Treatment)
     @patients = Patient.includes(:vitals, :events, :care_pathways)

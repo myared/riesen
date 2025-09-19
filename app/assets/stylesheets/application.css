@@ -802,6 +802,16 @@ button {
   display: inline-block;
 }
 
+/* Keep Assign Room button at full opacity and color */
+.patient-table tr.waiting-room-patient .action-buttons button,
+.patient-table tr.waiting-room-patient .action-buttons .btn {
+  opacity: 1 !important;
+  background-color: #4299e1 !important;
+  color: white !important;
+  position: relative;
+  z-index: 1;
+}
+
 /* Show mobile notice on small screens, hide main app */
 @media screen and (max-width: 1024px) {
   .mobile-notice {
