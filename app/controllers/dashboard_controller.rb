@@ -11,12 +11,14 @@ class DashboardController < ApplicationController
   def rp
     # Clear provider role
     session[:current_role] = 'rp'
-    # Include patients in RP, those waiting for RP room assignment, and those pending transfer to RP
+    # Include patients in RP, those waiting for RP room assignment, those pending transfer to RP,
+    # and RP-eligible patients still in the waiting room
     # Sort by wait time with highest minutes at top
     @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_results_pending
                        .or(Patient.needs_rp_assignment)
                        .or(Patient.pending_transfer_to_rp)
+                       .or(Patient.rp_eligible_in_waiting_room)
                        .to_a
                        .sort_by { |p| -p.wait_time_minutes }
   end

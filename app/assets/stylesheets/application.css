@@ -701,6 +701,30 @@ button {
   line-height: 1.5;
 }
 
+/* Waiting Room Patient Styles for RP Board */
+.patient-table tr.waiting-room-patient {
+  opacity: 0.6;
+  background-color: #f8f9fa;
+}
+
+.patient-table tr.waiting-room-patient td {
+  color: #6c757d;
+}
+
+.patient-table tr.waiting-room-patient .patient-cell a {
+  color: #6c757d;
+}
+
+.patient-table tr.waiting-room-patient .care-pathway-label {
+  background-color: #e9ecef;
+  color: #6c757d;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
 /* Show mobile notice on small screens, hide main app */
 @media screen and (max-width: 1024px) {
   .mobile-notice {

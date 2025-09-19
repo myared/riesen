@@ -87,6 +87,10 @@ class Patient < ApplicationRecord
   scope :pending_transfer_to_ed, -> {
     active.where(location_status: :pending_transfer, rp_eligible: false)
   }
+
+  scope :rp_eligible_in_waiting_room, -> {
+    active.where(location_status: :waiting_room, rp_eligible: true)
+  }
   
   def full_name
     "#{first_name} #{last_name}"

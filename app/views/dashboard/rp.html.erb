@@ -37,7 +37,8 @@
         </thead>
         <tbody>
           <% @patients.each do |patient| %>
-            <tr data-patient-id="<%= patient.id %>">
+            <% is_waiting = patient.location_waiting_room? || (patient.location_pending_transfer? && patient.rp_eligible?) %>
+            <tr data-patient-id="<%= patient.id %>" class="<%= 'waiting-room-patient' if is_waiting %>">
               <td class="patient-cell">
                 <%= link_to patient_path(patient), data: { turbo_frame: "patient_modal" } do %>
                   <div><strong><%= patient.full_name %></strong></div>
@@ -47,11 +48,15 @@
               </td>
               <td>
                 <div class="care-pathway-cell">
-                  <% progress = patient.active_care_pathway&.progress_percentage || 0 %>
-                  <%= link_to patient_care_pathways_path(patient, referrer: 'rp'),
-                              class: "progress-ring-button",
-                              style: "--progress: #{progress}" do %>
-                    <span class="progress-text"><%= progress %>%</span>
+                  <% if patient.location_waiting_room? || (patient.location_pending_transfer? && patient.rp_eligible?) %>
+                    <span class="care-pathway-label">WR</span>
+                  <% else %>
+                    <% progress = patient.active_care_pathway&.progress_percentage || 0 %>
+                    <%= link_to patient_care_pathways_path(patient, referrer: 'rp'),
+                                class: "progress-ring-button",
+                                style: "--progress: #{progress}" do %>
+                      <span class="progress-text"><%= progress %>%</span>
+                    <% end %>
                   <% end %>
                 </div>
               </td>
