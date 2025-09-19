@@ -701,6 +701,83 @@ button {
   line-height: 1.5;
 }
 
+/* Simplified Task List Styles */
+.simplified-tasks {
+  width: 100%;
+}
+
+.simplified-tasks .no-tasks {
+  color: #6c757d;
+  font-size: 14px;
+  font-style: italic;
+}
+
+.simplified-tasks .task-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.simplified-tasks .task-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.2s ease;
+}
+
+.simplified-tasks a.task-item:hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.simplified-tasks .task-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.simplified-tasks .task-indicator-green {
+  background-color: #22c55e;
+}
+
+.simplified-tasks .task-indicator-yellow {
+  background-color: #f59e0b;
+}
+
+.simplified-tasks .task-indicator-red {
+  background-color: #ef4444;
+}
+
+.simplified-tasks .task-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.simplified-tasks .task-time {
+  font-weight: 600;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.simplified-tasks .task-green .task-time {
+  color: #22c55e;
+}
+
+.simplified-tasks .task-yellow .task-time {
+  color: #f59e0b;
+}
+
+.simplified-tasks .task-red .task-time {
+  color: #ef4444;
+}
+
 /* Waiting Room Patient Styles for RP Board */
 .patient-table tr.waiting-room-patient {
   opacity: 0.6;

@@ -1,0 +1,25 @@
+<div class="simplified-tasks">
+  <% tasks = patient.top_pending_tasks(4) %>
+  <% if tasks.empty? %>
+    <span class="no-tasks">No tasks pending</span>
+  <% else %>
+    <div class="task-list">
+      <% tasks.each do |task| %>
+        <% if task[:care_pathway_id] %>
+          <%= link_to patient_care_pathway_path(patient, task[:care_pathway_id], referrer: referrer),
+                      class: "task-item task-#{task[:status]}" do %>
+            <span class="task-indicator task-indicator-<%= task[:status] %>"></span>
+            <span class="task-name"><%= task[:name] %></span>
+            <span class="task-time"><%= task[:elapsed_time] %>m</span>
+          <% end %>
+        <% else %>
+          <div class="task-item task-<%= task[:status] %>">
+            <span class="task-indicator task-indicator-<%= task[:status] %>"></span>
+            <span class="task-name"><%= task[:name] %></span>
+            <span class="task-time"><%= task[:elapsed_time] %>m</span>
+          </div>
+        <% end %>
+      <% end %>
+    </div>
+  <% end %>
+</div>

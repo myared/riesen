@@ -291,6 +291,75 @@ class Patient < ApplicationRecord
     @longest_wait_timer
   end
 
+  # Get top pending tasks with their timer status for simplified display
+  def top_pending_tasks(limit = 4)
+    tasks = []
+
+    # Check arrival/triage timers if patient is not yet in a room
+    if !location_ed_room? && !location_treatment? && !location_results_pending?
+      # Check arrival time if not yet triaged
+      if arrival_time && !triage_completed_at
+        elapsed_minutes = ((Time.current - arrival_time) / 60).round
+        tasks << {
+          name: "Triage",
+          type: :triage,
+          elapsed_time: elapsed_minutes,
+          status: calculate_task_status(elapsed_minutes, esi_target_minutes),
+          care_pathway_id: care_pathways.pathway_type_triage.last&.id
+        }
+      end
+
+      # Check triage completion time if waiting for room
+      if triage_completed_at && location_needs_room_assignment?
+        elapsed_minutes = ((Time.current - triage_completed_at) / 60).round
+        tasks << {
+          name: "Room Assignment",
+          type: :room_assignment,
+          elapsed_time: elapsed_minutes,
+          status: calculate_task_status(elapsed_minutes, Patient::ROOM_ASSIGNMENT_TARGET),
+          care_pathway_id: nil
+        }
+      end
+    end
+
+    # Check all active care pathway orders
+    care_pathways.each do |pathway|
+      pathway.care_pathway_orders.where.not(status: [:resulted, :administered, :exam_completed]).each do |order|
+        # Get the appropriate timestamp based on order status
+        timestamp = case order.status.to_sym
+        when :ordered
+          order.ordered_at
+        when :collected
+          order.collected_at
+        when :in_lab
+          order.in_lab_at
+        when :exam_started
+          order.exam_started_at
+        else
+          order.status_updated_at || order.ordered_at
+        end
+
+        if timestamp
+          elapsed_minutes = ((Time.current - timestamp) / 60).round
+          settings = ApplicationSetting.current
+          target = settings.timer_target_for(order.order_type, order.status)
+
+          tasks << {
+            name: "#{order.type_icon} #{order.name} - #{order.status_label}",
+            type: :order,
+            elapsed_time: elapsed_minutes,
+            status: calculate_task_status(elapsed_minutes, target),
+            care_pathway_id: pathway.id,
+            order_id: order.id
+          }
+        end
+      end
+    end
+
+    # Sort by status priority (red > yellow > green) then by elapsed time
+    tasks.sort_by { |t| [status_priority(t[:status]), -t[:elapsed_time]] }.first(limit)
+  end
+
   # Override setters to clear cache when relevant attributes change
   def arrival_time=(value)
     @longest_wait_timer = nil if value != arrival_time
@@ -473,4 +542,29 @@ class Patient < ApplicationRecord
 
   # Custom exception for discharge failures
   class NotDischargeable < StandardError; end
+
+  private
+
+  def calculate_task_status(elapsed_minutes, target_minutes)
+    settings = ApplicationSetting.current
+    warning_threshold = settings.warning_threshold_minutes(target_minutes)
+    critical_threshold = settings.critical_threshold_minutes(target_minutes)
+
+    if elapsed_minutes <= warning_threshold
+      :green
+    elsif elapsed_minutes <= critical_threshold
+      :yellow
+    else
+      :red
+    end
+  end
+
+  def status_priority(status)
+    case status
+    when :red then 0
+    when :yellow then 1
+    when :green then 2
+    else 3
+    end
+  end
 end

@@ -696,4 +696,189 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     # medication_timers should not be loaded for floor_view
     assert_nil assigns(:medication_timers)
   end
+
+  # Tests for simplified task list integration in dashboards
+  test "triage dashboard displays patients and integrates with task list functionality" do
+    # Create patient with triage task
+    patient = Patient.create!(
+      first_name: "Task", last_name: "Display", age: 30, mrn: "TASK001",
+      location_status: :waiting_room, esi_level: 3,
+      arrival_time: 20.minutes.ago, triage_completed_at: nil
+    )
+
+    pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+
+    get dashboard_triage_url
+    assert_response :success
+
+    # Should display patient information (integration point for task list)
+    assert_match patient.full_name, response.body
+    assert_select "table", count: 1
+    assert_select "tbody tr", minimum: 1
+  end
+
+  test "rp dashboard displays patients ready for task list integration" do
+    # Create RP eligible patient waiting for room
+    patient = Patient.create!(
+      first_name: "RP", last_name: "Waiting", age: 25, mrn: "RP_WAIT001",
+      location_status: :needs_room_assignment, rp_eligible: true, esi_level: 4,
+      arrival_time: 1.hour.ago, triage_completed_at: 30.minutes.ago
+    )
+
+    get dashboard_rp_url
+    assert_response :success
+
+    # Should display patient (integration point for task list)
+    assert_match patient.full_name, response.body
+    assert_select "table", count: 1
+  end
+
+  test "ed_rn dashboard displays patients with active orders" do
+    # Create ED patient with orders
+    patient = Patient.create!(
+      first_name: "ED", last_name: "Patient", age: 35, mrn: "ED_TASK001",
+      location_status: :ed_room, room_number: "ED-5", esi_level: 2
+    )
+
+    pathway = patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    order = pathway.care_pathway_orders.create!(
+      name: "X-Ray Chest",
+      order_type: :imaging,
+      status: :ordered,
+      ordered_at: 30.minutes.ago
+    )
+
+    get dashboard_ed_rn_url
+    assert_response :success
+
+    # Should display patient (integration point for task list)
+    assert_match patient.full_name, response.body
+    assert_select "table", count: 1
+  end
+
+  test "provider dashboard displays patients with task-relevant information" do
+    # Create patient in results pending
+    patient = Patient.create!(
+      first_name: "Provider", last_name: "Patient", age: 40, mrn: "PROV_TASK001",
+      location_status: :results_pending, esi_level: 3
+    )
+
+    pathway = patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    order = pathway.care_pathway_orders.create!(
+      name: "CBC with Differential",
+      order_type: :lab,
+      status: :in_lab,
+      ordered_at: 45.minutes.ago,
+      in_lab_at: 20.minutes.ago
+    )
+
+    get dashboard_provider_url
+    assert_response :success
+
+    # Should display patient (integration point for task list)
+    assert_match patient.full_name, response.body
+    assert_select "table", count: 1
+  end
+
+  test "dashboard displays patients with completed pathways" do
+    # Create patient with completed pathway (no active tasks)
+    patient = Patient.create!(
+      first_name: "No", last_name: "Tasks", age: 28, mrn: "NOTASK001",
+      location_status: :ed_room, esi_level: 3
+    )
+
+    pathway = patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :completed
+    )
+
+    get dashboard_ed_rn_url
+    assert_response :success
+
+    # Should still display patient information
+    assert_match patient.full_name, response.body
+  end
+
+  test "dashboard patient table can display patients with multiple active orders" do
+    # Create patient with multiple active orders
+    patient = Patient.create!(
+      first_name: "Multi", last_name: "Task", age: 32, mrn: "MULTI001",
+      location_status: :ed_room, room_number: "ED-8", esi_level: 3
+    )
+
+    pathway = patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    # Create orders with different elapsed times
+    pathway.care_pathway_orders.create!(
+      name: "Recent Lab",
+      order_type: :lab,
+      status: :ordered,
+      ordered_at: 5.minutes.ago
+    )
+
+    pathway.care_pathway_orders.create!(
+      name: "Overdue Med",
+      order_type: :medication,
+      status: :ordered,
+      ordered_at: 35.minutes.ago  # Red status - med target 30 min
+    )
+
+    get dashboard_ed_rn_url
+    assert_response :success
+
+    # Should display patient information
+    assert_match patient.full_name, response.body
+    assert_select "table", count: 1
+  end
+
+  test "dashboard includes correct referrer parameters in care pathway links" do
+    # Create patient with triage pathway
+    patient = Patient.create!(
+      first_name: "Link", last_name: "Test", age: 29, mrn: "LINK001",
+      location_status: :waiting_room, esi_level: 3,
+      arrival_time: 30.minutes.ago, triage_completed_at: nil
+    )
+
+    pathway = patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+
+    get dashboard_triage_url
+    assert_response :success
+
+    # Should include referrer parameter in care pathway links
+    assert_match "referrer=triage", response.body
+  end
+
+  test "dashboard handles patients without care pathways gracefully" do
+    # Create patient without any care pathways
+    patient = Patient.create!(
+      first_name: "No", last_name: "Pathway", age: 26, mrn: "NOPATH001",
+      location_status: :waiting_room, esi_level: 3,
+      arrival_time: 15.minutes.ago
+    )
+
+    get dashboard_triage_url
+    assert_response :success
+
+    # Should display patient without errors
+    assert_match patient.full_name, response.body
+    # Should not cause any rendering errors
+    assert_response :success
+  end
 end

@@ -55,7 +55,9 @@
                   <% end %>
                 </div>
               </td>
-              <td><%= patient.wait_time_minutes %>m</td>
+              <td>
+                <%= render 'shared/simplified_task_list', patient: patient, referrer: 'provider' %>
+              </td>
               <td>
                 <div class="action-buttons">
                   <%= patient_action_button(patient, 'provider') %>

@@ -613,4 +613,286 @@ class PatientTest < ActiveSupport::TestCase
     assert_includes patients_waiting_long, patient1
     assert_not_includes patients_waiting_long, patient2
   end
+
+  # Tests for top_pending_tasks method
+  test "top_pending_tasks returns empty array when no pending tasks" do
+    @patient.save!
+    @patient.update!(
+      location_status: :discharged,
+      triage_completed_at: 1.hour.ago
+    )
+
+    tasks = @patient.top_pending_tasks
+    assert_empty tasks
+  end
+
+  test "top_pending_tasks includes triage task when not yet triaged" do
+    @patient.save!
+    @patient.update!(
+      arrival_time: 25.minutes.ago,
+      triage_completed_at: nil,
+      location_status: :waiting_room,
+      esi_level: 3
+    )
+
+    # Create triage care pathway
+    pathway = @patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+
+    tasks = @patient.top_pending_tasks
+    assert_equal 1, tasks.length
+
+    task = tasks.first
+    assert_equal "Triage", task[:name]
+    assert_equal :triage, task[:type]
+    assert_equal 25, task[:elapsed_time]
+    assert_equal pathway.id, task[:care_pathway_id]
+  end
+
+  test "top_pending_tasks includes room assignment task when waiting for room" do
+    @patient.save!
+    @patient.update!(
+      arrival_time: 1.hour.ago,
+      triage_completed_at: 30.minutes.ago,
+      location_status: :needs_room_assignment,
+      esi_level: 3
+    )
+
+    tasks = @patient.top_pending_tasks
+    assert_equal 1, tasks.length
+
+    task = tasks.first
+    assert_equal "Room Assignment", task[:name]
+    assert_equal :room_assignment, task[:type]
+    assert_equal 30, task[:elapsed_time]
+    assert_nil task[:care_pathway_id]
+  end
+
+  test "top_pending_tasks includes active care pathway orders" do
+    @patient.save!
+    @patient.update!(
+      location_status: :ed_room,
+      esi_level: 3
+    )
+
+    pathway = @patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    # Create active order
+    order = pathway.care_pathway_orders.create!(
+      name: "CBC with Differential",
+      order_type: :lab,
+      status: :ordered,
+      ordered_at: 20.minutes.ago
+    )
+
+    tasks = @patient.top_pending_tasks
+    assert_equal 1, tasks.length
+
+    task = tasks.first
+    assert_includes task[:name], "CBC with Differential"
+    assert_equal :order, task[:type]
+    assert_equal 20, task[:elapsed_time]
+    assert_equal pathway.id, task[:care_pathway_id]
+    assert_equal order.id, task[:order_id]
+  end
+
+  test "top_pending_tasks sorts by status priority then elapsed time" do
+    @patient.save!
+    @patient.update!(location_status: :ed_room, esi_level: 3)
+
+    pathway = @patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    freeze_time do
+      # Green task (5 minutes) - target is 15 min for lab, 75% = 11 min warning, so 5 < 11 = green
+      green_order = pathway.care_pathway_orders.create!(
+        name: "Green Order",
+        order_type: :lab,
+        status: :ordered,
+        ordered_at: 5.minutes.ago
+      )
+
+      # Red task (20 minutes) - 20 > 15 = red
+      red_order = pathway.care_pathway_orders.create!(
+        name: "Red Order",
+        order_type: :lab,
+        status: :ordered,
+        ordered_at: 20.minutes.ago
+      )
+
+      # Yellow task (12 minutes) - 12 > 11 (warning) but <= 15 (critical) = yellow
+      yellow_order = pathway.care_pathway_orders.create!(
+        name: "Yellow Order",
+        order_type: :lab,
+        status: :ordered,
+        ordered_at: 12.minutes.ago
+      )
+
+      tasks = @patient.top_pending_tasks
+      assert_equal 3, tasks.length
+
+      # Should be sorted by priority (red > yellow > green) then elapsed time
+      assert_includes tasks[0][:name], "Red Order"
+      assert_equal :red, tasks[0][:status]
+
+      assert_includes tasks[1][:name], "Yellow Order"
+      assert_equal :yellow, tasks[1][:status]
+
+      assert_includes tasks[2][:name], "Green Order"
+      assert_equal :green, tasks[2][:status]
+    end
+  end
+
+  test "top_pending_tasks limits results to specified number" do
+    @patient.save!
+    @patient.update!(location_status: :ed_room, esi_level: 3)
+
+    pathway = @patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    # Create 6 orders
+    6.times do |i|
+      pathway.care_pathway_orders.create!(
+        name: "Order #{i + 1}",
+        order_type: :lab,
+        status: :ordered,
+        ordered_at: (10 + i).minutes.ago
+      )
+    end
+
+    # Test default limit (4)
+    tasks = @patient.top_pending_tasks
+    assert_equal 4, tasks.length
+
+    # Test custom limit (2)
+    tasks = @patient.top_pending_tasks(2)
+    assert_equal 2, tasks.length
+  end
+
+  test "top_pending_tasks excludes completed orders" do
+    @patient.save!
+    @patient.update!(location_status: :ed_room, esi_level: 3)
+
+    pathway = @patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    # Create active order
+    active_order = pathway.care_pathway_orders.create!(
+      name: "Active Lab",
+      order_type: :lab,
+      status: :ordered,
+      ordered_at: 20.minutes.ago
+    )
+
+    # Create completed orders (should be excluded)
+    pathway.care_pathway_orders.create!(
+      name: "Completed Lab",
+      order_type: :lab,
+      status: :resulted,
+      ordered_at: 30.minutes.ago
+    )
+
+    pathway.care_pathway_orders.create!(
+      name: "Administered Med",
+      order_type: :medication,
+      status: :administered,
+      ordered_at: 25.minutes.ago
+    )
+
+    pathway.care_pathway_orders.create!(
+      name: "Completed Exam",
+      order_type: :imaging,
+      status: :exam_completed,
+      ordered_at: 35.minutes.ago
+    )
+
+    tasks = @patient.top_pending_tasks
+    assert_equal 1, tasks.length
+    assert_includes tasks.first[:name], "Active Lab"
+  end
+
+  test "top_pending_tasks handles mixed task types correctly" do
+    @patient.save!
+    @patient.update!(
+      arrival_time: 45.minutes.ago,
+      triage_completed_at: 30.minutes.ago,
+      location_status: :needs_room_assignment,
+      esi_level: 3
+    )
+
+    # Should have room assignment task
+    pathway = @patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    # Add order task
+    order = pathway.care_pathway_orders.create!(
+      name: "X-Ray Chest",
+      order_type: :imaging,
+      status: :ordered,
+      ordered_at: 40.minutes.ago
+    )
+
+    tasks = @patient.top_pending_tasks
+    assert_equal 2, tasks.length
+
+    # Should include both room assignment and order tasks
+    task_types = tasks.map { |t| t[:type] }
+    assert_includes task_types, :room_assignment
+    assert_includes task_types, :order
+  end
+
+  test "top_pending_tasks calculates correct status for different elapsed times" do
+    @patient.save!
+    @patient.update!(
+      arrival_time: 15.minutes.ago,
+      triage_completed_at: nil,
+      location_status: :waiting_room,
+      esi_level: 3  # 30 minute target
+    )
+
+    tasks = @patient.top_pending_tasks
+    assert_equal 1, tasks.length
+
+    # 15 minutes elapsed with 30 minute target should be green
+    assert_equal :green, tasks.first[:status]
+  end
+
+  # Tests for helper methods
+  test "calculate_task_status returns correct status based on thresholds" do
+    @patient.save!
+
+    # Test green status (under warning threshold: 75% of 30 = 22.5 min)
+    status = @patient.send(:calculate_task_status, 20, 30)  # 20 min elapsed, 30 min target
+    assert_equal :green, status
+
+    # Test yellow status (over warning, under critical: 75%-100% of 30 = 23-30 min)
+    status = @patient.send(:calculate_task_status, 25, 30)  # 25 min elapsed, 30 min target
+    assert_equal :yellow, status
+
+    # Test red status (over critical threshold: 100% of 30 = 30 min)
+    status = @patient.send(:calculate_task_status, 35, 30)  # 35 min elapsed, 30 min target
+    assert_equal :red, status
+  end
+
+  test "status_priority returns correct priority order" do
+    @patient.save!
+
+    assert_equal 0, @patient.send(:status_priority, :red)     # Highest priority
+    assert_equal 1, @patient.send(:status_priority, :yellow)  # Medium priority
+    assert_equal 2, @patient.send(:status_priority, :green)   # Lowest priority
+    assert_equal 3, @patient.send(:status_priority, :unknown) # Unknown status
+  end
 end
