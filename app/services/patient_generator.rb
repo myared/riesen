@@ -90,7 +90,7 @@ class PatientGenerator
   end
   
   def determine_rp_eligibility
-    # 30% chance of being RP eligible
-    rand(100) < 30
+    # 50% chance of being RP eligible
+    rand(100) < 50
   end
 end

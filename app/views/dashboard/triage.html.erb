@@ -72,7 +72,9 @@
             </div>
           </td>
           <td>
-            <% if patient.rp_eligible %>
+            <% if !patient.check_in_and_intake_complete? %>
+              <span style="color: #6c757d;">N/A</span>
+            <% elsif patient.rp_eligible %>
               <span class="rp-eligible">✓</span>
             <% else %>
               <span class="not-rp-eligible">✗</span>

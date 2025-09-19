@@ -298,6 +298,17 @@ class Patient < ApplicationRecord
     triage_completed_at.present? && esi_level.present?
   end
 
+  def check_in_and_intake_complete?
+    # Check if the patient has an active triage pathway with both check-in and intake completed
+    pathway = care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+    return false unless pathway
+
+    check_in_step = pathway.care_pathway_steps.find_by(name: 'Check-In')
+    intake_step = pathway.care_pathway_steps.find_by(name: 'Intake')
+
+    check_in_step&.completed? && intake_step&.completed?
+  end
+
   def room_assignment_started_at
     return nil unless location_needs_room_assignment?
     triage_completed_at || updated_at
