@@ -35,12 +35,16 @@
       <h3>Room Status Grid</h3>
       <div class="room-grid">
         <% @ed_rooms.each do |room| %>
-          <div class="room-card <%= room.status_available? ? 'available' : 'occupied' %> 
-                      <%= room.current_patient&.esi_level ? "esi-#{room.current_patient.esi_level}" : '' %>">
+          <div class="room-card <%= room.status_available? ? 'available' : 'occupied' %>
+                      <%= room.current_patient&.intake_complete? && room.current_patient&.esi_level ? "esi-#{room.current_patient.esi_level}" : '' %>">
             <div class="room-number"><%= room.number %></div>
             <% if room.current_patient %>
               <div class="patient-name"><%= room.current_patient.full_name %></div>
-              <div class="esi-tag">ESI-<%= room.current_patient.esi_level %></div>
+              <% if room.current_patient.intake_complete? %>
+                <div class="esi-tag">ESI-<%= room.current_patient.esi_level %></div>
+              <% else %>
+                <div class="esi-tag" style="opacity: 0.5;">Pending</div>
+              <% end %>
             <% end %>
           </div>
         <% end %>

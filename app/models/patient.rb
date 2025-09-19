@@ -294,6 +294,10 @@ class Patient < ApplicationRecord
     super
   end
   
+  def intake_complete?
+    triage_completed_at.present? && esi_level.present?
+  end
+
   def room_assignment_started_at
     return nil unless location_needs_room_assignment?
     triage_completed_at || updated_at

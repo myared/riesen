@@ -15,7 +15,11 @@
       </div>
     </div>
     <div class="patient-badges">
-      <span class="esi-badge esi-<%= @patient.esi_level %>">ESI-<%= @patient.esi_level %></span>
+      <% if @patient.intake_complete? %>
+        <span class="esi-badge esi-<%= @patient.esi_level %>">ESI-<%= @patient.esi_level %></span>
+      <% else %>
+        <span class="esi-badge" style="opacity: 0.5;">ESI Pending</span>
+      <% end %>
     </div>
     <%= link_to "×", @return_path, class: "modal-close", "data-turbo": false %>
   </div>

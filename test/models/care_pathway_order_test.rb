@@ -2,6 +2,8 @@ require "test_helper"
 
 class CarePathwayOrderTest < ActiveSupport::TestCase
   setup do
+    ensure_application_setting
+
     @patient = Patient.create!(
       first_name: "Test",
       last_name: "Patient",
@@ -125,36 +127,47 @@ class CarePathwayOrderTest < ActiveSupport::TestCase
 
   # Test calculate_timer_status method
   test "calculate_timer_status should use medication thresholds for medication orders" do
-    # Test green (0-5 minutes)
+    # For medication ordered status, target is 30 minutes
+    # Warning threshold = 75% of 30 = 23 minutes
+    # Critical threshold = 100% of 30 = 30 minutes
+
+    # Test green (0-23 minutes)
     assert_equal "green", @medication_order.send(:calculate_timer_status, 3)
-    assert_equal "green", @medication_order.send(:calculate_timer_status, 5)
+    assert_equal "green", @medication_order.send(:calculate_timer_status, 20)
+    assert_equal "green", @medication_order.send(:calculate_timer_status, 23)
 
-    # Test yellow (6-10 minutes)
-    assert_equal "yellow", @medication_order.send(:calculate_timer_status, 7)
-    assert_equal "yellow", @medication_order.send(:calculate_timer_status, 10)
+    # Test yellow (24-30 minutes)
+    assert_equal "yellow", @medication_order.send(:calculate_timer_status, 25)
+    assert_equal "yellow", @medication_order.send(:calculate_timer_status, 30)
 
-    # Test red (>10 minutes)
-    assert_equal "red", @medication_order.send(:calculate_timer_status, 15)
-    assert_equal "red", @medication_order.send(:calculate_timer_status, 25)
+    # Test red (>30 minutes)
+    assert_equal "red", @medication_order.send(:calculate_timer_status, 35)
+    assert_equal "red", @medication_order.send(:calculate_timer_status, 45)
   end
 
   test "calculate_timer_status should use standard thresholds for lab and imaging orders" do
-    # Test green (0-20 minutes)
-    assert_equal "green", @lab_order.send(:calculate_timer_status, 10)
-    assert_equal "green", @lab_order.send(:calculate_timer_status, 20)
+    # For lab ordered status, target is 15 minutes
+    # Warning threshold = 75% of 15 = 11 minutes
+    # Critical threshold = 100% of 15 = 15 minutes
 
-    # Test yellow (21-40 minutes)
-    assert_equal "yellow", @lab_order.send(:calculate_timer_status, 25)
-    assert_equal "yellow", @lab_order.send(:calculate_timer_status, 40)
+    # Test green (0-11 minutes)
+    assert_equal "green", @lab_order.send(:calculate_timer_status, 5)
+    assert_equal "green", @lab_order.send(:calculate_timer_status, 11)
 
-    # Test red (>40 minutes)
-    assert_equal "red", @lab_order.send(:calculate_timer_status, 45)
-    assert_equal "red", @lab_order.send(:calculate_timer_status, 60)
+    # Test yellow (12-15 minutes)
+    assert_equal "yellow", @lab_order.send(:calculate_timer_status, 13)
+    assert_equal "yellow", @lab_order.send(:calculate_timer_status, 15)
 
-    # Same for imaging orders
+    # Test red (>15 minutes)
+    assert_equal "red", @lab_order.send(:calculate_timer_status, 20)
+    assert_equal "red", @lab_order.send(:calculate_timer_status, 30)
+
+    # For imaging ordered status, target is 20 minutes
+    # Warning threshold = 75% of 20 = 15 minutes
+    # Critical threshold = 100% of 20 = 20 minutes
     assert_equal "green", @imaging_order.send(:calculate_timer_status, 15)
-    assert_equal "yellow", @imaging_order.send(:calculate_timer_status, 30)
-    assert_equal "red", @imaging_order.send(:calculate_timer_status, 50)
+    assert_equal "yellow", @imaging_order.send(:calculate_timer_status, 18)
+    assert_equal "red", @imaging_order.send(:calculate_timer_status, 25)
   end
 
   # Test complete? method
@@ -344,21 +357,23 @@ class CarePathwayOrderTest < ActiveSupport::TestCase
     freeze_time do
       # Set up a previous timestamp to calculate duration from ordered_at
       # Since the lab order is in "ordered" status, it will use ordered_at for duration calculation
-      @lab_order.update!(ordered_at: 25.minutes.ago)
+      # Lab ordered target is 15 minutes, so 13 minutes should be yellow (between 11-15)
+      @lab_order.update!(ordered_at: 13.minutes.ago)
 
       result = @lab_order.advance_status!("ED RN")
       assert result
 
       @lab_order.reload
-      assert_equal "yellow", @lab_order.timer_status  # 25 minutes = yellow for lab
-      assert_equal 25, @lab_order.last_status_duration_minutes
+      assert_equal "yellow", @lab_order.timer_status  # 13 minutes = yellow for lab
+      assert_equal 13, @lab_order.last_status_duration_minutes
     end
   end
 
   test "advance_status! should create status event" do
     freeze_time do
-      # Set ordered_at to 30 minutes ago to get expected timer calculation
-      @lab_order.update!(ordered_at: 30.minutes.ago)
+      # Set ordered_at to 13 minutes ago to get yellow timer status
+      # Lab ordered target is 15 minutes, yellow is 12-15 minutes
+      @lab_order.update!(ordered_at: 13.minutes.ago)
 
       assert_difference "Event.count", 1 do
         @lab_order.advance_status!("Triage RN")  # Use valid performer from Event::PERFORMED_BY_OPTIONS
@@ -368,7 +383,7 @@ class CarePathwayOrderTest < ActiveSupport::TestCase
       assert_equal @patient, event.patient
       assert_equal "Order status updated: Collected", event.action
       assert_includes event.details, @lab_order.name
-      assert_includes event.details, "yellow"  # 30 minutes = yellow for lab
+      assert_includes event.details, "yellow"  # 13 minutes = yellow for lab
       assert_equal "Triage RN", event.performed_by
       assert_equal "diagnostic", event.category
     end
@@ -404,19 +419,20 @@ class CarePathwayOrderTest < ActiveSupport::TestCase
   end
 
   test "should handle boundary conditions for timer thresholds" do
-    # Medication boundaries
+    # Medication boundaries (target: 30 min, warning: 23 min, critical: 30 min)
     assert_equal "green", @medication_order.send(:calculate_timer_status, 0)
-    assert_equal "green", @medication_order.send(:calculate_timer_status, 5)
-    assert_equal "yellow", @medication_order.send(:calculate_timer_status, 6)
-    assert_equal "yellow", @medication_order.send(:calculate_timer_status, 10)
-    assert_equal "red", @medication_order.send(:calculate_timer_status, 11)
+    assert_equal "green", @medication_order.send(:calculate_timer_status, 22)
+    assert_equal "green", @medication_order.send(:calculate_timer_status, 23)
+    assert_equal "yellow", @medication_order.send(:calculate_timer_status, 24)
+    assert_equal "yellow", @medication_order.send(:calculate_timer_status, 30)
+    assert_equal "red", @medication_order.send(:calculate_timer_status, 31)
 
-    # Standard boundaries
+    # Lab boundaries (target: 15 min, warning: 11 min, critical: 15 min)
     assert_equal "green", @lab_order.send(:calculate_timer_status, 0)
-    assert_equal "green", @lab_order.send(:calculate_timer_status, 20)
-    assert_equal "yellow", @lab_order.send(:calculate_timer_status, 21)
-    assert_equal "yellow", @lab_order.send(:calculate_timer_status, 40)
-    assert_equal "red", @lab_order.send(:calculate_timer_status, 41)
+    assert_equal "green", @lab_order.send(:calculate_timer_status, 11)
+    assert_equal "yellow", @lab_order.send(:calculate_timer_status, 12)
+    assert_equal "yellow", @lab_order.send(:calculate_timer_status, 15)
+    assert_equal "red", @lab_order.send(:calculate_timer_status, 16)
   end
 
   # Test scopes

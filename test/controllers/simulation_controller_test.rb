@@ -2,6 +2,8 @@ require "test_helper"
 
 class SimulationControllerTest < ActionDispatch::IntegrationTest
   setup do
+    ensure_application_setting
+
     @patient = Patient.create!(
       first_name: "John",
       last_name: "Doe",
@@ -127,8 +129,9 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
 
   test "fast_forward_time should recalculate timer statuses" do
     # Setup order that will change from green to yellow after fast forward
+    # Lab ordered target is 15 min, yellow is 12-15 minutes
     @lab_order.update!(
-      ordered_at: 15.minutes.ago,  # 15 + 10 = 25 minutes = yellow
+      ordered_at: 3.minutes.ago,  # 3 + 10 = 13 minutes = yellow
       timer_status: "green"
     )
 
@@ -136,7 +139,7 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
 
     @lab_order.reload
     assert_equal "yellow", @lab_order.timer_status
-    assert_equal 25, @lab_order.last_status_duration_minutes
+    assert_equal 13, @lab_order.last_status_duration_minutes
   end
 
   test "fast_forward_time should create events for timer status changes" do
@@ -359,9 +362,10 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "fast_forward_time should handle medication order timer thresholds" do
-    # Test medication-specific timer logic (5/10 minute thresholds)
+    # Test medication-specific timer logic
+    # Medication ordered target: 30 min, critical at 30 min
     @medication_order.update!(
-      ordered_at: 8.minutes.ago,  # 8 + 10 = 18 minutes = red for medication
+      ordered_at: 25.minutes.ago,  # 25 + 10 = 35 minutes = red for medication
       timer_status: "yellow"
     )
 
@@ -369,7 +373,7 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
 
     @medication_order.reload
     assert_equal "red", @medication_order.timer_status
-    assert_equal 18, @medication_order.last_status_duration_minutes
+    assert_equal 35, @medication_order.last_status_duration_minutes
   end
 
   test "fast_forward_time should handle orders in various statuses" do
@@ -387,8 +391,8 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
     post simulation_fast_forward_time_path
 
     collected_order.reload
-    # Duration should be calculated from collected_at (30 + 10 = 40 minutes = yellow)
-    assert_equal "yellow", collected_order.timer_status
+    # Lab collected target is 30 min, so 40 minutes = red
+    assert_equal "red", collected_order.timer_status
     assert_equal 40, collected_order.last_status_duration_minutes
   end
 
@@ -906,17 +910,17 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
 
   test "rewind_time should process timer expirations after timestamp updates" do
     # Order that will change from red to yellow after rewind
+    # Lab ordered target is 15 min, yellow is 12-15 min
     @lab_order.update!(
-      ordered_at: 50.minutes.ago,
+      ordered_at: 23.minutes.ago,  # 23 - 10 = 13 minutes = yellow
       timer_status: "red"
     )
 
     post simulation_rewind_time_path
 
     @lab_order.reload
-    # 50 - 10 = 40 minutes = yellow threshold for lab
     assert_equal "yellow", @lab_order.timer_status
-    assert_equal 40, @lab_order.last_status_duration_minutes
+    assert_equal 13, @lab_order.last_status_duration_minutes
   end
 
   test "rewind_time should cap all timestamps at current time" do

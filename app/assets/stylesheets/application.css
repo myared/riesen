@@ -360,6 +360,11 @@ button {
   border-bottom: 1px solid #e1e4e8;
 }
 
+.patient-table th.patient-header,
+.patient-table td.patient-cell {
+  width: 240px;
+}
+
 .patient-table tbody tr:hover {
   background: #f6f8fa;
 }

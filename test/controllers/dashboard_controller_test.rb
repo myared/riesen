@@ -60,7 +60,9 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "th", "Patient"
     assert_select "th", "ESI"
-    assert_select "th", "Chief Complaint"
+    assert_select "th", "Care Pathway"
+    assert_select "th", "Wait Progress"
+    assert_select "th", "RP Eligible"
   end
 
   test "root path redirects to triage dashboard" do
@@ -208,26 +210,32 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_includes assigns(:nursing_tasks), task
   end
 
-  test "provider dashboard shows patients with providers" do
-    # Create patients with and without providers
-    with_provider = Patient.create!(
-      first_name: "With", last_name: "Provider", age: 30, mrn: "PROV001",
-      provider: "Dr. Smith", esi_level: 3
+  test "provider dashboard shows patients in results pending or ED treatment" do
+    # Create patients with appropriate location statuses
+    rp_patient = Patient.create!(
+      first_name: "Results", last_name: "Pending", age: 30, mrn: "PROV001",
+      location_status: :results_pending, esi_level: 3
     )
-    
-    without_provider = Patient.create!(
-      first_name: "No", last_name: "Provider", age: 25, mrn: "PROV002",
-      provider: nil, esi_level: 4
+
+    ed_patient = Patient.create!(
+      first_name: "ED", last_name: "Treatment", age: 25, mrn: "PROV002",
+      location_status: :ed_room, esi_level: 4
     )
-    
+
+    waiting_patient = Patient.create!(
+      first_name: "Waiting", last_name: "Room", age: 35, mrn: "PROV003",
+      location_status: :waiting_room, esi_level: 2
+    )
+
     get dashboard_provider_url
     assert_response :success
-    
-    # Should include patient with provider
-    assert_match with_provider.full_name, response.body
-    
-    # Should not include patient without provider (unless query logic differs)
-    # Note: This test might need adjustment based on actual filtering logic
+
+    # Should include patients in RP and ED treatment
+    assert_match rp_patient.full_name, response.body
+    assert_match ed_patient.full_name, response.body
+
+    # Should not include patient in waiting room
+    assert_no_match waiting_patient.full_name, response.body
   end
 
   test "dashboard statistics are loaded for all views" do
@@ -536,8 +544,8 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     medication_timers = assigns(:medication_timers)
     timer = medication_timers.first
 
-    # Should format the time using strftime("%l:%M %p") format
-    expected_time = ordered_time.strftime("%l:%M %p")
+    # Should format the time using strftime("%l:%M %p PST") format
+    expected_time = ordered_time.in_time_zone.strftime("%l:%M %p PST")
     assert_equal expected_time, timer[:ordered_at]
   end
 
