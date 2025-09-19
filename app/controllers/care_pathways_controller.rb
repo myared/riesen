@@ -122,6 +122,30 @@ class CarePathwaysController < ApplicationController
         category: "triage"
       )
 
+      # Handle step-specific transitions
+      case @step.name
+      when "Bed Assignment"
+        # When bed assignment is completed, move to pending transfer status
+        updates = { location_status: :pending_transfer }
+        updates[:triage_completed_at] = Time.current if @patient.triage_completed_at.blank?
+        @patient.update(updates)
+
+        # Start RP eligibility timer if patient is RP eligible
+        if @patient.rp_eligible? && @patient.rp_eligibility_started_at.blank?
+          @patient.update(rp_eligibility_started_at: Time.current)
+        end
+
+      when "Pending Transfer"
+        # When pending transfer is completed, move to needs room assignment
+        @patient.update(
+          location_status: :needs_room_assignment,
+          room_assignment_needed_at: Time.current
+        )
+
+        # Create nursing task for room assignment
+        NursingTask.create_room_assignment_task(@patient)
+      end
+
       # Check if pathway is complete
       if @care_pathway.complete?
         @care_pathway.update(status: :completed, completed_at: Time.current, completed_by: current_user_name)
@@ -135,16 +159,6 @@ class CarePathwaysController < ApplicationController
           time: Time.current,
           category: "triage"
         )
-
-        # Update patient location status and create nursing task
-        @patient.update(
-          location_status: :needs_room_assignment,
-          triage_completed_at: Time.current,
-          room_assignment_needed_at: Time.current
-        )
-
-        # Create nursing task for room assignment
-        NursingTask.create_room_assignment_task(@patient)
       else
         @care_pathway.update(status: :in_progress) if @care_pathway.status_not_started?
       end
@@ -521,7 +535,8 @@ class CarePathwaysController < ApplicationController
     steps = [
       { name: "Check-In", sequence: 0 },
       { name: "Intake", sequence: 1 },
-      { name: "Bed Assignment", sequence: 2 }
+      { name: "Bed Assignment", sequence: 2 },
+      { name: "Pending Transfer", sequence: 3 }
     ]
 
     steps.each do |step_data|

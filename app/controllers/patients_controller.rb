@@ -31,6 +31,53 @@ class PatientsController < ApplicationController
   end
   
   def assign_room
+    # Handle pending transfer patients who are being assigned early (at 75% completion)
+    if @patient.location_pending_transfer?
+      handle_early_room_assignment
+    else
+      handle_standard_room_assignment
+    end
+  end
+
+  private
+
+  def handle_early_room_assignment
+    # Complete the pending transfer step if it exists
+    pathway = @patient.care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+    if pathway
+      pending_transfer_step = pathway.care_pathway_steps.find_by(name: 'Pending Transfer')
+      if pending_transfer_step && !pending_transfer_step.completed?
+        pending_transfer_step.complete!('System - Early Room Assignment')
+
+        # Mark the pathway as complete
+        pathway.update(status: :completed, completed_at: Time.current, completed_by: 'System')
+
+        # Record event
+        Event.create!(
+          patient: @patient,
+          action: "Early room assignment from Pending Transfer",
+          details: "Patient assigned room before completing full triage pathway (at 75%)",
+          performed_by: current_user_name,
+          time: Time.current,
+          category: "administrative"
+        )
+      end
+    end
+
+    # Update patient status to needs room assignment
+    @patient.update(
+      location_status: :needs_room_assignment,
+      room_assignment_needed_at: Time.current
+    )
+
+    # Create nursing task if it doesn't exist
+    NursingTask.create_room_assignment_task(@patient) unless NursingTask.where(patient: @patient, task_type: 'room_assignment', status: 'pending').exists?
+
+    # Now proceed with standard room assignment
+    handle_standard_room_assignment
+  end
+
+  def handle_standard_room_assignment
     # Determine which type of room to assign based on patient's pathway
     if @patient.rp_eligible?
       available_room = Room.rp_rooms.status_available.first
@@ -41,15 +88,15 @@ class PatientsController < ApplicationController
       room_type = 'ED'
       department_name = 'Emergency Department'
     end
-    
+
     if available_room
       # Use Room model's assign_patient method
       available_room.assign_patient(@patient)
-      
+
       # Update nursing task if exists
       task = NursingTask.where(patient: @patient, task_type: 'room_assignment', status: 'pending').first
       task&.update(status: 'completed', completed_at: Time.current)
-      
+
       respond_to do |format|
         format.html { redirect_back(fallback_location: root_path, notice: "✓ Patient assigned to #{room_type} Room #{available_room.number}") }
         format.turbo_stream { redirect_back(fallback_location: root_path, notice: "✓ Patient assigned to #{room_type} Room #{available_room.number}") }
@@ -57,14 +104,36 @@ class PatientsController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { 
-          redirect_back(fallback_location: root_path, 
+        format.html {
+          redirect_back(fallback_location: root_path,
                        alert: "⚠️ Cannot assign room: The #{department_name} is full. Please wait for a room to become available.")
         }
         format.json { render json: { success: false, error: "No #{room_type} rooms available" }, status: :unprocessable_entity }
       end
     end
   end
+
+  def current_user_name
+    # Map session roles to valid Event performer options
+    role = session[:current_role]
+
+    case role
+    when 'triage'
+      'Triage RN'
+    when 'rp'
+      'RP RN'
+    when 'ed_rn'
+      'ED RN'
+    when 'provider'
+      'Provider'
+    when 'charge_rn'
+      'ED RN'  # Charge RN acts as ED RN for events
+    else
+      'System'
+    end
+  end
+
+  public
 
   def add_demo_orders
     # Find or create care pathway for this patient

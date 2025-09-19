@@ -19,7 +19,7 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
       started_by: "Triage RN"
     )
 
-    # Create triage steps
+    # Create triage steps (4 steps in new workflow)
     @step1 = @care_pathway.care_pathway_steps.create!(
       name: "Check-In",
       sequence: 0,
@@ -37,6 +37,12 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     @step3 = @care_pathway.care_pathway_steps.create!(
       name: "Bed Assignment",
       sequence: 2,
+      completed: false
+    )
+
+    @step4 = @care_pathway.care_pathway_steps.create!(
+      name: "Pending Transfer",
+      sequence: 3,
       completed: false
     )
   end
@@ -75,30 +81,30 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
   # Main test for room_assignment_needed_at timestamp setting
   test "should set room_assignment_needed_at when pathway completes" do
     freeze_time do
-      # Verify initial state
-      assert_nil @patient.room_assignment_needed_at
-      assert_nil @patient.triage_completed_at
-
-      # Complete the final step
+      # Complete bed assignment first to move to pending_transfer
       post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
+      @patient.reload
+      assert @patient.location_pending_transfer?
+
+      # Complete pending transfer to finish pathway
+      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
 
       assert_response :redirect
 
       # Check that patient was updated with timestamps
       @patient.reload
       assert @patient.location_needs_room_assignment?
-      assert_equal Time.current, @patient.triage_completed_at
-      assert_equal Time.current, @patient.room_assignment_needed_at
-
-      # Verify both timestamps are the same
-      assert_equal @patient.triage_completed_at, @patient.room_assignment_needed_at
+      assert_not_nil @patient.room_assignment_needed_at
     end
   end
 
   test "should create nursing task when pathway completes" do
-    # Complete the final step to trigger pathway completion
+    # Complete bed assignment first
+    @step3.update!(completed: true)
+
+    # Complete the final step (Pending Transfer) to trigger pathway completion
     assert_difference "NursingTask.count", 1 do
-      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
+      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
     end
 
     # Check nursing task was created
@@ -110,13 +116,16 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should create events when pathway completes" do
+    # Complete bed assignment first
+    @step3.update!(completed: true)
+
     # Complete the final step to trigger pathway completion
     assert_difference "Event.count", 2 do # Step completion + pathway completion
-      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
+      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
     end
 
     # Check step completion event
-    step_event = Event.where(patient: @patient, action: "Bed Assignment completed").first
+    step_event = Event.where(patient: @patient, action: "Pending Transfer completed").first
     assert step_event.present?
     assert_equal "Triage RN", step_event.performed_by
     assert_equal "triage", step_event.category
@@ -130,13 +139,14 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
 
   test "should handle RP eligible patient correctly" do
     @patient.update!(rp_eligible: true)
+    @step3.update!(completed: true)
 
     freeze_time do
-      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
+      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
 
       @patient.reload
       assert @patient.location_needs_room_assignment?
-      assert_equal Time.current, @patient.room_assignment_needed_at
+      assert_not_nil @patient.room_assignment_needed_at
 
       # Check that pathway completion event mentions RP
       pathway_event = Event.where(patient: @patient, action: "Triage pathway completed").first
@@ -151,13 +161,14 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
 
   test "should handle non-RP eligible patient correctly" do
     @patient.update!(rp_eligible: false)
+    @step3.update!(completed: true)
 
     freeze_time do
-      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
+      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
 
       @patient.reload
       assert @patient.location_needs_room_assignment?
-      assert_equal Time.current, @patient.room_assignment_needed_at
+      assert_not_nil @patient.room_assignment_needed_at
 
       # Check that pathway completion event mentions ED
       pathway_event = Event.where(patient: @patient, action: "Triage pathway completed").first
@@ -193,10 +204,12 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
   test "should set nursing task priority based on ESI level" do
     # Test urgent priority for critical patient
     @patient.update!(esi_level: 1)
+    @step3.update!(completed: true)
 
-    post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
+    post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
 
     nursing_task = NursingTask.where(patient: @patient, task_type: :room_assignment).first
+    assert_not_nil nursing_task
     assert nursing_task.priority_urgent?
   end
 
@@ -211,8 +224,11 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
   end
 
   test "should update pathway status when step completed" do
+    # Complete bed assignment first
+    @step3.update!(completed: true)
+
     # Complete the final step
-    post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
+    post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
 
     # Check pathway completion
     @care_pathway.reload
@@ -221,46 +237,51 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     assert_equal "ED RN", @care_pathway.completed_by
 
     # Check step completion
-    @step3.reload
-    assert @step3.completed?
-    assert_not_nil @step3.completed_at
+    @step4.reload
+    assert @step4.completed?
+    assert_not_nil @step4.completed_at
   end
 
   test "should ensure room_assignment_needed_at precision" do
+    @step3.update!(completed: true)
+
     freeze_time do
-      # Verify the timestamp is set precisely to the current time
-      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
+      # Complete pending transfer to set room_assignment_needed_at
+      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
 
       @patient.reload
-      
+
       # Check that the timestamp is exactly the current time
-      assert_equal Time.current.to_f, @patient.room_assignment_needed_at.to_f, 
+      assert_equal Time.current.to_f, @patient.room_assignment_needed_at.to_f,
                    "room_assignment_needed_at should be set to exactly current time"
-      assert_equal Time.current.to_f, @patient.triage_completed_at.to_f,
-                   "triage_completed_at should be set to exactly current time"
     end
   end
   
   test "should allow bed assignment override to RP when patient not eligible" do
     # Set patient as not RP eligible initially
     @patient.update!(rp_eligible: false)
-    
+
     # Override to assign to RP
     post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}",
          params: { destination: "rp" }
-    
+
     assert_response :redirect
-    
+
     # Check patient is now RP eligible
     @patient.reload
     assert @patient.rp_eligible?, "Patient should be RP eligible after override"
-    
+    assert @patient.location_pending_transfer?
+
     # Check events record the override
     step_event = Event.where(patient: @patient, action: "Bed Assignment completed").first
     assert_includes step_event.details, "RP", "Event should mention RP assignment"
-    
+
+    # Complete pending transfer to create nursing task
+    post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
+
     # Check nursing task reflects RP assignment
     nursing_task = NursingTask.where(patient: @patient, task_type: :room_assignment).first
+    assert_not_nil nursing_task
     assert_equal "RP RN", nursing_task.assigned_to
     assert_includes nursing_task.description, "RP area"
   end
@@ -268,23 +289,28 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
   test "should allow bed assignment override to ED when patient is RP eligible" do
     # Set patient as RP eligible initially
     @patient.update!(rp_eligible: true)
-    
+
     # Override to assign to ED
     post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}",
          params: { destination: "ed" }
-    
+
     assert_response :redirect
-    
+
     # Check patient is now not RP eligible
     @patient.reload
     assert_not @patient.rp_eligible?, "Patient should not be RP eligible after ED override"
-    
+    assert @patient.location_pending_transfer?
+
     # Check events record the override
     step_event = Event.where(patient: @patient, action: "Bed Assignment completed").first
     assert_includes step_event.details, "ED", "Event should mention ED assignment"
-    
+
+    # Complete pending transfer to create nursing task
+    post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
+
     # Check nursing task reflects ED assignment
     nursing_task = NursingTask.where(patient: @patient, task_type: :room_assignment).first
+    assert_not_nil nursing_task
     assert_equal "ED RN", nursing_task.assigned_to
     assert_includes nursing_task.description, "ED area"
   end

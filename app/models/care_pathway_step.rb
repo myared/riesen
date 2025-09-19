@@ -5,7 +5,8 @@ class CarePathwayStep < ApplicationRecord
   TRIAGE_STEPS = {
     check_in: 'Check-In',
     intake: 'Intake',
-    bed_assignment: 'Bed Assignment'
+    bed_assignment: 'Bed Assignment',
+    pending_transfer: 'Pending Transfer'
   }.freeze
   
   validates :name, presence: true

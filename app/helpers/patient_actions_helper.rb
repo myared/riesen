@@ -1,7 +1,10 @@
 module PatientActionsHelper
   # Generates the appropriate action button for a patient based on their current state
   def patient_action_button(patient, referrer = nil)
-    if patient.location_needs_room_assignment?
+    if patient.location_pending_transfer? && patient_at_75_percent_completion?(patient)
+      # Allow room assignment for pending transfer patients at 75% completion
+      room_assignment_button(patient)
+    elsif patient.location_needs_room_assignment?
       room_assignment_button(patient)
     elsif patient.needs_clinical_endpoints?
       add_endpoint_button(patient, referrer)
@@ -13,6 +16,19 @@ module PatientActionsHelper
   end
 
   private
+
+  def patient_at_75_percent_completion?(patient)
+    # Check if the triage pathway is at least 75% complete
+    pathway = patient.care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+    return false unless pathway
+
+    # For a 4-step pathway, 75% means 3 out of 4 steps completed
+    total_steps = pathway.care_pathway_steps.count
+    completed_steps = pathway.care_pathway_steps.where(completed: true).count
+
+    # Return true if at least 3 of 4 steps are completed (75%)
+    completed_steps >= (total_steps * 0.75).ceil
+  end
 
   def room_assignment_button(patient)
     button_to 'Assign Room',

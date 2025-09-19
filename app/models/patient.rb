@@ -24,7 +24,8 @@ class Patient < ApplicationRecord
     results_pending: 3,
     ed_room: 4,
     treatment: 5,
-    discharged: 6
+    discharged: 6,
+    pending_transfer: 7
   }, prefix: :location
   
   has_many :vitals, dependent: :destroy
@@ -42,7 +43,7 @@ class Patient < ApplicationRecord
   scope :active, -> { where(discharged: false) }
   scope :discharged_patients, -> { where(discharged: true) }
   scope :waiting, -> { location_waiting_room }
-  scope :in_triage, -> { where(location_status: [:waiting_room, :triage]) }
+  scope :in_triage, -> { where(location_status: [:waiting_room, :triage, :pending_transfer]) }
   scope :in_ed, -> { where(location_status: [:ed_room, :treatment]) }
   scope :with_provider, -> { where.not(provider: nil) }
   scope :critical, -> { where(esi_level: [1, 2]) }
@@ -77,6 +78,14 @@ class Patient < ApplicationRecord
 
   scope :in_ed_treatment, -> {
     active.where(location_status: [:ed_room, :treatment])
+  }
+
+  scope :pending_transfer_to_rp, -> {
+    active.where(location_status: :pending_transfer, rp_eligible: true)
+  }
+
+  scope :pending_transfer_to_ed, -> {
+    active.where(location_status: :pending_transfer, rp_eligible: false)
   }
   
   def full_name
@@ -309,6 +318,42 @@ class Patient < ApplicationRecord
     check_in_step&.completed? && intake_step&.completed?
   end
 
+  def all_triage_steps_complete?
+    # Check if all triage pathway steps are completed (including bed assignment)
+    pathway = care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+    return false unless pathway
+
+    check_in_step = pathway.care_pathway_steps.find_by(name: 'Check-In')
+    intake_step = pathway.care_pathway_steps.find_by(name: 'Intake')
+    bed_assignment_step = pathway.care_pathway_steps.find_by(name: 'Bed-Assignment')
+
+    check_in_step&.completed? && intake_step&.completed? && bed_assignment_step&.completed?
+  end
+
+  def rp_eligibility_time_minutes
+    return 0 unless rp_eligibility_started_at && rp_eligible?
+    ((Time.current - rp_eligibility_started_at) / 60).round
+  end
+
+  def rp_eligibility_status
+    return :green unless rp_eligible? && rp_eligibility_started_at
+
+    minutes = rp_eligibility_time_minutes
+    settings = ApplicationSetting.current
+    target = settings.esi_target_for(esi_level || 3)  # Default to ESI 3 if not set
+
+    warning_threshold = settings.warning_threshold_minutes(target)
+    critical_threshold = settings.critical_threshold_minutes(target)
+
+    if minutes <= warning_threshold
+      :green
+    elsif minutes <= critical_threshold
+      :yellow
+    else
+      :red
+    end
+  end
+
   def room_assignment_started_at
     return nil unless location_needs_room_assignment?
     triage_completed_at || updated_at
@@ -353,6 +398,8 @@ class Patient < ApplicationRecord
       'Waiting Room'
     when 'triage'
       'Triage'
+    when 'pending_transfer'
+      'Pending Transfer'
     when 'results_pending'
       'RP'
     when 'ed_room', 'treatment'
