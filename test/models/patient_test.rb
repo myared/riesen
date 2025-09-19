@@ -626,7 +626,7 @@ class PatientTest < ActiveSupport::TestCase
     assert_empty tasks
   end
 
-  test "top_pending_tasks includes triage task when not yet triaged" do
+  test "top_pending_tasks includes check-in task when at check-in step" do
     @patient.save!
     @patient.update!(
       arrival_time: 25.minutes.ago,
@@ -635,29 +635,61 @@ class PatientTest < ActiveSupport::TestCase
       esi_level: 3
     )
 
-    # Create triage care pathway
+    # Create triage care pathway with Check-In as current step
     pathway = @patient.care_pathways.create!(
       pathway_type: :triage,
       status: :in_progress
+    )
+
+    pathway.care_pathway_steps.create!(
+      name: 'Check-In',
+      sequence: 1,
+      completed: false
     )
 
     tasks = @patient.top_pending_tasks
     assert_equal 1, tasks.length
 
     task = tasks.first
-    assert_equal "Triage", task[:name]
-    assert_equal :triage, task[:type]
+    assert_equal "Check In", task[:name]
+    assert_equal :check_in, task[:type]
     assert_equal 25, task[:elapsed_time]
     assert_equal pathway.id, task[:care_pathway_id]
   end
 
-  test "top_pending_tasks includes room assignment task when waiting for room" do
+  test "top_pending_tasks includes room assignment task when at bed assignment step" do
     @patient.save!
     @patient.update!(
       arrival_time: 1.hour.ago,
       triage_completed_at: 30.minutes.ago,
       location_status: :needs_room_assignment,
       esi_level: 3
+    )
+
+    # Create triage care pathway with Bed Assignment as current step
+    pathway = @patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+
+    pathway.care_pathway_steps.create!(
+      name: 'Check-In',
+      sequence: 1,
+      completed: true,
+      completed_at: 45.minutes.ago
+    )
+
+    pathway.care_pathway_steps.create!(
+      name: 'Intake',
+      sequence: 2,
+      completed: true,
+      completed_at: 30.minutes.ago
+    )
+
+    pathway.care_pathway_steps.create!(
+      name: 'Bed Assignment',
+      sequence: 3,
+      completed: false
     )
 
     tasks = @patient.top_pending_tasks
@@ -667,7 +699,7 @@ class PatientTest < ActiveSupport::TestCase
     assert_equal "Room Assignment", task[:name]
     assert_equal :room_assignment, task[:type]
     assert_equal 30, task[:elapsed_time]
-    assert_nil task[:care_pathway_id]
+    assert_equal pathway.id, task[:care_pathway_id]
   end
 
   test "top_pending_tasks includes active care pathway orders" do
@@ -831,14 +863,39 @@ class PatientTest < ActiveSupport::TestCase
       esi_level: 3
     )
 
-    # Should have room assignment task
-    pathway = @patient.care_pathways.create!(
+    # Create triage pathway with room assignment task
+    triage_pathway = @patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+
+    # Add completed steps and current bed assignment step
+    triage_pathway.care_pathway_steps.create!(
+      name: 'Check-In',
+      sequence: 1,
+      completed: true,
+      completed_at: 40.minutes.ago
+    )
+    triage_pathway.care_pathway_steps.create!(
+      name: 'Intake',
+      sequence: 2,
+      completed: true,
+      completed_at: 30.minutes.ago
+    )
+    triage_pathway.care_pathway_steps.create!(
+      name: 'Bed Assignment',
+      sequence: 3,
+      completed: false
+    )
+
+    # Create ER pathway with order
+    er_pathway = @patient.care_pathways.create!(
       pathway_type: :emergency_room,
       status: :in_progress
     )
 
     # Add order task
-    order = pathway.care_pathway_orders.create!(
+    order = er_pathway.care_pathway_orders.create!(
       name: "X-Ray Chest",
       order_type: :imaging,
       status: :ordered,
@@ -860,14 +917,15 @@ class PatientTest < ActiveSupport::TestCase
       arrival_time: 15.minutes.ago,
       triage_completed_at: nil,
       location_status: :waiting_room,
-      esi_level: 3  # 30 minute target
+      esi_level: 3
     )
 
+    # Without a triage pathway, it falls back to "Triage" with 10 minute target
     tasks = @patient.top_pending_tasks
     assert_equal 1, tasks.length
 
-    # 15 minutes elapsed with 30 minute target should be green
-    assert_equal :green, tasks.first[:status]
+    # 15 minutes elapsed with 10 minute target (fallback) should be red
+    assert_equal :red, tasks.first[:status]
   end
 
   # Tests for helper methods

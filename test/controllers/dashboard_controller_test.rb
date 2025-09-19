@@ -61,7 +61,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_select "th", "Patient"
     assert_select "th", "ESI"
     assert_select "th", "Care Pathway"
-    assert_select "th", "Wait Progress"
+    assert_select "th", "Task List"
     assert_select "th", "RP Eligible"
   end
 

@@ -30,8 +30,8 @@ class SimplifiedTaskListViewTest < ActionView::TestCase
     assert_includes html, "no-tasks"
   end
 
-  test "renders task list when patient has triage task" do
-    # Create patient with triage task
+  test "renders task list when patient has check-in task" do
+    # Create patient with check-in task
     @patient.update!(
       arrival_time: 25.minutes.ago,
       triage_completed_at: nil,
@@ -43,6 +43,12 @@ class SimplifiedTaskListViewTest < ActionView::TestCase
       status: :in_progress
     )
 
+    pathway.care_pathway_steps.create!(
+      name: 'Check-In',
+      sequence: 1,
+      completed: false
+    )
+
     html = render(
       partial: "shared/simplified_task_list",
       locals: { patient: @patient, referrer: "triage" }
@@ -51,15 +57,15 @@ class SimplifiedTaskListViewTest < ActionView::TestCase
     # Should render task list container
     assert_includes html, "task-list"
 
-    # Should render triage task
-    assert_includes html, "Triage"
+    # Should render check-in task
+    assert_includes html, "Check In"
 
     # Should show elapsed time
     assert_includes html, "25m"
 
-    # Should include status classes (25 min with ESI 3 = 30 min target should be yellow)
-    assert_includes html, "task-yellow"
-    assert_includes html, "task-indicator-yellow"
+    # Should include status classes (25 min with 10 min target should be red)
+    assert_includes html, "task-red"
+    assert_includes html, "task-indicator-red"
   end
 
   test "renders clickable task links when care_pathway_id is present" do
@@ -91,18 +97,19 @@ class SimplifiedTaskListViewTest < ActionView::TestCase
   test "renders non-clickable task items when care_pathway_id is nil" do
     @patient.update!(
       arrival_time: 1.hour.ago,
-      triage_completed_at: 20.minutes.ago,
-      location_status: :needs_room_assignment
+      triage_completed_at: nil,
+      location_status: :waiting_room
     )
 
+    # Without a pathway, patient gets a fallback "Triage" task with nil care_pathway_id
     html = render(
       partial: "shared/simplified_task_list",
       locals: { patient: @patient, referrer: "triage" }
     )
 
-    # Should render as div, not link for room assignment
+    # Should render as div, not link for triage fallback
     assert_includes html, '<div class="task-item'
-    assert_includes html, "Room Assignment"
+    assert_includes html, "Triage"
   end
 
   test "renders different status colors correctly" do
@@ -231,6 +238,13 @@ class SimplifiedTaskListViewTest < ActionView::TestCase
       status: :in_progress
     )
 
+    # Add check-in step so there's a task with a care_pathway_id
+    pathway.care_pathway_steps.create!(
+      name: 'Check-In',
+      sequence: 1,
+      completed: false
+    )
+
     # Test different referrer values
     referrers = ["triage", "ed_rn", "provider", "charge_rn"]
 
@@ -251,11 +265,7 @@ class SimplifiedTaskListViewTest < ActionView::TestCase
       location_status: :waiting_room
     )
 
-    pathway = @patient.care_pathways.create!(
-      pathway_type: :triage,
-      status: :in_progress
-    )
-
+    # Without a triage pathway, patient gets fallback "Triage" task
     # Should not raise error with nil referrer
     html = render(
       partial: "shared/simplified_task_list",

@@ -295,28 +295,80 @@ class Patient < ApplicationRecord
   def top_pending_tasks(limit = 4)
     tasks = []
 
-    # Check arrival/triage timers if patient is not yet in a room
-    if !location_ed_room? && !location_treatment? && !location_results_pending?
-      # Check arrival time if not yet triaged
-      if arrival_time && !triage_completed_at
+    # For patients in triage/waiting room, show their current triage step
+    if location_waiting_room? || location_triage? || location_pending_transfer? || location_needs_room_assignment?
+      triage_pathway = care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+
+      if triage_pathway
+        current_step = triage_pathway.current_triage_step
+
+        if current_step
+          # Determine elapsed time and target based on step
+          case current_step.name
+          when 'Check-In'
+            # Timer starts from arrival time
+            if arrival_time
+              elapsed_minutes = ((Time.current - arrival_time) / 60).round
+              target_minutes = 10 # 10 minutes for check-in
+              tasks << {
+                name: "Check In",
+                type: :check_in,
+                elapsed_time: elapsed_minutes,
+                status: calculate_task_status(elapsed_minutes, target_minutes),
+                care_pathway_id: triage_pathway.id
+              }
+            end
+          when 'Intake'
+            # Timer starts from check-in completion
+            check_in_step = triage_pathway.care_pathway_steps.find_by(name: 'Check-In')
+            if check_in_step&.completed_at
+              elapsed_minutes = ((Time.current - check_in_step.completed_at) / 60).round
+              target_minutes = 10 # 10 minutes for intake
+              tasks << {
+                name: "Intake",
+                type: :intake,
+                elapsed_time: elapsed_minutes,
+                status: calculate_task_status(elapsed_minutes, target_minutes),
+                care_pathway_id: triage_pathway.id
+              }
+            end
+          when 'Bed Assignment'
+            # Timer starts from intake completion (triage_completed_at)
+            if triage_completed_at
+              elapsed_minutes = ((Time.current - triage_completed_at) / 60).round
+              target_minutes = esi_target_minutes # ESI-based target
+              tasks << {
+                name: "Room Assignment",
+                type: :room_assignment,
+                elapsed_time: elapsed_minutes,
+                status: calculate_task_status(elapsed_minutes, target_minutes),
+                care_pathway_id: triage_pathway.id
+              }
+            end
+          when 'Pending Transfer'
+            # Timer starts from bed assignment completion
+            bed_assignment_step = triage_pathway.care_pathway_steps.find_by(name: 'Bed Assignment')
+            if bed_assignment_step&.completed_at
+              elapsed_minutes = ((Time.current - bed_assignment_step.completed_at) / 60).round
+              target_minutes = esi_target_minutes # ESI-based target
+              tasks << {
+                name: "Pending Transfer",
+                type: :pending_transfer,
+                elapsed_time: elapsed_minutes,
+                status: calculate_task_status(elapsed_minutes, target_minutes),
+                care_pathway_id: triage_pathway.id
+              }
+            end
+          end
+        end
+      elsif arrival_time && !triage_completed_at
+        # Fallback for patients without a triage pathway yet
         elapsed_minutes = ((Time.current - arrival_time) / 60).round
         tasks << {
           name: "Triage",
           type: :triage,
           elapsed_time: elapsed_minutes,
-          status: calculate_task_status(elapsed_minutes, esi_target_minutes),
-          care_pathway_id: care_pathways.pathway_type_triage.last&.id
-        }
-      end
-
-      # Check triage completion time if waiting for room
-      if triage_completed_at && location_needs_room_assignment?
-        elapsed_minutes = ((Time.current - triage_completed_at) / 60).round
-        tasks << {
-          name: "Room Assignment",
-          type: :room_assignment,
-          elapsed_time: elapsed_minutes,
-          status: calculate_task_status(elapsed_minutes, Patient::ROOM_ASSIGNMENT_TARGET),
+          status: calculate_task_status(elapsed_minutes, 10), # Default 10 minutes
           care_pathway_id: nil
         }
       end

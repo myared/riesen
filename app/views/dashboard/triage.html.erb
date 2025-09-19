@@ -27,7 +27,7 @@
         <th class="patient-header">Patient</th>
         <th>Care Pathway</th>
         <th>ESI</th>
-        <th>Wait Progress</th>
+        <th>Task List</th>
         <th>RP Eligible</th>
       </tr>
     </thead>
@@ -63,13 +63,7 @@
             <% end %>
           </td>
           <td>
-            <div class="wait-progress <%= patient.wait_status_class %>">
-              <span class="wait-time"><%= patient.wait_time_minutes %>m</span>
-              <div class="progress-bar">
-                <div class="progress-bar-fill" style="width: <%= [patient.wait_progress_percentage, 100].min %>%"></div>
-              </div>
-              <span class="wait-target"><%= patient.esi_target_label %></span>
-            </div>
+            <%= render 'shared/simplified_task_list', patient: patient, referrer: 'triage' %>
           </td>
           <td>
             <% if !patient.check_in_and_intake_complete? %>
