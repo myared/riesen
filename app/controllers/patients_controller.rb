@@ -108,7 +108,7 @@ class PatientsController < ApplicationController
           redirect_back(fallback_location: root_path,
                        alert: "⚠️ Cannot assign room: The #{department_name} is full. Please wait for a room to become available.")
         }
-        format.json { render json: { success: false, error: "No #{room_type} rooms available" }, status: :unprocessable_entity }
+        format.json { render json: { success: false, error: "No #{room_type} rooms available" }, status: :unprocessable_content }
       end
     end
   end

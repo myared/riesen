@@ -168,7 +168,7 @@ class PatientsControllerTest < ActionDispatch::IntegrationTest
     
     post assign_room_patient_url(@patient), params: {}, as: :json
     
-    assert_response :unprocessable_entity
+    assert_response :unprocessable_content
     response_data = JSON.parse(response.body)
     assert_not response_data["success"]
     assert_equal "No ED rooms available", response_data["error"]

@@ -35,7 +35,7 @@ class CarePathwaysController < ApplicationController
       else
         respond_to do |format|
           format.html { redirect_to root_path, alert: "Failed to create care pathway" }
-          format.json { render json: { error: "Failed to create care pathway" }, status: :unprocessable_entity }
+          format.json { render json: { error: "Failed to create care pathway" }, status: :unprocessable_content }
         end
       end
     else
@@ -79,7 +79,7 @@ class CarePathwaysController < ApplicationController
     else
       respond_to do |format|
         format.html { render :new }
-        format.json { render json: @care_pathway.errors, status: :unprocessable_entity }
+        format.json { render json: @care_pathway.errors, status: :unprocessable_content }
       end
     end
   end
@@ -93,7 +93,7 @@ class CarePathwaysController < ApplicationController
     else
       respond_to do |format|
         format.html { render :edit }
-        format.json { render json: @care_pathway.errors, status: :unprocessable_entity }
+        format.json { render json: @care_pathway.errors, status: :unprocessable_content }
       end
     end
   end
@@ -121,7 +121,7 @@ class CarePathwaysController < ApplicationController
 
         respond_to do |format|
           format.html { redirect_back(fallback_location: patient_care_pathway_path(@patient, @care_pathway)) }
-          format.json { render json: { success: false, error: "No RP rooms available" }, status: :unprocessable_entity }
+          format.json { render json: { success: false, error: "No RP rooms available" }, status: :unprocessable_content }
         end
         return
       end
@@ -204,7 +204,7 @@ class CarePathwaysController < ApplicationController
                       alert: "Failed to complete step",
                       status: :see_other
         }
-        format.json { render json: { success: false }, status: :unprocessable_entity }
+        format.json { render json: { success: false }, status: :unprocessable_content }
       end
     end
   end
@@ -240,9 +240,9 @@ class CarePathwaysController < ApplicationController
         format.html {
           redirect_to patient_care_pathway_path(@patient, @care_pathway),
                       alert: "Failed to add order",
-                      status: :unprocessable_entity
+                      status: :unprocessable_content
         }
-        format.json { render json: @order.errors, status: :unprocessable_entity }
+        format.json { render json: @order.errors, status: :unprocessable_content }
       end
     end
   end
@@ -266,8 +266,8 @@ class CarePathwaysController < ApplicationController
       unless @order.can_advance_status?
         Rails.logger.warn "Order cannot be advanced - ID: #{@order.id}, Status: #{@order.status}, Complete: #{@order.complete?}"
         respond_to do |format|
-          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "orders"), alert: "Order is already complete or cannot be advanced", status: :unprocessable_entity }
-          format.json { render json: { success: false, error: "Order cannot be advanced from current status" }, status: :unprocessable_entity }
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "orders"), alert: "Order is already complete or cannot be advanced", status: :unprocessable_content }
+          format.json { render json: { success: false, error: "Order cannot be advanced from current status" }, status: :unprocessable_content }
         end
         return
       end
@@ -281,8 +281,8 @@ class CarePathwaysController < ApplicationController
       else
         Rails.logger.error "Failed to advance order status for Order ID: #{params[:order_id]}, Current Status: #{@order.status}"
         respond_to do |format|
-          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "orders"), alert: "Failed to update order status", status: :unprocessable_entity }
-          format.json { render json: { success: false, error: "Cannot advance order status from current state" }, status: :unprocessable_entity }
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "orders"), alert: "Failed to update order status", status: :unprocessable_content }
+          format.json { render json: { success: false, error: "Cannot advance order status from current state" }, status: :unprocessable_content }
         end
       end
     rescue ActiveRecord::RecordNotFound => e
@@ -332,9 +332,9 @@ class CarePathwaysController < ApplicationController
         format.html {
           redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
                       alert: "Failed to add procedure",
-                      status: :unprocessable_entity
+                      status: :unprocessable_content
         }
-        format.json { render json: @procedure.errors, status: :unprocessable_entity }
+        format.json { render json: @procedure.errors, status: :unprocessable_content }
       end
     end
   end
@@ -362,7 +362,7 @@ class CarePathwaysController < ApplicationController
     else
       respond_to do |format|
         format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "procedures"), alert: "Failed to complete procedure" }
-        format.json { render json: { success: false }, status: :unprocessable_entity }
+        format.json { render json: { success: false }, status: :unprocessable_content }
       end
     end
   end
@@ -403,9 +403,9 @@ class CarePathwaysController < ApplicationController
         format.html {
           redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
                       alert: "Failed to add clinical endpoint",
-                      status: :unprocessable_entity
+                      status: :unprocessable_content
         }
-        format.json { render json: @endpoint.errors, status: :unprocessable_entity }
+        format.json { render json: @endpoint.errors, status: :unprocessable_content }
       end
     end
   end
@@ -433,7 +433,7 @@ class CarePathwaysController < ApplicationController
     else
       respond_to do |format|
         format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "endpoints"), alert: "Failed to achieve endpoint" }
-        format.json { render json: { success: false }, status: :unprocessable_entity }
+        format.json { render json: { success: false }, status: :unprocessable_content }
       end
     end
   end
@@ -449,7 +449,7 @@ class CarePathwaysController < ApplicationController
   rescue Patient::NotDischargeable => e
     respond_to do |format|
       format.html { redirect_back(fallback_location: root_path, alert: e.message) }
-      format.json { render json: { error: e.message }, status: :unprocessable_entity }
+      format.json { render json: { error: e.message }, status: :unprocessable_content }
     end
   end
 
