@@ -24,6 +24,7 @@
     <table>
     <thead>
       <tr>
+        <th>Room</th>
         <th class="patient-header">Patient</th>
         <th>Care Pathway</th>
         <th>Task List</th>
@@ -33,6 +34,7 @@
     <tbody>
       <% @patients.each do |patient| %>
         <tr data-patient-id="<%= patient.id %>">
+          <td><%= patient.display_room %></td>
           <td class="patient-cell">
             <%= link_to patient_path(patient), data: { turbo_frame: "patient_modal" } do %>
               <div><strong><%= patient.full_name %></strong></div>

@@ -29,6 +29,7 @@
       <table>
         <thead>
           <tr>
+            <th>Room</th>
             <th class="patient-header">Patient</th>
             <th>Care Pathway</th>
             <th>Task List</th>
@@ -39,6 +40,7 @@
           <% @patients.each do |patient| %>
             <% is_waiting = patient.location_waiting_room? || (patient.location_pending_transfer? && patient.rp_eligible?) %>
             <tr data-patient-id="<%= patient.id %>" class="<%= 'waiting-room-patient' if is_waiting %>">
+              <td><%= patient.display_room %></td>
               <td class="patient-cell">
                 <%= link_to patient_path(patient), data: { turbo_frame: "patient_modal" } do %>
                   <div><strong><%= patient.full_name %></strong></div>

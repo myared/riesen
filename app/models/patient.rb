@@ -1,6 +1,6 @@
 class Patient < ApplicationRecord
   # ESI level descriptions (removed hardcoded targets - now in ApplicationSetting)
-  
+
   # ESI Level descriptions
   ESI_DESCRIPTIONS = {
     1 => 'Resuscitation',
@@ -9,13 +9,13 @@ class Patient < ApplicationRecord
     4 => 'Less Urgent',
     5 => 'Non-Urgent'
   }.freeze
-  
+
   # Valid pain score range
   PAIN_SCORE_RANGE = (1..10).freeze
-  
+
   # Timer thresholds (in minutes)
   ROOM_ASSIGNMENT_TARGET = 20   # Target time for room assignment
-  
+
   # Enum for location status
   enum :location_status, {
     waiting_room: 0,
@@ -27,18 +27,18 @@ class Patient < ApplicationRecord
     discharged: 6,
     pending_transfer: 7
   }, prefix: :location
-  
+
   has_many :vitals, dependent: :destroy
   has_many :events, dependent: :destroy
   has_many :care_pathways, dependent: :destroy
-  
+
   validates :first_name, presence: true
   validates :last_name, presence: true
   validates :age, presence: true, numericality: { greater_than: 0 }
   validates :mrn, presence: true, uniqueness: true
   validates :esi_level, inclusion: { in: (1..5) }, allow_nil: true
   validates :pain_score, inclusion: { in: PAIN_SCORE_RANGE }, allow_nil: true
-  
+
   # Scopes
   scope :active, -> { where(discharged: false) }
   scope :discharged_patients, -> { where(discharged: true) }
@@ -47,23 +47,23 @@ class Patient < ApplicationRecord
   scope :in_ed, -> { where(location_status: [:ed_room, :treatment]) }
   scope :with_provider, -> { where.not(provider: nil) }
   scope :critical, -> { where(esi_level: [1, 2]) }
-  
+
   # New scopes for dashboard organization
   scope :by_arrival_time, -> { order(arrival_time: :asc) }
-  
+
   scope :by_priority_time, -> {
     needs_room_status = location_statuses[:needs_room_assignment]
     order(
       Arel.sql(
-        "CASE 
-          WHEN location_status = #{connection.quote(needs_room_status)} 
+        "CASE
+          WHEN location_status = #{connection.quote(needs_room_status)}
           THEN COALESCE(triage_completed_at, arrival_time)
           ELSE arrival_time
         END ASC"
       )
     )
   }
-  
+
   scope :needs_rp_assignment, -> {
     active.where(location_status: :needs_room_assignment, rp_eligible: true)
   }
@@ -91,11 +91,11 @@ class Patient < ApplicationRecord
   scope :rp_eligible_in_waiting_room, -> {
     active.where(location_status: :waiting_room, rp_eligible: true)
   }
-  
+
   def full_name
     "#{first_name} #{last_name}"
   end
-  
+
   def active_care_pathway
     # Determine the expected pathway type based on location
     expected_type = case location_status
@@ -106,18 +106,18 @@ class Patient < ApplicationRecord
                    else
                      'triage'
                    end
-    
+
     # Return the most recent active pathway of the expected type
     care_pathways.where(
       pathway_type: expected_type,
       status: [:not_started, :in_progress]
     ).order(created_at: :desc).first
   end
-  
+
   def latest_vital
     vitals.order(recorded_at: :desc).first
   end
-  
+
   def wait_progress_percentage
     timer = longest_wait_timer
     return 0 unless timer
@@ -159,15 +159,15 @@ class Patient < ApplicationRecord
       "#{esi_target_minutes}m target"
     end
   end
-  
+
   def esi_description
     ESI_DESCRIPTIONS[esi_level]
   end
-  
+
   def overdue?
     wait_time_minutes > esi_target_minutes
   end
-  
+
   def wait_status
     timer = longest_wait_timer
     return :green unless timer
@@ -205,7 +205,7 @@ class Patient < ApplicationRecord
       end
     end
   end
-  
+
   def wait_status_class
     case wait_status
     when :green
@@ -218,15 +218,15 @@ class Patient < ApplicationRecord
       ''
     end
   end
-  
+
   def critical?
     esi_level.in?([1, 2])
   end
-  
+
   def location_needs_room_assignment?
     location_status == 'needs_room_assignment'
   end
-  
+
   # Calculate wait time based on the longest active timer
   def wait_time_minutes
     timers = []
@@ -427,7 +427,7 @@ class Patient < ApplicationRecord
     @longest_wait_timer = nil if value != location_status
     super
   end
-  
+
   def intake_complete?
     triage_completed_at.present? && esi_level.present?
   end
@@ -483,18 +483,18 @@ class Patient < ApplicationRecord
     return nil unless location_needs_room_assignment?
     triage_completed_at || updated_at
   end
-  
+
   def time_waiting_for_room
     return 0 unless room_assignment_started_at
     ((Time.current - room_assignment_started_at) / 60).round
   end
-  
+
   def room_assignment_status
     return :green if !location_needs_room_assignment?
-    
+
     wait_time = time_waiting_for_room
     target = ROOM_ASSIGNMENT_TARGET
-    
+
     if wait_time <= target
       :green  # On time (under 20 minutes)
     elsif wait_time <= (target * 2)
@@ -503,7 +503,7 @@ class Patient < ApplicationRecord
       :red  # Critical (over 40 minutes)
     end
   end
-  
+
   def room_assignment_status_class
     case room_assignment_status
     when :green
@@ -534,6 +534,12 @@ class Patient < ApplicationRecord
     else
       'Waiting Room'
     end
+  end
+
+  def display_room
+    return "WR" unless room_number.present?
+    return room_number if room_number.match?(/^[RE]\d/)
+    "??"
   end
 
   def can_be_discharged?
