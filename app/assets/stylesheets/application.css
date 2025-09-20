@@ -355,6 +355,14 @@ button {
   border-bottom: 1px solid #e1e4e8;
 }
 
+/* Center the Care Pathway column header and set width */
+.patient-table th:nth-child(2) {
+  text-align: center;
+  width: 120px;
+  white-space: nowrap;
+  padding-right: 20px;
+}
+
 .patient-table td {
   padding: 12px;
   border-bottom: 1px solid #e1e4e8;
@@ -362,7 +370,7 @@ button {
 
 .patient-table th.patient-header,
 .patient-table td.patient-cell {
-  width: 240px;
+  width: 280px;
 }
 
 .patient-table tbody tr:hover {
@@ -373,6 +381,8 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  padding-right: 20px;
 }
 
 .progress-ring-button {
@@ -383,8 +393,8 @@ button {
   border-radius: 50%;
   background: conic-gradient(
     from 0deg,
-    #22c55e 0deg,
-    #22c55e calc(var(--progress) * 3.6deg),
+    #0F4FA0 0deg,
+    #0F4FA0 calc(var(--progress) * 3.6deg),
     #e5e7eb calc(var(--progress) * 3.6deg),
     #e5e7eb 360deg
   );
