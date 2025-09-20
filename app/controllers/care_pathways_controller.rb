@@ -111,6 +111,22 @@ class CarePathwaysController < ApplicationController
       Rails.logger.info "Bed Assignment Override: Patient #{@patient.id} (#{@patient.full_name}) assigned to #{params[:destination].upcase} (RP eligible: #{@patient.rp_eligible?})"
     end
 
+    # Special handling for Pending Transfer with RP patients
+    if @step.name == "Pending Transfer" && @patient.rp_eligible?
+      available_room = Room.rp_rooms.status_available.first
+      if !available_room
+        # No RP rooms available, don't complete the step
+        Rails.logger.warn "Cannot complete Pending Transfer - no RP rooms available for patient #{@patient.id} (#{@patient.full_name})"
+        flash[:alert] = "⚠️ No RP rooms available. Patient remains in Pending Transfer status."
+
+        respond_to do |format|
+          format.html { redirect_back(fallback_location: patient_care_pathway_path(@patient, @care_pathway)) }
+          format.json { render json: { success: false, error: "No RP rooms available" }, status: :unprocessable_entity }
+        end
+        return
+      end
+    end
+
     if @step.complete!(current_user_name)
       # Record event for step completion
       Event.create!(
@@ -136,14 +152,25 @@ class CarePathwaysController < ApplicationController
         end
 
       when "Pending Transfer"
-        # When pending transfer is completed, move to needs room assignment
-        @patient.update(
-          location_status: :needs_room_assignment,
-          room_assignment_needed_at: Time.current
-        )
+        # When pending transfer is completed for RP patients, directly assign them to an RP room
+        if @patient.rp_eligible?
+          available_room = Room.rp_rooms.status_available.first
+          if available_room
+            # Use Room model's assign_patient method to handle the assignment
+            available_room.assign_patient(@patient)
 
-        # Create nursing task for room assignment
-        NursingTask.create_room_assignment_task(@patient)
+            Rails.logger.info "Pending Transfer completed: Patient #{@patient.id} (#{@patient.full_name}) assigned to RP Room #{available_room.number}"
+          end
+        else
+          # For ED patients, move to needs room assignment as before
+          @patient.update(
+            location_status: :needs_room_assignment,
+            room_assignment_needed_at: Time.current
+          )
+
+          # Create nursing task for room assignment
+          NursingTask.create_room_assignment_task(@patient)
+        end
       end
 
       # Check if pathway is complete
@@ -201,8 +228,8 @@ class CarePathwaysController < ApplicationController
       )
 
       respond_to do |format|
-        format.html { 
-          redirect_to patient_care_pathway_path(@patient, @care_pathway), 
+        format.html {
+          redirect_to patient_care_pathway_path(@patient, @care_pathway),
                       status: :see_other,
                       notice: "Order added successfully"
         }
@@ -210,8 +237,8 @@ class CarePathwaysController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { 
-          redirect_to patient_care_pathway_path(@patient, @care_pathway), 
+        format.html {
+          redirect_to patient_care_pathway_path(@patient, @care_pathway),
                       alert: "Failed to add order",
                       status: :unprocessable_entity
         }
@@ -239,7 +266,7 @@ class CarePathwaysController < ApplicationController
       unless @order.can_advance_status?
         Rails.logger.warn "Order cannot be advanced - ID: #{@order.id}, Status: #{@order.status}, Complete: #{@order.complete?}"
         respond_to do |format|
-          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), alert: "Order is already complete or cannot be advanced", status: :unprocessable_entity }
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "orders"), alert: "Order is already complete or cannot be advanced", status: :unprocessable_entity }
           format.json { render json: { success: false, error: "Order cannot be advanced from current status" }, status: :unprocessable_entity }
         end
         return
@@ -248,13 +275,13 @@ class CarePathwaysController < ApplicationController
       if @order.advance_status!(current_user_name)
         Rails.logger.info "Successfully advanced order #{@order.id} to status: #{@order.status}"
         respond_to do |format|
-          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), status: :see_other }
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "orders"), status: :see_other }
           format.json { render json: { success: true, status: @order.status, progress: @care_pathway.progress_percentage } }
         end
       else
         Rails.logger.error "Failed to advance order status for Order ID: #{params[:order_id]}, Current Status: #{@order.status}"
         respond_to do |format|
-          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'orders'), alert: "Failed to update order status", status: :unprocessable_entity }
+          format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "orders"), alert: "Failed to update order status", status: :unprocessable_entity }
           format.json { render json: { success: false, error: "Cannot advance order status from current state" }, status: :unprocessable_entity }
         end
       end
@@ -293,8 +320,8 @@ class CarePathwaysController < ApplicationController
       )
 
       respond_to do |format|
-        format.html { 
-          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
+        format.html {
+          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
                       status: :see_other,
                       notice: "Procedure added successfully"
         }
@@ -302,8 +329,8 @@ class CarePathwaysController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { 
-          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
+        format.html {
+          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
                       alert: "Failed to add procedure",
                       status: :unprocessable_entity
         }
@@ -329,12 +356,12 @@ class CarePathwaysController < ApplicationController
       )
 
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'procedures') }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "procedures") }
         format.json { render json: { success: true, progress: @care_pathway.progress_percentage } }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'procedures'), alert: "Failed to complete procedure" }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "procedures"), alert: "Failed to complete procedure" }
         format.json { render json: { success: false }, status: :unprocessable_entity }
       end
     end
@@ -364,8 +391,8 @@ class CarePathwaysController < ApplicationController
       )
 
       respond_to do |format|
-        format.html { 
-          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
+        format.html {
+          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
                       status: :see_other,
                       notice: "Clinical goal added successfully"
         }
@@ -373,8 +400,8 @@ class CarePathwaysController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { 
-          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]), 
+        format.html {
+          redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
                       alert: "Failed to add clinical endpoint",
                       status: :unprocessable_entity
         }
@@ -400,12 +427,12 @@ class CarePathwaysController < ApplicationController
       )
 
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'endpoints') }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "endpoints") }
         format.json { render json: { success: true, progress: @care_pathway.progress_percentage } }
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: 'endpoints'), alert: "Failed to achieve endpoint" }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "endpoints"), alert: "Failed to achieve endpoint" }
         format.json { render json: { success: false }, status: :unprocessable_entity }
       end
     end
@@ -489,20 +516,20 @@ class CarePathwaysController < ApplicationController
   def generate_endpoint_description(name)
     # Generate default descriptions for clinical endpoints
     descriptions = {
-      'Pain Control (Score < 4)' => 'Patient reports pain score less than 4/10',
-      'Hemodynamic Stability' => 'Vital signs stable for at least 30 minutes',
-      'Normal Vital Signs' => 'All vital signs within normal limits',
-      'Afebrile (Temp < 38°C)' => 'Temperature below 38°C',
-      'Adequate Oxygenation (SpO2 > 94%)' => 'Oxygen saturation consistently above 94%',
-      'Symptom Resolution' => 'Primary symptoms have resolved',
-      'Safe for Discharge' => 'Patient meets all discharge criteria',
-      'Follow-up Arranged' => 'Appropriate follow-up care scheduled',
-      'Infection Source Identified' => 'Source of infection has been identified',
-      'Antibiotic Started' => 'Appropriate antibiotic therapy initiated',
-      'Fluid Resuscitation Complete' => 'Adequate fluid resuscitation achieved',
-      'Diagnostic Workup Complete' => 'All necessary diagnostic tests completed',
-      'Specialist Consulted' => 'Appropriate specialist consultation completed',
-      'Family Updated' => 'Family has been informed of patient status'
+      "Pain Control (Score < 4)" => "Patient reports pain score less than 4/10",
+      "Hemodynamic Stability" => "Vital signs stable for at least 30 minutes",
+      "Normal Vital Signs" => "All vital signs within normal limits",
+      "Afebrile (Temp < 38°C)" => "Temperature below 38°C",
+      "Adequate Oxygenation (SpO2 > 94%)" => "Oxygen saturation consistently above 94%",
+      "Symptom Resolution" => "Primary symptoms have resolved",
+      "Safe for Discharge" => "Patient meets all discharge criteria",
+      "Follow-up Arranged" => "Appropriate follow-up care scheduled",
+      "Infection Source Identified" => "Source of infection has been identified",
+      "Antibiotic Started" => "Appropriate antibiotic therapy initiated",
+      "Fluid Resuscitation Complete" => "Adequate fluid resuscitation achieved",
+      "Diagnostic Workup Complete" => "All necessary diagnostic tests completed",
+      "Specialist Consulted" => "Appropriate specialist consultation completed",
+      "Family Updated" => "Family has been informed of patient status"
     }
     descriptions[name] || "Goal: #{name}"
   end
@@ -516,15 +543,15 @@ class CarePathwaysController < ApplicationController
   def dashboard_path_for_role
     # Determine which dashboard to redirect to based on referrer
     case session[:care_pathway_referrer]
-    when 'triage'
+    when "triage"
       dashboard_triage_path
-    when 'rp'
+    when "rp"
       dashboard_rp_path
-    when 'ed_rn'
+    when "ed_rn"
       dashboard_ed_rn_path
-    when 'provider'
+    when "provider"
       dashboard_provider_path
-    when 'charge_rn'
+    when "charge_rn"
       dashboard_charge_rn_path
     else
       dashboard_ed_rn_path
@@ -559,9 +586,9 @@ class CarePathwaysController < ApplicationController
 
   def create_emergency_room_components
     # No default orders - providers will add orders as needed
-    
+
     # No default procedures - will be added based on clinical needs
-    
+
     # No default clinical endpoints - will be added based on patient condition
   end
 

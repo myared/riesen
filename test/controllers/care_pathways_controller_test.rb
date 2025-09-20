@@ -78,8 +78,9 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
-  # Main test for room_assignment_needed_at timestamp setting
-  test "should set room_assignment_needed_at when pathway completes" do
+  # Main test for room_assignment_needed_at timestamp setting for ED patients
+  test "should set room_assignment_needed_at when pathway completes for ED patient" do
+    @patient.update!(rp_eligible: false) # Ensure patient is ED eligible
     freeze_time do
       # Complete bed assignment first to move to pending_transfer
       post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step3.id}"
@@ -98,7 +99,8 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "should create nursing task when pathway completes" do
+  test "should create nursing task when pathway completes for ED patient" do
+    @patient.update!(rp_eligible: false) # Ensure patient is ED eligible
     # Complete bed assignment first
     @step3.update!(completed: true)
 
@@ -137,7 +139,10 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     assert_equal "triage", pathway_event.category
   end
 
-  test "should handle RP eligible patient correctly" do
+  test "should assign RP room directly when Pending Transfer completes for RP eligible patient" do
+    # Create an available RP room
+    Room.create!(number: "R01", room_type: :rp, status: :available)
+
     @patient.update!(rp_eligible: true)
     @step3.update!(completed: true)
 
@@ -145,17 +150,49 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
       post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
 
       @patient.reload
-      assert @patient.location_needs_room_assignment?
-      assert_not_nil @patient.room_assignment_needed_at
+      # Should now be in results_pending status with an assigned room
+      assert @patient.location_results_pending?, "Patient should be in results_pending status"
+      assert_equal "R01", @patient.room_number, "Patient should be assigned to RP room R01"
 
       # Check that pathway completion event mentions RP
       pathway_event = Event.where(patient: @patient, action: "Triage pathway completed").first
       assert_includes pathway_event.details, "RP placement"
 
-      # Check nursing task assignment
+      # No nursing task should be created since room is already assigned
       nursing_task = NursingTask.where(patient: @patient, task_type: :room_assignment).first
-      assert_equal "RP RN", nursing_task.assigned_to
-      assert_includes nursing_task.description, "RP area"
+      assert_nil nursing_task, "No nursing task should be created when room is auto-assigned"
+
+      # Check that the room is now occupied
+      room = Room.find_by(number: "R01")
+      assert room.status_occupied?, "Room should be occupied"
+      assert_equal @patient.id, room.current_patient_id, "Room should be assigned to patient"
+    end
+  end
+
+  test "should keep patient in Pending Transfer if no RP rooms available" do
+    # Ensure no available RP rooms exist
+    Room.where(room_type: :rp).destroy_all
+
+    @patient.update!(rp_eligible: true)
+    @step3.update!(completed: true)
+
+    # Patient needs to be in pending_transfer status after bed assignment
+    @patient.update!(location_status: :pending_transfer)
+
+    freeze_time do
+      post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
+
+      @patient.reload
+      # Should remain in pending_transfer status since no rooms are available
+      assert @patient.location_pending_transfer?, "Patient should remain in pending_transfer status (was: #{@patient.location_status})"
+      assert_nil @patient.room_number, "Patient should not have a room number"
+
+      # Step should NOT be completed when no rooms available
+      @step4.reload
+      assert_not @step4.completed?, "Pending Transfer step should not be completed when no rooms available"
+
+      # Check for alert flash message
+      assert_match(/No RP rooms available/, flash[:alert])
     end
   end
 
@@ -242,7 +279,8 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     assert_not_nil @step4.completed_at
   end
 
-  test "should ensure room_assignment_needed_at precision" do
+  test "should ensure room_assignment_needed_at precision for ED patient" do
+    @patient.update!(rp_eligible: false) # Ensure patient is ED eligible
     @step3.update!(completed: true)
 
     freeze_time do
@@ -276,14 +314,20 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     step_event = Event.where(patient: @patient, action: "Bed Assignment completed").first
     assert_includes step_event.details, "RP", "Event should mention RP assignment"
 
-    # Complete pending transfer to create nursing task
+    # Create an available RP room for auto-assignment
+    Room.create!(number: "R02", room_type: :rp, status: :available)
+
+    # Complete pending transfer - should auto-assign to RP room
     post "/patients/#{@patient.id}/care_pathways/#{@care_pathway.id}/complete_step/#{@step4.id}"
 
-    # Check nursing task reflects RP assignment
+    # Check that patient was auto-assigned to RP room
+    @patient.reload
+    assert @patient.location_results_pending?, "Patient should be in results_pending"
+    assert_equal "R02", @patient.room_number, "Patient should be assigned to RP room"
+
+    # No nursing task should be created since room was auto-assigned
     nursing_task = NursingTask.where(patient: @patient, task_type: :room_assignment).first
-    assert_not_nil nursing_task
-    assert_equal "RP RN", nursing_task.assigned_to
-    assert_includes nursing_task.description, "RP area"
+    assert_nil nursing_task, "No nursing task needed when auto-assigned"
   end
   
   test "should allow bed assignment override to ED when patient is RP eligible" do
