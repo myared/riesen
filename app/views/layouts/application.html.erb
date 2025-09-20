@@ -41,6 +41,7 @@
 
     <div class="ed-dashboard" data-controller="auto-refresh" data-auto-refresh-interval-value="60000">
       <%= render 'layouts/header' %>
+      <%= render 'shared/flash_messages' %>
       <main class="dashboard-content">
         <%= yield %>
       </main>

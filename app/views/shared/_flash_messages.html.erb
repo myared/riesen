@@ -1,0 +1,13 @@
+<% if flash.any? %>
+  <div class="flash-container">
+    <% flash.each do |type, message| %>
+      <% next if message.blank? %>
+      <% css_class = type.to_s == 'alert' ? 'flash-message--alert' : 'flash-message--notice' %>
+      <div class="flash-message <%= css_class %>" data-controller="flash" data-flash-timeout-value="6000">
+        <span class="flash-message__icon" aria-hidden="true"><%= type.to_s == 'alert' ? '!' : 'i' %></span>
+        <div class="flash-message__text"><%= message %></div>
+        <button type="button" class="flash-message__close" aria-label="Dismiss" data-action="flash#dismiss">&times;</button>
+      </div>
+    <% end %>
+  </div>
+<% end %>
