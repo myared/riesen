@@ -790,7 +790,6 @@ button {
 
 /* Waiting Room Patient Styles for RP Board */
 .patient-table tr.waiting-room-patient {
-  opacity: 0.6;
   background-color: #f8f9fa;
 }
 
@@ -812,14 +811,25 @@ button {
   display: inline-block;
 }
 
-/* Keep Assign Room button at full opacity and color */
-.patient-table tr.waiting-room-patient .action-buttons button,
-.patient-table tr.waiting-room-patient .action-buttons .btn {
-  opacity: 1 !important;
-  background-color: #4299e1 !important;
-  color: white !important;
-  position: relative;
-  z-index: 1;
+/* Action buttons should retain the primary button treatment regardless of row state */
+.patient-table .action-buttons .btn-action.btn-primary {
+  background-color: #0366d6;
+  border-color: #0366d6;
+  color: #fff;
+  opacity: 1;
+  text-decoration: none;
+}
+
+.patient-table .action-buttons .btn-action.btn-primary:hover,
+.patient-table .action-buttons .btn-action.btn-primary:focus {
+  background-color: #0256c7;
+  border-color: #0256c7;
+  color: #fff;
+  text-decoration: none;
+}
+
+.patient-table tr.waiting-room-patient .action-buttons .btn-action.btn-primary {
+  color: #fff;
 }
 
 /* Show mobile notice on small screens, hide main app */
