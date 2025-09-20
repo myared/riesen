@@ -46,7 +46,7 @@ module PatientActionsHelper
             patient_care_pathway_path(patient, patient.active_care_pathway,
                                     active_tab: 'endpoints',
                                     referrer: referrer || controller_name),
-            class: 'btn-action btn-warning',
+            class: 'btn-action btn-primary',
             data: { turbo: false }
   end
 
@@ -54,7 +54,7 @@ module PatientActionsHelper
     button_to 'Discharge',
               discharge_patient_care_pathway_path(patient, patient.active_care_pathway),
               method: :post,
-              class: 'btn-action btn-success',
+              class: 'btn-action btn-primary',
               data: {
                 turbo: false,
                 confirm: "Are you sure you want to discharge #{patient.full_name}?"
