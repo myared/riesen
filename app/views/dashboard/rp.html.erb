@@ -1,18 +1,18 @@
 <div class="dashboard-sidebar">
   <div class="sidebar-stats">
     <div class="stat-card">
+      <div class="stat-label">RP Utilization</div>
+      <div class="stat-value"><%= @rp_utilization %>%</div>
+    </div>
+
+    <div class="stat-card">
       <div class="stat-label">Results Pending</div>
       <div class="stat-value"><%= @patients.count %></div>
     </div>
 
     <div class="stat-card">
-      <div class="stat-label">Avg Wait Time</div>
+      <div class="stat-label">Avg Time to RP</div>
       <div class="stat-value"><%= @avg_wait_time.round %>m</div>
-    </div>
-
-    <div class="stat-card">
-      <div class="stat-label">RP Utilization</div>
-      <div class="stat-value"><%= @rp_utilization %>%</div>
     </div>
   </div>
 </div>
@@ -32,7 +32,7 @@
             <th>Room</th>
             <th class="patient-header">Patient</th>
             <th>Care Pathway</th>
-            <th>Task List</th>
+            <th>Pending Task List</th>
             <th>Actions</th>
           </tr>
         </thead>
