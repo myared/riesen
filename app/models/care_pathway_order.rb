@@ -175,8 +175,8 @@ class CarePathwayOrder < ApplicationRecord
   # Get order icon based on type
   def type_icon
     case order_type.to_sym
-    when :lab then "🧪"
-    when :medication then "💊"
+    when :lab then "🔬"
+    when :medication then "💉"
     when :imaging then "📷"
     end
   end

@@ -3,85 +3,137 @@
 
   <% if @nurses && @nurses.any? %>
     <% @nurses.each do |nurse_name, nurse_data| %>
-      <div class="nurse-task-card">
-        <div class="nurse-header">
-          <h3><%= nurse_name %></h3>
-          <div class="task-summary">
-            <span class="task-count">
-              <%= nurse_data[:tasks].count + nurse_data[:orders].count %> items
-            </span>
-            <span class="total-time"><%= nurse_data[:total_time] %> min</span>
-          </div>
-        </div>
+      <div class="nurse-section">
+        <h3><%= nurse_name %> <span style="font-weight: normal; font-size: 14px;">(<%= nurse_data[:tasks].count + nurse_data[:orders].count %> items, <%= nurse_data[:total_time] %> min total)</span></h3>
 
-        <div class="task-list">
-          <% # Combine and sort all items (tasks and orders) by priority %>
-          <% all_items = [] %>
+        <div class="patient-table">
+          <table>
+            <thead>
+              <tr>
+                <th>Room</th>
+                <th class="patient-header">Patient</th>
+                <th>Task List</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% # Group tasks and orders by patient %>
+              <% patient_items = {} %>
 
-          <% # Add nursing tasks %>
-          <% nurse_data[:tasks].each do |task| %>
-            <% all_items << {
-              type: 'task',
-              item: task,
-              timer_status: task.timer_status,
-              elapsed_time: task.elapsed_time,
-              sort_priority: task.sort_priority
-            } %>
-          <% end %>
+              <% # Add nursing tasks grouped by patient %>
+              <% nurse_data[:tasks].each do |task| %>
+                <% patient_id = task.patient_id %>
+                <% patient_items[patient_id] ||= { patient: task.patient, tasks: [], orders: [] } %>
+                <% patient_items[patient_id][:tasks] << task %>
+              <% end %>
 
-          <% # Add orders %>
-          <% nurse_data[:orders].each do |order| %>
-            <% priority = case order[:timer_status]
-                         when 'red' then 3
-                         when 'yellow' then 2
-                         when 'green' then 1
-                         else 0
-                         end %>
-            <% all_items << {
-              type: 'order',
-              item: order,
-              timer_status: order[:timer_status],
-              elapsed_time: order[:elapsed_time],
-              sort_priority: priority
-            } %>
-          <% end %>
+              <% # Add orders grouped by patient %>
+              <% nurse_data[:orders].each do |order| %>
+                <% patient_id = order[:patient_id] %>
+                <% if patient_id %>
+                  <% patient_items[patient_id] ||= { patient: Patient.find_by(id: patient_id), tasks: [], orders: [] } %>
+                  <% patient_items[patient_id][:orders] << order if patient_items[patient_id][:patient] %>
+                <% end %>
+              <% end %>
 
-          <% # Sort all items by priority %>
-          <% sorted_items = all_items.sort_by { |i| [-i[:sort_priority], -i[:elapsed_time]] } %>
+              <% # Sort patients by highest priority task/order %>
+              <% sorted_patients = patient_items.sort_by do |_id, data| %>
+                <% max_task_priority = data[:tasks].map(&:sort_priority).max || 0 %>
+                <% max_order_priority = data[:orders].map { |o|
+                     case o[:timer_status]
+                     when 'red' then 3
+                     when 'yellow' then 2
+                     when 'green' then 1
+                     else 0
+                     end
+                   }.max || 0 %>
+                <% -[max_task_priority, max_order_priority].max %>
+              <% end %>
 
-          <% sorted_items.each do |item_wrapper| %>
-            <% if item_wrapper[:type] == 'task' %>
-              <% task = item_wrapper[:item] %>
-              <div class="task-item <%= task.priority_class %>">
-                <div class="task-location">
-                  <%= task.task_type_room_assignment? ? task.patient.location_status.humanize : task.room_number %>
-                </div>
-                <div class="task-description">
-                  <%= task.description %>
-                </div>
-                <div class="task-time timer-<%= task.timer_status %>">
-                  <span class="elapsed-time"><%= task.elapsed_time %> min</span>
-                </div>
-              </div>
-            <% else %>
-              <% order = item_wrapper[:item] %>
-              <div class="task-item timer-<%= order[:timer_status] %>">
-                <div class="task-location">
-                  <%= order[:room] %>
-                </div>
-                <div class="task-description">
-                  <span class="order-type-icon"><%= order[:type_icon] %></span>
-                  <%= order[:order_name] %> - <%= order[:patient_name] %>
-                  <span class="order-status">(<%= order[:current_status] %>)</span>
-                </div>
-                <div class="task-time timer-<%= order[:timer_status] %>" data-start-time="<%= order[:timer_start_time] %>" data-order-type="<%= order[:order_type].downcase %>">
-                  <span class="elapsed-time"><%= order[:elapsed_time] %> min</span>
-                </div>
-              </div>
-            <% end %>
-          <% end %>
+              <% sorted_patients.each do |patient_id, patient_data| %>
+                <% patient = patient_data[:patient] %>
+                <% next unless patient %>
+                <tr data-patient-id="<%= patient.id %>">
+                  <td><%= patient.display_room %></td>
+                  <td class="patient-cell">
+                    <%= link_to patient_path(patient), data: { turbo_frame: "patient_modal" } do %>
+                      <div><strong><%= patient.full_name %></strong></div>
+                      <div style="font-size: 12px; color: #586069;"><%= patient.age %>Y, <%= patient.chief_complaint %></div>
+                    <% end %>
+                  </td>
+                  <td>
+                    <div class="simplified-tasks">
+                      <% # Combine and sort all items for this patient %>
+                      <% all_items = [] %>
+
+                      <% patient_data[:tasks].each do |task| %>
+                        <% all_items << {
+                          type: 'task',
+                          item: task,
+                          timer_status: task.timer_status,
+                          elapsed_time: task.elapsed_time,
+                          sort_priority: task.sort_priority
+                        } %>
+                      <% end %>
+
+                      <% patient_data[:orders].each do |order| %>
+                        <% priority = case order[:timer_status]
+                                     when 'red' then 3
+                                     when 'yellow' then 2
+                                     when 'green' then 1
+                                     else 0
+                                     end %>
+                        <% all_items << {
+                          type: 'order',
+                          item: order,
+                          timer_status: order[:timer_status],
+                          elapsed_time: order[:elapsed_time],
+                          sort_priority: priority
+                        } %>
+                      <% end %>
+
+                      <% # Sort items by priority %>
+                      <% sorted_items = all_items.sort_by { |i| [-i[:sort_priority], -i[:elapsed_time]] } %>
+
+                      <% if sorted_items.empty? %>
+                        <span class="no-tasks">No tasks pending</span>
+                      <% else %>
+                        <div class="task-list">
+                          <% sorted_items.each do |item_wrapper| %>
+                            <% if item_wrapper[:type] == 'task' %>
+                              <% task = item_wrapper[:item] %>
+                              <div class="task-item task-<%= task.timer_status %>">
+                                <span class="task-indicator task-indicator-<%= task.timer_status %>"></span>
+                                <span class="task-name"><%= task.description %></span>
+                                <span class="task-time"><%= task.elapsed_time %>m</span>
+                              </div>
+                            <% else %>
+                              <% order = item_wrapper[:item] %>
+                              <div class="task-item task-<%= order[:timer_status] %>">
+                                <span class="task-indicator task-indicator-<%= order[:timer_status] %>"></span>
+                                <span class="task-name">
+                                  <span class="order-type-icon"><%= order[:type_icon] %></span>
+                                  <%= order[:order_name] %>
+                                  <span style="color: #6c757d;">(<%= order[:current_status] %>)</span>
+                                </span>
+                                <span class="task-time" data-start-time="<%= order[:timer_start_time] %>" data-order-type="<%= order[:order_type].downcase %>">
+                                  <span class="elapsed-time"><%= order[:elapsed_time] %>m</span>
+                                </span>
+                              </div>
+                            <% end %>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </td>
+                </tr>
+              <% end %>
+            </tbody>
+          </table>
         </div>
       </div>
+      <% unless nurse_name == @nurses.keys.last %>
+        <div style="margin: 30px 0; border-bottom: 1px solid #e1e4e8;"></div>
+      <% end %>
     <% end %>
   <% else %>
     <div class="empty-state">
@@ -94,42 +146,38 @@
   // Update task and order timers with dynamic color changes
   function updateStaffTaskTimers() {
     document.querySelectorAll('.task-item').forEach(item => {
-      const timerElement = item.querySelector('.task-time');
+      const timerElement = item.querySelector('.task-time[data-start-time]');
       const elapsedElement = item.querySelector('.elapsed-time');
+      const indicator = item.querySelector('.task-indicator');
 
-      if (timerElement && elapsedElement) {
-        // Check if this is an order (has data-start-time) or a task
+      if (timerElement && elapsedElement && timerElement.dataset.startTime) {
+        // This is an order with a start time
         const startTime = timerElement.dataset.startTime;
         const orderType = timerElement.dataset.orderType;
 
-        if (startTime) {
-          // This is an order with a start time
-          const start = new Date(startTime);
-          const now = new Date();
-          const diffMinutes = Math.floor((now - start) / 60000);
+        const start = new Date(startTime);
+        const now = new Date();
+        const diffMinutes = Math.floor((now - start) / 60000);
 
-          // Update timer text
-          elapsedElement.textContent = diffMinutes + ' min';
+        // Update timer text
+        elapsedElement.textContent = diffMinutes + 'm';
 
-          // Determine thresholds based on order type
-          const thresholds = orderType === 'medication' ? [5, 10] : [20, 40];
-          let newStatus;
+        // Determine thresholds based on order type
+        const thresholds = orderType === 'medication' ? [5, 10] : [20, 40];
+        let newStatus;
 
-          if (diffMinutes <= thresholds[0]) {
-            newStatus = 'green';
-          } else if (diffMinutes <= thresholds[1]) {
-            newStatus = 'yellow';
-          } else {
-            newStatus = 'red';
-          }
+        if (diffMinutes <= thresholds[0]) {
+          newStatus = 'green';
+        } else if (diffMinutes <= thresholds[1]) {
+          newStatus = 'yellow';
+        } else {
+          newStatus = 'red';
+        }
 
-          // Update timer color classes
-          timerElement.classList.remove('timer-green', 'timer-yellow', 'timer-red');
-          timerElement.classList.add('timer-' + newStatus);
-
-          // Update item color classes
-          item.classList.remove('timer-green', 'timer-yellow', 'timer-red');
-          item.classList.add('timer-' + newStatus);
+        // Update item and indicator color classes
+        item.className = 'task-item task-' + newStatus;
+        if (indicator) {
+          indicator.className = 'task-indicator task-indicator-' + newStatus;
         }
       }
     });

@@ -749,6 +749,7 @@ button {
   height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
+  margin-right: 8px;
 }
 
 .simplified-tasks .task-indicator-green {
