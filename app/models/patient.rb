@@ -333,13 +333,14 @@ class Patient < ApplicationRecord
               }
             end
           when 'Bed Assignment'
-            # Timer starts from intake completion (triage_completed_at)
-            if triage_completed_at
-              elapsed_minutes = ((Time.current - triage_completed_at) / 60).round
+            # Timer starts from intake completion
+            intake_step = triage_pathway.care_pathway_steps.find_by(name: 'Intake')
+            if intake_step&.completed_at
+              elapsed_minutes = ((Time.current - intake_step.completed_at) / 60).round
               target_minutes = esi_target_minutes # ESI-based target
               tasks << {
-                name: "Room Assignment",
-                type: :room_assignment,
+                name: "Bed Assignment",
+                type: :bed_assignment,
                 elapsed_time: elapsed_minutes,
                 status: calculate_task_status(elapsed_minutes, target_minutes),
                 care_pathway_id: triage_pathway.id
