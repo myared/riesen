@@ -312,20 +312,32 @@
                         </div>
                       </div>
                       <div class="order-status-tracker">
-                        <% order.workflow_states.each_with_index do |workflow_status, index| %>
-                          <% if order.class.statuses.key?(workflow_status.to_s) %>
-                            <% current_workflow_index = order.workflow_states.index(order.status.to_sym) %>
-                            <div class="status-step <%= 'completed' if current_workflow_index && index <= current_workflow_index %> <%= 'timer-' + order.timer_status if order.status == workflow_status.to_s %>">
-                              <%= workflow_status.to_s.humanize %>
-                              <% if order.status == workflow_status.to_s && !order.complete? %>
-                                <div class="timer-indicator timer-<%= order.timer_status %>">
-                                  <span class="timer-value" data-start-time="<%= order.status_updated_at&.iso8601 %>" data-order-type="<%= order.order_type %>"></span>
-                                </div>
-                              <% end %>
-                            </div>
-                            <% unless index == order.workflow_states.length - 1 %>
-                              <div class="status-connector <%= 'completed' if current_workflow_index && index < current_workflow_index %>"></div>
+                        <% workflow_states = order.workflow_states %>
+                        <% current_workflow_index = workflow_states.index(order.status.to_sym) %>
+                        <% next_workflow_index = if current_workflow_index && !order.complete?
+                                                    potential_index = current_workflow_index + 1
+                                                    workflow_states[potential_index] ? potential_index : nil
+                                                  end %>
+                        <% timer_start_time = order.status_updated_at || order.ordered_at %>
+
+                        <% workflow_states.each_with_index do |workflow_status, index| %>
+                          <% next unless order.class.statuses.key?(workflow_status.to_s) %>
+                          <% step_classes = ['status-step'] %>
+                          <% step_classes << 'completed' if current_workflow_index && index <= current_workflow_index %>
+                          <% if next_workflow_index && index == next_workflow_index %>
+                            <% step_classes << 'current' << "timer-#{order.timer_status}" %>
+                          <% end %>
+
+                          <div class="<%= step_classes.join(' ') %>">
+                            <%= workflow_status.to_s.humanize %>
+                            <% if next_workflow_index && index == next_workflow_index && !order.complete? %>
+                              <div class="timer-indicator timer-<%= order.timer_status %>">
+                                <span class="timer-value" data-start-time="<%= timer_start_time&.iso8601 %>" data-order-type="<%= order.order_type %>"></span>
+                              </div>
                             <% end %>
+                          </div>
+                          <% unless index == workflow_states.length - 1 %>
+                            <div class="status-connector <%= 'completed' if current_workflow_index && index < current_workflow_index %>"></div>
                           <% end %>
                         <% end %>
                       </div>
@@ -1647,35 +1659,43 @@
     document.querySelectorAll('.timer-value').forEach(timer => {
       const startTime = timer.dataset.startTime;
       const orderType = timer.dataset.orderType;
-      if (startTime) {
-        const start = new Date(startTime);
-        const now = new Date();
-        const diffMinutes = Math.floor((now - start) / 60000);
+      if (!startTime) return;
 
-        timer.textContent = diffMinutes + 'm';
+      const start = new Date(startTime);
+      const now = new Date();
+      const diffMinutes = Math.floor((now - start) / 60000);
 
-        // Update timer color class
-        const indicator = timer.parentElement;
-        indicator.classList.remove('timer-green', 'timer-yellow', 'timer-red');
+      timer.textContent = diffMinutes + 'm';
 
-        // Different timing for medications
-        if (orderType === 'medication') {
-          if (diffMinutes <= 5) {
-            indicator.classList.add('timer-green');
-          } else if (diffMinutes <= 10) {
-            indicator.classList.add('timer-yellow');
-          } else {
-            indicator.classList.add('timer-red');
-          }
+      const indicator = timer.parentElement;
+      const statusStep = indicator.closest('.status-step');
+      const timerClasses = ['timer-green', 'timer-yellow', 'timer-red'];
+
+      indicator.classList.remove(...timerClasses);
+      if (statusStep) statusStep.classList.remove(...timerClasses);
+
+      const applyTimerClass = cssClass => {
+        indicator.classList.add(cssClass);
+        if (statusStep) statusStep.classList.add(cssClass);
+      };
+
+      // Different timing for medications
+      if (orderType === 'medication') {
+        if (diffMinutes <= 5) {
+          applyTimerClass('timer-green');
+        } else if (diffMinutes <= 10) {
+          applyTimerClass('timer-yellow');
         } else {
-          // Standard timing for labs and imaging
-          if (diffMinutes <= 20) {
-            indicator.classList.add('timer-green');
-          } else if (diffMinutes <= 40) {
-            indicator.classList.add('timer-yellow');
-          } else {
-            indicator.classList.add('timer-red');
-          }
+          applyTimerClass('timer-red');
+        }
+      } else {
+        // Standard timing for labs and imaging
+        if (diffMinutes <= 20) {
+          applyTimerClass('timer-green');
+        } else if (diffMinutes <= 40) {
+          applyTimerClass('timer-yellow');
+        } else {
+          applyTimerClass('timer-red');
         }
       }
     });

@@ -668,9 +668,56 @@ turbo-frame#care-pathway-modal-container:not(:empty) {
   transition: all 0.2s;
 }
 
+.orders-list .order-item .order-status-tracker .status-step.current {
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.orders-list .order-item .order-status-tracker .status-step.current.timer-green {
+  background: #d1fae5;
+  color: #047857;
+  border-color: #34d399;
+}
+
+.orders-list .order-item .order-status-tracker .status-step.current.timer-yellow {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #fbbf24;
+}
+
+.orders-list .order-item .order-status-tracker .status-step.current.timer-red {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #f87171;
+}
+
+.orders-list .order-item .order-status-tracker .status-step.current.timer-green,
+.orders-list .order-item .order-status-tracker .status-step.current.timer-yellow,
+.orders-list .order-item .order-status-tracker .status-step.current.timer-red {
+  border-left: none;
+}
+
+.orders-list .order-item .order-status-tracker .status-step .timer-indicator {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  padding: 0;
+  background: none;
+  border-left: none;
+  color: inherit;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.orders-list .order-item .order-status-tracker .status-step .timer-indicator .timer-value {
+  line-height: 1;
+}
+
+
 .orders-list .order-item .order-status-tracker .status-step.completed {
-  background: #10b981;
-  color: white;
+  background: #e5e7eb;
+  color: #374151;
+  border: 1px solid #d1d5db;
 }
 
 .orders-list .order-item .order-status-tracker .status-connector {
@@ -680,7 +727,7 @@ turbo-frame#care-pathway-modal-container:not(:empty) {
 }
 
 .orders-list .order-item .order-status-tracker .status-connector.completed {
-  background: #10b981;
+  background: #9ca3af;
 }
 
 .orders-list .order-item .btn-advance {
