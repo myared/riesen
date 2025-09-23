@@ -1,0 +1,145 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <!-- Charts Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+      <!-- Admission/Discharge Trends -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Admission & Discharge Trends</h2>
+        <p class="text-sm text-gray-500 mb-4">Last 30 days</p>
+        <div class="relative" style="height: 300px;">
+          <canvas id="admissionDischargeChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Room Occupancy by Type -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Occupancy by Room Type</h2>
+        <p class="text-sm text-gray-500 mb-4">Current status</p>
+        <div class="relative" style="height: 300px;">
+          <canvas id="occupancyByFloorChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Average Length of Stay -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Average Length of Stay</h2>
+        <div class="mb-4 p-3 bg-blue-50 rounded-lg inline-block">
+          <span class="text-sm text-gray-600">Overall Average:</span>
+          <span class="text-xl font-bold text-blue-600 ml-2"><%= @length_of_stay_data[:overall_average] %> days</span>
+        </div>
+        <div class="relative" style="height: 280px;">
+          <canvas id="lengthOfStayChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Provider Performance -->
+      <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <h2 class="text-lg font-semibold text-gray-800 mb-4">Provider Performance</h2>
+        <p class="text-sm text-gray-500 mb-4">Patients discharged (30 days)</p>
+        <div class="relative" style="height: 300px;">
+          <canvas id="staffCompletionChart"></canvas>
+        </div>
+      </div>
+
+
+    </div>
+  </div>
+</div>
+
+<!-- Plain JavaScript for Charts -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+  // Wait for DOM to be ready
+  document.addEventListener('DOMContentLoaded', function() {
+
+    // Chart configuration helper
+    const chartConfig = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          position: 'top',
+          labels: {
+            padding: 15,
+            usePointStyle: true,
+            font: {
+              size: 12
+            }
+          }
+        },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          padding: 12,
+          cornerRadius: 4,
+          displayColors: true
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          grid: {
+            drawBorder: false,
+            color: 'rgba(0, 0, 0, 0.05)'
+          },
+          ticks: {
+            padding: 8,
+            font: {
+              size: 11
+            }
+          }
+        },
+        x: {
+          grid: {
+            display: false,
+            drawBorder: false
+          },
+          ticks: {
+            padding: 8,
+            font: {
+              size: 11
+            }
+          }
+        }
+      }
+    };
+
+    // Admission/Discharge Trends Chart
+    const admissionCtx = document.getElementById('admissionDischargeChart').getContext('2d');
+    new Chart(admissionCtx, {
+      type: 'line',
+      data: <%= @admission_discharge_data.to_json.html_safe %>,
+      options: {
+        ...chartConfig,
+        interaction: {
+          mode: 'index',
+          intersect: false
+        }
+      }
+    });
+
+    // Room Occupancy Chart
+    const occupancyCtx = document.getElementById('occupancyByFloorChart').getContext('2d');
+    new Chart(occupancyCtx, {
+      type: 'bar',
+      data: <%= @occupancy_data[:by_floor].to_json.html_safe %>,
+      options: chartConfig
+    });
+
+    // Length of Stay Chart
+    const lengthCtx = document.getElementById('lengthOfStayChart').getContext('2d');
+    new Chart(lengthCtx, {
+      type: 'bar',
+      data: <%= @length_of_stay_data[:monthly].to_json.html_safe %>,
+      options: chartConfig
+    });
+
+    // Provider Performance Chart
+    const providerCtx = document.getElementById('staffCompletionChart').getContext('2d');
+    new Chart(providerCtx, {
+      type: 'bar',
+      data: <%= @staff_performance_data[:by_user].to_json.html_safe %>,
+      options: chartConfig
+    });
+  });
+</script>
