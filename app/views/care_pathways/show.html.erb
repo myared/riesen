@@ -284,14 +284,160 @@
         </div>
 
         <div class="er-pathway-tabs">
-            <button class="tab-button active" data-tab="orders">Orders</button>
+            <button class="tab-button active" data-tab="all">All</button>
+            <button class="tab-button" data-tab="orders">Orders</button>
             <button class="tab-button" data-tab="procedures">Procedures</button>
             <button class="tab-button" data-tab="endpoints">Clinical Endpoints</button>
           </div>
           
           <div class="er-pathway-content">
+            <!-- All Tab -->
+            <div class="tab-content active" id="all">
+              <div class="section-header">
+                <h4>All Items</h4>
+                <div class="add-buttons-group">
+                  <button class="btn btn-primary btn-add" onclick="showAddOrderModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+                    + Add Order
+                  </button>
+                  <button class="btn btn-primary btn-add" onclick="showAddProcedureModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+                    + Add Procedure
+                  </button>
+                  <button class="btn btn-primary btn-add" onclick="showAddEndpointModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
+                    + Add Goal
+                  </button>
+                </div>
+              </div>
+
+              <div class="all-items-list">
+                <!-- Orders Section -->
+                <% if @orders.any? %>
+                  <div class="all-section">
+                    <h5 class="all-section-title">Orders (<%= @orders.count %>)</h5>
+                    <div class="orders-list">
+                      <% @orders.each do |order| %>
+                        <div class="order-item" data-order-id="<%= order.id %>">
+                          <div class="order-icon"><%= order.type_icon %></div>
+                          <div class="order-info">
+                            <div class="order-name"><%= order.name %></div>
+                            <div class="order-meta">
+                              <span class="order-type"><%= order.order_type.humanize %></span>
+                              <span class="order-time">Ordered by <%= order.ordered_by %> at <%= order.ordered_at&.in_time_zone&.strftime("%l:%M %p PST") %></span>
+                            </div>
+                          </div>
+                          <div class="order-status-tracker">
+                            <% workflow_states = order.workflow_states %>
+                            <% current_workflow_index = workflow_states.index(order.status.to_sym) %>
+                            <% next_workflow_index = if current_workflow_index && !order.complete?
+                                                        potential_index = current_workflow_index + 1
+                                                        workflow_states[potential_index] ? potential_index : nil
+                                                      end %>
+                            <% timer_start_time = order.status_updated_at || order.ordered_at %>
+
+                            <% workflow_states.each_with_index do |workflow_status, index| %>
+                              <% next unless order.class.statuses.key?(workflow_status.to_s) %>
+                              <% step_classes = ['status-step'] %>
+                              <% step_classes << 'completed' if current_workflow_index && index <= current_workflow_index %>
+                              <% if next_workflow_index && index == next_workflow_index %>
+                                <% step_classes << 'current' << "timer-#{order.timer_status}" %>
+                              <% end %>
+
+                              <div class="<%= step_classes.join(' ') %>">
+                                <%= workflow_status.to_s.humanize %>
+                                <% if next_workflow_index && index == next_workflow_index && !order.complete? %>
+                                  <div class="timer-indicator timer-<%= order.timer_status %>">
+                                    <span class="timer-value" data-start-time="<%= timer_start_time&.iso8601 %>" data-order-type="<%= order.order_type %>"></span>
+                                  </div>
+                                <% end %>
+                              </div>
+                              <% unless index == workflow_states.length - 1 %>
+                                <div class="status-connector <%= 'completed' if current_workflow_index && index < current_workflow_index %>"></div>
+                              <% end %>
+                            <% end %>
+                          </div>
+                          <% unless order.complete? %>
+                            <button class="btn btn-sm btn-advance"
+                                    onclick="advanceOrderStatus(<%= @patient.id %>, <%= @care_pathway.id %>, <%= order.id %>)">
+                              Advance →
+                            </button>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+
+                <!-- Procedures Section -->
+                <% if @procedures.any? %>
+                  <div class="all-section">
+                    <h5 class="all-section-title">Procedures (<%= @procedures.count %>)</h5>
+                    <div class="procedures-list">
+                      <% @procedures.each do |procedure| %>
+                        <div class="procedure-item <%= procedure.status_class %>" data-procedure-id="<%= procedure.id %>">
+                          <div class="procedure-icon">🔧</div>
+                          <div class="procedure-info">
+                            <div class="procedure-name"><%= procedure.name %></div>
+                            <% if procedure.description.present? %>
+                              <div class="procedure-description"><%= procedure.description %></div>
+                            <% end %>
+                            <% if procedure.completed? %>
+                              <div class="procedure-meta">
+                                Completed by <%= procedure.completed_by %> at <%= procedure.completed_at&.in_time_zone&.strftime("%l:%M %p PST") %>
+                              </div>
+                            <% end %>
+                          </div>
+                          <% unless procedure.completed? %>
+                            <button class="btn btn-sm btn-complete"
+                                    onclick="completeProcedure(<%= @patient.id %>, <%= @care_pathway.id %>, <%= procedure.id %>)">
+                              Mark Complete
+                            </button>
+                          <% else %>
+                            <span class="status-badge completed">✓ Complete</span>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+
+                <!-- Clinical Endpoints Section -->
+                <% if @clinical_endpoints.any? %>
+                  <div class="all-section">
+                    <h5 class="all-section-title">Clinical Endpoints (<%= @clinical_endpoints.count %>)</h5>
+                    <div class="endpoints-list">
+                      <% @clinical_endpoints.each do |endpoint| %>
+                        <div class="endpoint-item <%= endpoint.status_class %>" data-endpoint-id="<%= endpoint.id %>">
+                          <div class="endpoint-icon">🎯</div>
+                          <div class="endpoint-info">
+                            <div class="endpoint-name"><%= endpoint.name %></div>
+                            <div class="endpoint-description"><%= endpoint.description %></div>
+                            <% if endpoint.achieved? %>
+                              <div class="endpoint-meta">
+                                Achieved by <%= endpoint.achieved_by %> at <%= endpoint.achieved_at&.in_time_zone&.strftime("%l:%M %p PST") %>
+                              </div>
+                            <% end %>
+                          </div>
+                          <% unless endpoint.achieved? %>
+                            <button class="btn btn-sm btn-achieve"
+                                    onclick="achieveEndpoint(<%= @patient.id %>, <%= @care_pathway.id %>, <%= endpoint.id %>)">
+                              Mark Achieved
+                            </button>
+                          <% else %>
+                            <span class="status-badge achieved">✓ Achieved</span>
+                          <% end %>
+                        </div>
+                      <% end %>
+                    </div>
+                  </div>
+                <% end %>
+
+                <% if !@orders.any? && !@procedures.any? && !@clinical_endpoints.any? %>
+                  <div class="empty-state">No items added yet. Add orders, procedures, or clinical endpoints to get started.</div>
+                <% end %>
+              </div>
+            </div>
+
             <!-- Orders Tab -->
-            <div class="tab-content active" id="orders">
+            <div class="tab-content" id="orders">
               <div class="section-header">
                 <h4>Orders (Labs, Meds, Imaging)</h4>
                 <button class="btn btn-primary btn-add" onclick="showAddOrderModal(<%= @patient.id %>, <%= @care_pathway.id %>)">
@@ -1174,6 +1320,35 @@
     border-color: #c1c4cb;
   }
   
+  /* All Tab Styles */
+  .add-buttons-group {
+    display: flex;
+    gap: 10px;
+  }
+
+  .all-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+  }
+
+  .all-section {
+    border-top: 2px solid #e1e4e8;
+    padding-top: 20px;
+  }
+
+  .all-section:first-child {
+    border-top: none;
+    padding-top: 0;
+  }
+
+  .all-section-title {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #24292e;
+  }
+
   /* Timer Styles */
   .timer-indicator {
     position: absolute;
@@ -1568,6 +1743,12 @@
     const activeTab = urlParams.get('active_tab');
     if (activeTab) {
       activateTab(activeTab);
+    } else {
+      // Default to "all" tab if no tab is specified and ER pathway is active
+      const erPathway = document.querySelector('.er-pathway-container');
+      if (erPathway) {
+        activateTab('all');
+      }
     }
     
     // Add click handlers for tab buttons
