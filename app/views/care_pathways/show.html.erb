@@ -16,7 +16,21 @@
         <h1>Care Pathway</h1>
       </div>
       <div class="patient-info">
-        <strong><%= @patient.full_name %></strong> • MRN: <%= @patient.mrn %> • <%= @patient.age %>Y
+        <% if @care_pathway.pathway_type_emergency_room? %>
+          <% if @patient.rp_transfer_pending? %>
+            <span class="rp-eligible-badge">RP Eligible</span>
+          <% elsif (@patient.location_ed_room? || @patient.location_treatment?) && !@patient.location_results_pending? %>
+            <%= button_to "Mark RP Eligible",
+                          mark_rp_eligible_patient_care_pathway_path(@patient, @care_pathway),
+                          method: :post,
+                          class: "btn btn-secondary rp-eligible-trigger",
+                          data: { turbo: false },
+                          form: { class: "rp-eligible-form" } %>
+          <% end %>
+        <% end %>
+        <span class="patient-details">
+          <strong><%= @patient.full_name %></strong> • MRN: <%= @patient.mrn %> • <%= @patient.age %>Y
+        </span>
       </div>
     </div>
     
@@ -155,17 +169,6 @@
           <div class="er-pathway-header">
             <div class="er-pathway-header-top">
               <h2>Emergency Room Care Pathway</h2>
-              <div class="er-pathway-actions">
-                <% if @patient.rp_transfer_pending? %>
-                  <span class="rp-eligible-badge">RP Eligible</span>
-                <% elsif (@patient.location_ed_room? || @patient.location_treatment?) && !@patient.location_results_pending? %>
-                  <%= button_to "Mark RP Eligible",
-                                mark_rp_eligible_patient_care_pathway_path(@patient, @care_pathway),
-                                method: :post,
-                                class: "btn btn-secondary rp-eligible-trigger",
-                                data: { turbo: false } %>
-                <% end %>
-              </div>
             </div>
 
             <!-- Interactive Flowchart Journey moved here -->
@@ -651,6 +654,18 @@
   .patient-info {
     font-size: 14px;
     color: #586069;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .patient-info .patient-details {
+    white-space: nowrap;
+  }
+
+  .patient-info .rp-eligible-form {
+    display: inline-flex;
+    margin: 0;
   }
 
   .care-pathway-body {
