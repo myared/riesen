@@ -374,13 +374,21 @@ class CarePathwaysController < ApplicationController
 
   # Add a procedure
   def add_procedure
+    Rails.logger.info "[ADD_PROCEDURE] Starting - Patient: #{params[:patient_id]}, Pathway: #{params[:id]}"
+    Rails.logger.info "[ADD_PROCEDURE] Params: #{procedure_params.inspect}"
+
     @care_pathway = @patient.care_pathways.find(params[:id])
     @procedure = @care_pathway.care_pathway_procedures.build(procedure_params)
+
+    Rails.logger.info "[ADD_PROCEDURE] Built procedure: #{@procedure.attributes.inspect}"
 
     # Start procedures as ordered
     @procedure.ordered = true
     @procedure.ordered_at = Time.current
     @procedure.ordered_by = current_user_name
+
+    Rails.logger.info "[ADD_PROCEDURE] After setting ordered fields: #{@procedure.attributes.inspect}"
+    Rails.logger.info "[ADD_PROCEDURE] Validation errors before save: #{@procedure.errors.full_messages}" unless @procedure.valid?
 
     if @procedure.save
       # Log the procedure creation to patient event log
@@ -402,14 +410,29 @@ class CarePathwaysController < ApplicationController
         format.json { render json: @procedure, status: :created }
       end
     else
+      Rails.logger.error "[ADD_PROCEDURE] Failed to save - Errors: #{@procedure.errors.full_messages}"
+      Rails.logger.error "[ADD_PROCEDURE] Procedure attributes: #{@procedure.attributes.inspect}"
+
       respond_to do |format|
         format.html {
           redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
-                      alert: "Failed to add procedure",
+                      alert: "Failed to add procedure: #{@procedure.errors.full_messages.join(', ')}",
                       status: :unprocessable_content
         }
         format.json { render json: @procedure.errors, status: :unprocessable_content }
       end
+    end
+  rescue => e
+    Rails.logger.error "[ADD_PROCEDURE] Exception: #{e.class} - #{e.message}"
+    Rails.logger.error "[ADD_PROCEDURE] Backtrace: #{e.backtrace.first(5).join("\n")}"
+
+    respond_to do |format|
+      format.html {
+        redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
+                    alert: "An error occurred: #{e.message}",
+                    status: :internal_server_error
+      }
+      format.json { render json: { error: e.message }, status: :internal_server_error }
     end
   end
 
@@ -449,6 +472,9 @@ class CarePathwaysController < ApplicationController
 
   # Add a clinical endpoint
   def add_clinical_endpoint
+    Rails.logger.info "[ADD_ENDPOINT] Starting - Patient: #{params[:patient_id]}, Pathway: #{params[:id]}"
+    Rails.logger.info "[ADD_ENDPOINT] Params: #{endpoint_params.inspect}"
+
     @care_pathway = @patient.care_pathways.find(params[:id])
     endpoint_data = endpoint_params
 
@@ -459,10 +485,15 @@ class CarePathwaysController < ApplicationController
 
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.build(endpoint_data)
 
+    Rails.logger.info "[ADD_ENDPOINT] Built endpoint: #{@endpoint.attributes.inspect}"
+
     # Start endpoints as started
     @endpoint.started = true
     @endpoint.started_at = Time.current
     @endpoint.started_by = current_user_name
+
+    Rails.logger.info "[ADD_ENDPOINT] After setting started fields: #{@endpoint.attributes.inspect}"
+    Rails.logger.info "[ADD_ENDPOINT] Validation errors before save: #{@endpoint.errors.full_messages}" unless @endpoint.valid?
 
     if @endpoint.save
       # Log the clinical goal creation to patient event log
@@ -484,14 +515,29 @@ class CarePathwaysController < ApplicationController
         format.json { render json: @endpoint, status: :created }
       end
     else
+      Rails.logger.error "[ADD_ENDPOINT] Failed to save - Errors: #{@endpoint.errors.full_messages}"
+      Rails.logger.error "[ADD_ENDPOINT] Endpoint attributes: #{@endpoint.attributes.inspect}"
+
       respond_to do |format|
         format.html {
           redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
-                      alert: "Failed to add clinical endpoint",
+                      alert: "Failed to add clinical endpoint: #{@endpoint.errors.full_messages.join(', ')}",
                       status: :unprocessable_content
         }
         format.json { render json: @endpoint.errors, status: :unprocessable_content }
       end
+    end
+  rescue => e
+    Rails.logger.error "[ADD_ENDPOINT] Exception: #{e.class} - #{e.message}"
+    Rails.logger.error "[ADD_ENDPOINT] Backtrace: #{e.backtrace.first(5).join("\n")}"
+
+    respond_to do |format|
+      format.html {
+        redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: params[:active_tab]),
+                    alert: "An error occurred: #{e.message}",
+                    status: :internal_server_error
+      }
+      format.json { render json: { error: e.message }, status: :internal_server_error }
     end
   end
 
