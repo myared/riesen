@@ -62,7 +62,7 @@
 }
 
 .reports-card {
-  background: #10b981;
+  background: linear-gradient(135deg, #26a69a 0%, #0d47a1 100%);
   color: white;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -73,9 +73,9 @@
 }
 
 .reports-card:hover {
-  background: #059669;
+  background: linear-gradient(135deg, #1e8e83 0%, #0a3d8a 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  box-shadow: 0 4px 12px rgba(13, 71, 161, 0.3);
 }
 
 .reports-label {
