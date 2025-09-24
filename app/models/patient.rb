@@ -741,6 +741,14 @@ class Patient < ApplicationRecord
     mark_ready_for_checkout!(performed_by: performed_by)
   end
 
+  # Get the longest running task duration (in minutes)
+  def longest_task_duration
+    tasks = top_pending_tasks
+    return 0 if tasks.empty?
+
+    tasks.map { |task| task[:elapsed_time] }.max || 0
+  end
+
   # Custom exception for discharge failures
   class NotDischargeable < StandardError; end
 
@@ -748,7 +756,7 @@ class Patient < ApplicationRecord
 
   def calculate_task_status(elapsed_minutes, target_minutes, task_type = nil)
     # Special handling for procedures and clinical endpoints with fixed thresholds
-    if [:procedure, :clinical_endpoint].include?(task_type) || target_minutes == 20
+    if [ :procedure, :clinical_endpoint ].include?(task_type) || target_minutes == 20
       # For 20-minute tasks: green 0-16, yellow 16-20, red >20
       if elapsed_minutes <= 16
         :green

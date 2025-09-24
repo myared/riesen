@@ -3,7 +3,11 @@ class DashboardController < ApplicationController
 
   def triage
     session[:current_role] = "triage"
-    @patients = Patient.includes(:vitals, :events).in_triage.by_arrival_time
+    # Sort by longest-running task duration (descending)
+    @patients = Patient.includes(:vitals, :events, :care_pathways)
+                       .in_triage
+                       .to_a
+                       .sort_by { |p| -p.longest_task_duration }
     wait_times = @patients.map(&:wait_time_minutes).compact
     @avg_wait_time = wait_times.any? ? (wait_times.sum / wait_times.size.to_f).round : 0
   end
@@ -13,7 +17,7 @@ class DashboardController < ApplicationController
     session[:current_role] = "rp"
     # Include patients in RP, those waiting for RP room assignment, and those pending transfer to RP (75% through triage)
     # Do NOT include RP-eligible patients still in waiting room (not yet 75% through triage)
-    # Sort by task priority (red > yellow > green), then by wait time
+    # Sort by longest-running task duration (descending)
     @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_results_pending
                        .or(Patient.needs_rp_assignment)
@@ -21,20 +25,20 @@ class DashboardController < ApplicationController
                        .or(Patient.rp_eligible_pending_from_ed)
                        .distinct
                        .to_a
-                       .sort_by { |p| [p.highest_priority_task_status, -p.wait_time_minutes] }
+                       .sort_by { |p| -p.longest_task_duration }
   end
 
   def ed_rn
     # Clear provider role
     session[:current_role] = "ed_rn"
     # Include patients in ED, those waiting for ED room assignment, and those pending transfer to ED
-    # Sort by task priority (red > yellow > green), then by wait time
+    # Sort by longest-running task duration (descending)
     @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_ed_treatment
                        .or(Patient.needs_ed_assignment)
                        .or(Patient.pending_transfer_to_ed)
                        .to_a
-                       .sort_by { |p| [p.highest_priority_task_status, -p.wait_time_minutes] }
+                       .sort_by { |p| -p.longest_task_duration }
   end
 
   def charge_rn
@@ -42,11 +46,13 @@ class DashboardController < ApplicationController
     session[:current_role] = "charge_rn"
     @view_mode = params[:view] || "staff_tasks"
 
+    # Always calculate ED census
+    @current_ed_census = Patient.in_ed.count
+
     if @view_mode == "floor_view"
       # Load floor view data
       @ed_rooms = Room.ed_rooms.includes(:current_patient)
       @rp_rooms = Room.rp_rooms.includes(:current_patient)
-      @current_ed_census = Room.ed_rooms.occupied_rooms.count
       @rp_utilization = Room.rp_rooms.occupied_rooms.count
       @avg_door_to_provider = calculate_avg_door_to_provider
       @avg_ed_los = calculate_avg_ed_los
@@ -65,7 +71,11 @@ class DashboardController < ApplicationController
       @nurses = nurses_unsorted.sort_by { |_name, data| -data[:total_time] }.to_h
     end
 
-    @patients = Patient.includes(:vitals, :events).all.by_arrival_time
+    # Sort by longest-running task duration (descending)
+    @patients = Patient.includes(:vitals, :events, :care_pathways)
+                       .all
+                       .to_a
+                       .sort_by { |p| -p.longest_task_duration }
   end
 
   def provider
@@ -73,12 +83,12 @@ class DashboardController < ApplicationController
     session[:current_role] = "provider"
 
     # Show all patients in RP (Results Pending) or ED RN (ED Room/Treatment)
-    # Sort by task priority (red > yellow > green), then by arrival time
+    # Sort by longest-running task duration (descending)
     @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_results_pending
                        .or(Patient.in_ed_treatment)
                        .to_a
-                       .sort_by { |p| [p.highest_priority_task_status, p.wait_time_minutes] }
+                       .sort_by { |p| -p.longest_task_duration }
   end
 
   private
