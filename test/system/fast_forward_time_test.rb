@@ -2,6 +2,8 @@ require "application_system_test_case"
 
 class FastForwardTimeTest < ApplicationSystemTestCase
   setup do
+    ensure_application_setting
+
     @patient = Patient.create!(
       first_name: "John",
       last_name: "Doe",
@@ -108,12 +110,10 @@ class FastForwardTimeTest < ApplicationSystemTestCase
       visit path
 
       # Verify the fast forward button is present
-      assert_selector "form[action='#{simulation_fast_forward_time_path}']",
-                      count: 1,
-                      text: "Fast forward time button should be present on #{path}"
+      assert page.has_selector?("form[action='#{simulation_fast_forward_time_path}']", count: 1),
+             "Expected fast forward form on #{path}"
 
-      assert_button "+ 10m",
-                    text: "Fast forward button should be visible on #{path}"
+      assert_button "+ 10m"
 
       # Verify it has the confirmation attribute
       button = find_button("+ 10m")
@@ -121,6 +121,28 @@ class FastForwardTimeTest < ApplicationSystemTestCase
       assert_equal "This will advance ALL timers by 10 minutes. Continue?",
                    button["data-turbo-confirm"],
                    "Confirmation message should be correct on #{path}"
+    end
+  end
+
+  test "-10m button should require confirmation on all dashboard pages" do
+    dashboard_paths = [
+      dashboard_triage_path,
+      dashboard_rp_path,
+      dashboard_ed_rn_path,
+      dashboard_charge_rn_path,
+      dashboard_provider_path
+    ]
+
+    dashboard_paths.each do |path|
+      visit path
+
+      assert_button "- 10m"
+
+      button = find_button("- 10m")
+      assert button["data-turbo-confirm"], "Rewind button should have confirmation dialog on #{path}"
+      assert_equal "This will rewind ALL timers by 10 minutes. Continue?",
+                   button["data-turbo-confirm"],
+                   "Rewind confirmation message should be correct on #{path}"
     end
   end
 
@@ -140,12 +162,10 @@ class FastForwardTimeTest < ApplicationSystemTestCase
       end
 
       # Should redirect back to the original page
-      assert_current_path page_path,
-                         "Should redirect back to #{page_path} after fast forward"
+      assert_current_path page_path
 
       # Should show success message
-      assert_text "Fast forwarded all timers by 10 minutes",
-                  "Success message should appear on #{page_path}"
+      assert_text "Fast forwarded all timers by 10 minutes"
     end
   end
 
@@ -222,17 +242,18 @@ class FastForwardTimeTest < ApplicationSystemTestCase
     # If the header shows active patient count, it should remain consistent
     visit dashboard_triage_path
 
-    # Check if patient count is displayed
-    if has_text?("Active Patients")
-      original_count_text = find(".ed-header__patient-count").text
-
-      accept_confirm do
-        click_button "+ 10m"
-      end
-
-      # Patient count should remain the same (patients aren't added/removed)
-      assert_text original_count_text
+    unless page.has_css?(".ed-header__patient-count")
+      skip "Header patient count not displayed"
     end
+
+    original_count_text = find(".ed-header__patient-count").text
+
+    accept_confirm do
+      click_button "+ 10m"
+    end
+
+    # Patient count should remain the same (patients aren't added/removed)
+    assert_text original_count_text
   end
 
   test "multiple rapid +10m clicks should be handled safely" do

@@ -24,8 +24,14 @@ class SimulationController < ApplicationController
     ActiveRecord::Base.transaction do
       # Update patient timers using safe integer value
       seconds = time_adjustment.to_i
+      adjustable_statuses = [
+        :waiting_room, :triage, :pending_transfer,
+        :needs_room_assignment, :ed_room, :treatment
+      ]
+      triage_pathway_ids = CarePathway.pathway_type_triage.select(:id)
 
-      updated_count += Patient.where(location_status: [:needs_room_assignment, :ed_room, :treatment])
+      updated_count += Patient.where(location_status: adjustable_statuses)
+                              .where.not(arrival_time: nil)
                               .update_all("arrival_time = arrival_time - INTERVAL '#{seconds} seconds'")
 
       updated_count += Patient.where.not(triage_completed_at: nil)
@@ -43,6 +49,10 @@ class SimulationController < ApplicationController
         updated_count += CarePathwayOrder.where.not(field => nil)
                                          .update_all("#{field} = #{field} - INTERVAL '#{seconds} seconds'")
       end
+
+      updated_count += CarePathwayStep.where(care_pathway_id: triage_pathway_ids, completed: true)
+                                      .where.not(completed_at: nil)
+                                      .update_all("completed_at = completed_at - INTERVAL '#{seconds} seconds'")
     end
 
     # Process timer expirations in a separate operation
@@ -62,6 +72,8 @@ class SimulationController < ApplicationController
 
     # Split into smaller transactions for better performance
     ActiveRecord::Base.transaction do
+      triage_pathway_ids = CarePathway.pathway_type_triage.select(:id)
+
       # Update patient arrival times with cap at current time
       Patient.all.find_each do |patient|
         if patient.arrival_time
@@ -109,6 +121,16 @@ class SimulationController < ApplicationController
           order.update_column(field, new_time)
           updated_count += 1
         end
+      end
+
+      CarePathwayStep.where(care_pathway_id: triage_pathway_ids, completed: true)
+                      .where.not(completed_at: nil)
+                      .find_each do |step|
+        current_time = Time.current
+        new_time = step.completed_at + time_adjustment
+        new_time = current_time if new_time > current_time
+        step.update_column(:completed_at, new_time)
+        updated_count += 1
       end
     end
 

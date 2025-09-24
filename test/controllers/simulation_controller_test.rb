@@ -78,6 +78,67 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
     assert_in_delta expected_triage.to_f, @patient.triage_completed_at.to_f, 1.0
   end
 
+  test "fast_forward_time should advance arrival times for triage dashboard patients" do
+    triage_patient = Patient.create!(
+      first_name: "Triage",
+      last_name: "Patient",
+      age: 35,
+      mrn: "TRIAGE_#{SecureRandom.hex(4)}",
+      esi_level: 3,
+      location_status: :waiting_room,
+      arrival_time: 45.minutes.ago
+    )
+
+    original_arrival = triage_patient.arrival_time
+
+    post simulation_fast_forward_time_path
+
+    triage_patient.reload
+    expected_arrival = original_arrival - 10.minutes
+    assert_in_delta expected_arrival.to_f, triage_patient.arrival_time.to_f, 1.0,
+                    "Expected waiting room patient arrival_time to move back 10 minutes"
+  end
+
+  test "fast_forward_time should advance completed triage step timestamps" do
+    triage_patient = Patient.create!(
+      first_name: "Triage",
+      last_name: "Steps",
+      age: 29,
+      mrn: "TRIAGE_STEPS_#{SecureRandom.hex(4)}",
+      esi_level: 3,
+      location_status: :waiting_room,
+      arrival_time: 40.minutes.ago
+    )
+
+    triage_pathway = triage_patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+
+    check_in_step = triage_pathway.care_pathway_steps.create!(
+      name: "Check-In",
+      sequence: 0,
+      completed: true,
+      completed_at: 30.minutes.ago,
+      completed_by: "Test"
+    )
+
+    triage_pathway.care_pathway_steps.create!(
+      name: "Intake",
+      sequence: 1,
+      completed: false
+    )
+
+    original_completed_at = check_in_step.completed_at
+
+    post simulation_fast_forward_time_path
+
+    check_in_step.reload
+    expected_completed_at = original_completed_at - 10.minutes
+    assert_in_delta expected_completed_at.to_f, check_in_step.completed_at.to_f, 1.0,
+                    "Expected completed triage step timestamps to move back 10 minutes"
+  end
+
   test "fast_forward_time should only update patients in active location statuses" do
     discharged_patient = Patient.create!(
       first_name: "Jane",
@@ -628,6 +689,67 @@ class SimulationControllerTest < ActionDispatch::IntegrationTest
     @lab_order.reload
     expected_new_time = original_ordered_at + 10.minutes
     assert_in_delta expected_new_time.to_f, @lab_order.ordered_at.to_f, 1.0
+  end
+
+  test "rewind_time should rewind arrival times for triage dashboard patients" do
+    triage_patient = Patient.create!(
+      first_name: "Triage",
+      last_name: "Rewind",
+      age: 37,
+      mrn: "TRIAGE_REWIND_#{SecureRandom.hex(4)}",
+      esi_level: 3,
+      location_status: :waiting_room,
+      arrival_time: 50.minutes.ago
+    )
+
+    original_arrival = triage_patient.arrival_time
+
+    post simulation_rewind_time_path
+
+    triage_patient.reload
+    expected_arrival = original_arrival + 10.minutes
+    assert_in_delta expected_arrival.to_f, triage_patient.arrival_time.to_f, 1.0,
+                    "Expected waiting room patient arrival_time to move forward 10 minutes"
+  end
+
+  test "rewind_time should rewind completed triage step timestamps" do
+    triage_patient = Patient.create!(
+      first_name: "Triage",
+      last_name: "Rewind Steps",
+      age: 31,
+      mrn: "TRIAGE_REWIND_STEPS_#{SecureRandom.hex(4)}",
+      esi_level: 3,
+      location_status: :waiting_room,
+      arrival_time: 45.minutes.ago
+    )
+
+    triage_pathway = triage_patient.care_pathways.create!(
+      pathway_type: :triage,
+      status: :in_progress
+    )
+
+    check_in_step = triage_pathway.care_pathway_steps.create!(
+      name: "Check-In",
+      sequence: 0,
+      completed: true,
+      completed_at: 35.minutes.ago,
+      completed_by: "Test"
+    )
+
+    triage_pathway.care_pathway_steps.create!(
+      name: "Intake",
+      sequence: 1,
+      completed: false
+    )
+
+    original_completed_at = check_in_step.completed_at
+
+    post simulation_rewind_time_path
+
+    check_in_step.reload
+    expected_completed_at = [original_completed_at + 10.minutes, Time.current].min
+    assert_in_delta expected_completed_at.to_f, check_in_step.completed_at.to_f, 1.0,
+                    "Expected completed triage step timestamps to move forward 10 minutes"
   end
 
   test "rewind_time should not make timestamps future" do
