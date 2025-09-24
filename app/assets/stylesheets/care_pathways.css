@@ -706,6 +706,9 @@ turbo-frame#care-pathway-modal-container:not(:empty) {
   font-size: 12px;
   border-radius: 4px;
   transition: all 0.2s;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .orders-list .order-item .order-status-tracker .status-step.current {
@@ -738,15 +741,16 @@ turbo-frame#care-pathway-modal-container:not(:empty) {
 }
 
 .orders-list .order-item .order-status-tracker .status-step .timer-indicator {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 6px;
-  padding: 0;
+  display: block;
+  margin-top: 4px;
+  padding: 2px 4px;
   background: none;
   border-left: none;
   color: inherit;
   font-weight: 600;
   font-size: 11px;
+  text-align: center;
+  border-radius: 3px;
 }
 
 .orders-list .order-item .order-status-tracker .status-step .timer-indicator .timer-value {

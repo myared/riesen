@@ -358,7 +358,9 @@
                               <% end %>
 
                               <div class="<%= step_classes.join(' ') %>">
-                                <%= workflow_status.to_s.humanize %>
+                                <div class="status-step-content">
+                                  <%= workflow_status.to_s.humanize %>
+                                </div>
                                 <% if next_workflow_index && index == next_workflow_index && !order.complete? %>
                                   <div class="timer-indicator timer-<%= order.timer_status %>">
                                     <span class="timer-value" data-start-time="<%= timer_start_time&.iso8601 %>" data-order-type="<%= order.order_type %>"></span>
@@ -491,7 +493,9 @@
                           <% end %>
 
                           <div class="<%= step_classes.join(' ') %>">
-                            <%= workflow_status.to_s.humanize %>
+                            <div class="status-step-content">
+                              <%= workflow_status.to_s.humanize %>
+                            </div>
                             <% if next_workflow_index && index == next_workflow_index && !order.complete? %>
                               <div class="timer-indicator timer-<%= order.timer_status %>">
                                 <span class="timer-value" data-start-time="<%= timer_start_time&.iso8601 %>" data-order-type="<%= order.order_type %>"></span>
@@ -1379,13 +1383,12 @@
 
   /* Timer Styles */
   .timer-indicator {
-    position: absolute;
-    top: -8px;
-    right: -8px;
+    margin-top: 4px;
     font-size: 10px;
     padding: 2px 4px;
     border-radius: 3px;
     font-weight: 600;
+    text-align: center;
   }
   
   .timer-green {
@@ -1412,6 +1415,14 @@
 
   .status-step {
     position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .status-step-content {
+    width: 100%;
+    text-align: center;
   }
 
   .status-step.timer-yellow {
