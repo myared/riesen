@@ -1,6 +1,6 @@
 class CarePathwaysController < ApplicationController
   before_action :set_patient
-  before_action :set_care_pathway, only: [ :show, :update ]
+  before_action :set_care_pathway, only: [ :show, :update, :mark_rp_eligible ]
 
   def index
     # Store the referrer in the session for back navigation
@@ -95,6 +95,75 @@ class CarePathwaysController < ApplicationController
         format.html { render :edit }
         format.json { render json: @care_pathway.errors, status: :unprocessable_content }
       end
+    end
+  end
+
+  def mark_rp_eligible
+    unless @care_pathway.pathway_type_emergency_room?
+      respond_to do |format|
+        format.html {
+          redirect_back(
+            fallback_location: patient_care_pathway_path(@patient, @care_pathway),
+            alert: "RP eligibility can only be set from the ED care pathway."
+          )
+        }
+        format.json { render json: { error: "Invalid pathway type" }, status: :unprocessable_content }
+      end
+      return
+    end
+
+    if @patient.location_results_pending?
+      respond_to do |format|
+        format.html {
+          redirect_back(
+            fallback_location: patient_care_pathway_path(@patient, @care_pathway),
+            alert: "Patient is already in RP."
+          )
+        }
+        format.json { render json: { error: "Patient already in RP" }, status: :unprocessable_content }
+      end
+      return
+    end
+
+    rp_started_at = Time.current
+
+    ActiveRecord::Base.transaction do
+      @patient.update!(
+        rp_eligible: true,
+        rp_eligibility_started_at: rp_started_at,
+        room_assignment_needed_at: rp_started_at
+      )
+
+      unless NursingTask.where(patient: @patient, task_type: 'room_assignment', status: 'pending').exists?
+        NursingTask.create_room_assignment_task(@patient)
+      end
+
+      Event.create!(
+        patient: @patient,
+        action: "RP Eligible",
+        details: "Patient marked RP eligible from ED care pathway",
+        performed_by: current_user_name,
+        time: rp_started_at,
+        category: "administrative"
+      )
+    end
+
+    respond_to do |format|
+      format.html {
+        redirect_to patient_care_pathway_path(@patient, @care_pathway),
+                    notice: "Patient marked RP eligible. Room assignment task started."
+      }
+      format.json { render json: { success: true } }
+    end
+  rescue ActiveRecord::RecordInvalid => e
+    respond_to do |format|
+      format.html {
+        redirect_back(
+          fallback_location: patient_care_pathway_path(@patient, @care_pathway),
+          alert: "Failed to mark RP eligible: #{e.record.errors.full_messages.to_sentence}"
+        )
+      }
+      format.json { render json: { error: e.record.errors.full_messages }, status: :unprocessable_content }
     end
   end
 

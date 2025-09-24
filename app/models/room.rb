@@ -35,7 +35,9 @@ class Room < ApplicationRecord
       
       # Update patient location
       if room_type_rp?
-        patient.update!(location_status: :results_pending, room_number: number)
+        patient.update!(location_status: :results_pending,
+                        room_number: number,
+                        rp_eligibility_started_at: nil)
       else
         patient.update!(location_status: :ed_room, room_number: number)
       end

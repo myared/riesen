@@ -437,6 +437,46 @@ turbo-frame#care-pathway-modal-container:not(:empty) {
   border-bottom: 1px solid #e5e7eb;
 }
 
+.er-pathway-header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.er-pathway-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rp-eligible-trigger {
+  background: #0ea5e9;
+  border-color: #0ea5e9;
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  text-transform: none;
+}
+
+.rp-eligible-trigger:hover {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #fff;
+}
+
+.rp-eligible-badge {
+  background: #ecfdf5;
+  color: #047857;
+  border: 1px solid #6ee7b7;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+}
+
 .er-pathway-header h3 {
   font-size: 22px;
   font-weight: 600;

@@ -18,6 +18,8 @@ class DashboardController < ApplicationController
                        .in_results_pending
                        .or(Patient.needs_rp_assignment)
                        .or(Patient.pending_transfer_to_rp)
+                       .or(Patient.rp_eligible_pending_from_ed)
+                       .distinct
                        .to_a
                        .sort_by { |p| [p.highest_priority_task_status, -p.wait_time_minutes] }
   end

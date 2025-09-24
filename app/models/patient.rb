@@ -92,6 +92,13 @@ class Patient < ApplicationRecord
     active.where(location_status: :waiting_room, rp_eligible: true)
   }
 
+  scope :rp_eligible_pending_from_ed, -> {
+    active
+      .where(rp_eligible: true)
+      .where.not(rp_eligibility_started_at: nil)
+      .where(location_status: [ :ed_room, :treatment ])
+  }
+
   def full_name
     "#{first_name} #{last_name}"
   end
@@ -404,8 +411,50 @@ class Patient < ApplicationRecord
       end
     end
 
-    # Check all active care pathway orders
+    if rp_transfer_pending?
+      elapsed_minutes = rp_eligibility_time_minutes
+      tasks << {
+        name: "RP Eligible",
+        type: :rp_eligible,
+        elapsed_time: elapsed_minutes,
+        status: calculate_task_status(elapsed_minutes, 20, :rp_eligible),
+        care_pathway_id: active_care_pathway&.id
+      }
+    end
+
+    # Check all active care pathways for procedures, clinical endpoints, and orders
     care_pathways.each do |pathway|
+      # Add pending procedures as tasks with 20-minute timer
+      pathway.care_pathway_procedures.pending.each do |procedure|
+        if procedure.created_at
+          elapsed_minutes = ((Time.current - procedure.created_at) / 60).round
+          tasks << {
+            name: "🔧 #{procedure.name}",
+            type: :procedure,
+            elapsed_time: elapsed_minutes,
+            status: calculate_task_status(elapsed_minutes, 20, :procedure), # 20-minute timer with fixed thresholds
+            care_pathway_id: pathway.id,
+            procedure_id: procedure.id
+          }
+        end
+      end
+
+      # Add pending clinical endpoints as tasks with 20-minute timer
+      pathway.care_pathway_clinical_endpoints.pending.each do |endpoint|
+        if endpoint.created_at
+          elapsed_minutes = ((Time.current - endpoint.created_at) / 60).round
+          tasks << {
+            name: "🎯 #{endpoint.name}",
+            type: :clinical_endpoint,
+            elapsed_time: elapsed_minutes,
+            status: calculate_task_status(elapsed_minutes, 20, :clinical_endpoint), # 20-minute timer with fixed thresholds
+            care_pathway_id: pathway.id,
+            endpoint_id: endpoint.id
+          }
+        end
+      end
+
+      # Add orders that aren't completed
       pathway.care_pathway_orders.where.not(status: [ :resulted, :administered, :exam_completed ]).each do |order|
         # Get the appropriate timestamp based on order status
         timestamp = case order.status.to_sym
@@ -517,6 +566,10 @@ class Patient < ApplicationRecord
     else
       :red
     end
+  end
+
+  def rp_transfer_pending?
+    rp_eligible? && rp_eligibility_started_at.present? && !location_results_pending?
   end
 
   def room_assignment_started_at
@@ -682,17 +735,30 @@ class Patient < ApplicationRecord
 
   private
 
-  def calculate_task_status(elapsed_minutes, target_minutes)
-    settings = ApplicationSetting.current
-    warning_threshold = settings.warning_threshold_minutes(target_minutes)
-    critical_threshold = settings.critical_threshold_minutes(target_minutes)
-
-    if elapsed_minutes <= warning_threshold
-      :green
-    elsif elapsed_minutes <= critical_threshold
-      :yellow
+  def calculate_task_status(elapsed_minutes, target_minutes, task_type = nil)
+    # Special handling for procedures and clinical endpoints with fixed thresholds
+    if [:procedure, :clinical_endpoint].include?(task_type) || target_minutes == 20
+      # For 20-minute tasks: green 0-16, yellow 16-20, red >20
+      if elapsed_minutes <= 16
+        :green
+      elsif elapsed_minutes <= 20
+        :yellow
+      else
+        :red
+      end
     else
-      :red
+      # Use existing settings for other task types
+      settings = ApplicationSetting.current
+      warning_threshold = settings.warning_threshold_minutes(target_minutes)
+      critical_threshold = settings.critical_threshold_minutes(target_minutes)
+
+      if elapsed_minutes <= warning_threshold
+        :green
+      elsif elapsed_minutes <= critical_threshold
+        :yellow
+      else
+        :red
+      end
     end
   end
 

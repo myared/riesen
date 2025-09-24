@@ -153,7 +153,20 @@
           <% end %>
 
           <div class="er-pathway-header">
-            <h2>Emergency Room Care Pathway</h2>
+            <div class="er-pathway-header-top">
+              <h2>Emergency Room Care Pathway</h2>
+              <div class="er-pathway-actions">
+                <% if @patient.rp_transfer_pending? %>
+                  <span class="rp-eligible-badge">RP Eligible</span>
+                <% elsif (@patient.location_ed_room? || @patient.location_treatment?) && !@patient.location_results_pending? %>
+                  <%= button_to "Mark RP Eligible",
+                                mark_rp_eligible_patient_care_pathway_path(@patient, @care_pathway),
+                                method: :post,
+                                class: "btn btn-secondary rp-eligible-trigger",
+                                data: { turbo: false } %>
+                <% end %>
+              </div>
+            </div>
 
             <!-- Interactive Flowchart Journey moved here -->
           <div class="er-pathway-flowchart">

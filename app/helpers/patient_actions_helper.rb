@@ -4,6 +4,8 @@ module PatientActionsHelper
     if patient.location_pending_transfer? && patient_at_75_percent_completion?(patient)
       # Allow room assignment for pending transfer patients at 75% completion
       room_assignment_button(patient)
+    elsif patient.rp_transfer_pending?
+      room_assignment_button(patient)
     elsif patient.location_needs_room_assignment?
       room_assignment_button(patient)
     elsif patient.needs_clinical_endpoints?

@@ -26,7 +26,7 @@ class CarePathwayClinicalEndpoint < ApplicationRecord
   ].freeze
   
   validates :name, presence: true
-  # Description is now optional since we're using predefined goals
+  validates :description, presence: true
   
   scope :pending, -> { where(achieved: false) }
   scope :achieved, -> { where(achieved: true) }

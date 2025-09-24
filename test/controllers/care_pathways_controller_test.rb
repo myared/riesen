@@ -196,6 +196,47 @@ class CarePathwaysControllerTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "should mark RP eligible from ED care pathway" do
+    ed_patient = Patient.create!(
+      first_name: "Erin",
+      last_name: "Transfer",
+      age: 42,
+      mrn: "EDRP_#{SecureRandom.hex(3)}",
+      location_status: :ed_room,
+      esi_level: 3,
+      arrival_time: 2.hours.ago
+    )
+
+    er_pathway = ed_patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress,
+      started_at: 90.minutes.ago,
+      started_by: "ED RN"
+    )
+
+    assert_difference -> { NursingTask.count }, 1 do
+      freeze_time do
+        post mark_rp_eligible_patient_care_pathway_path(ed_patient, er_pathway)
+
+        assert_redirected_to patient_care_pathway_path(ed_patient, er_pathway)
+
+        ed_patient.reload
+        assert ed_patient.rp_eligible?
+        assert ed_patient.rp_transfer_pending?
+        assert_in_delta Time.current, ed_patient.rp_eligibility_started_at, 1.second
+        assert_in_delta Time.current, ed_patient.room_assignment_needed_at, 1.second
+      end
+    end
+
+    task = NursingTask.where(patient: ed_patient, task_type: :room_assignment).last
+    assert_equal "RP RN", task.assigned_to
+    assert task.status_pending?
+
+    event = Event.where(patient: ed_patient, action: "RP Eligible").first
+    assert_not_nil event
+    assert_equal "ED RN", event.performed_by
+  end
+
   test "should handle non-RP eligible patient correctly" do
     @patient.update!(rp_eligible: false)
     @step3.update!(completed: true)

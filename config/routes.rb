@@ -37,6 +37,7 @@ Rails.application.routes.draw do
         post 'achieve_endpoint/:endpoint_id', to: 'care_pathways#achieve_endpoint', as: :achieve_endpoint
         post 'discharge', to: 'care_pathways#discharge'
         post 'checkout', to: 'care_pathways#checkout'
+        post 'mark_rp_eligible', to: 'care_pathways#mark_rp_eligible'
       end
     end
   end

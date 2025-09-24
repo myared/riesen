@@ -955,4 +955,30 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     # Should NOT include ED patient with pending transfer
     assert_no_match patient_ed_pending.full_name, response.body
   end
+
+  test "rp dashboard includes ED patients flagged RP eligible" do
+    patient = Patient.create!(
+      first_name: "Erika",
+      last_name: "Pending",
+      age: 33,
+      mrn: "EDRPFLAG_#{SecureRandom.hex(3)}",
+      location_status: :ed_room,
+      rp_eligible: true,
+      esi_level: 3,
+      rp_eligibility_started_at: 10.minutes.ago
+    )
+
+    patient.care_pathways.create!(
+      pathway_type: :emergency_room,
+      status: :in_progress
+    )
+
+    get dashboard_rp_url
+    assert_response :success
+    assert_match patient.full_name, response.body
+
+    get dashboard_ed_rn_url
+    assert_response :success
+    assert_match patient.full_name, response.body
+  end
 end

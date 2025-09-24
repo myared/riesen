@@ -117,6 +117,8 @@ class RoomTest < ActiveSupport::TestCase
   end
 
   test "assign_patient updates room and patient correctly for RP room" do
+    @rp_eligible_patient.update!(rp_eligibility_started_at: 15.minutes.ago)
+
     assert_difference('Event.count') do
       @rp_room.assign_patient(@rp_eligible_patient)
     end
@@ -133,6 +135,7 @@ class RoomTest < ActiveSupport::TestCase
     # Check patient updates
     assert @rp_eligible_patient.location_results_pending?
     assert_equal @rp_room.number, @rp_eligible_patient.room_number
+    assert_nil @rp_eligible_patient.rp_eligibility_started_at
     
     # Check event creation
     event = Event.last

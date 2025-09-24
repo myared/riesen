@@ -702,6 +702,34 @@ class PatientTest < ActiveSupport::TestCase
     assert_equal pathway.id, task[:care_pathway_id]
   end
 
+  test "top_pending_tasks includes RP Eligible task for ED patient" do
+    @patient.save!
+
+    freeze_time do
+      er_pathway = @patient.care_pathways.create!(
+        pathway_type: :emergency_room,
+        status: :in_progress
+      )
+
+      @patient.update!(
+        location_status: :ed_room,
+        rp_eligible: true,
+        rp_eligibility_started_at: 5.minutes.ago,
+        esi_level: 3
+      )
+
+      tasks = @patient.top_pending_tasks
+      assert tasks.any?, "Expected RP Eligible task to be present"
+
+      rp_task = tasks.find { |t| t[:type] == :rp_eligible }
+      refute_nil rp_task, "RP Eligible task should be included"
+      assert_equal "RP Eligible", rp_task[:name]
+      assert_equal 5, rp_task[:elapsed_time]
+      assert_equal :green, rp_task[:status]
+      assert_equal er_pathway.id, rp_task[:care_pathway_id]
+    end
+  end
+
   test "top_pending_tasks includes active care pathway orders" do
     @patient.save!
     @patient.update!(
