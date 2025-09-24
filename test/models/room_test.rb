@@ -181,7 +181,7 @@ class RoomTest < ActiveSupport::TestCase
     
     # Check room is cleared
     assert_nil @ed_room.current_patient
-    assert @ed_room.status_cleaning?
+    assert @ed_room.status_available?
     assert_nil @ed_room.esi_level
     assert_nil @ed_room.time_in_room
     
@@ -196,14 +196,38 @@ class RoomTest < ActiveSupport::TestCase
     
     @ed_room.reload
     assert_nil @ed_room.current_patient
-    assert @ed_room.status_cleaning?
+    assert @ed_room.status_available?
   end
 
   test "mark_available updates status" do
     @ed_room.update!(status: :cleaning)
     @ed_room.mark_available
-    
+
     assert @ed_room.status_available?
+  end
+
+  test "reconcile assignments releases rooms for discharged patients" do
+    @rp_room.assign_patient(@rp_eligible_patient)
+    @rp_eligible_patient.update!(ready_for_checkout: true, ready_for_checkout_at: Time.current)
+    @rp_eligible_patient.checkout!(performed_by: "RP RN")
+
+    # Simulate stale data (room still marked occupied with same patient)
+    @rp_room.update!(status: :occupied, current_patient: @rp_eligible_patient)
+    @rp_eligible_patient.update!(location_status: :discharged, room_number: nil)
+
+    Room.reconcile_assignments!
+
+    @rp_room.reload
+    assert @rp_room.status_available?
+    assert_nil @rp_room.current_patient
+  end
+
+  test "reconcile assignments leaves active rooms untouched" do
+    @ed_room.assign_patient(@patient)
+
+    assert_no_changes -> { [@ed_room.reload.status, @ed_room.current_patient] } do
+      Room.reconcile_assignments!
+    end
   end
 
   test "display_label formats correctly" do

@@ -624,6 +624,8 @@ class Patient < ApplicationRecord
       "ED"
     when "needs_room_assignment"
       rp_eligible? ? "RP" : "ED"
+    when "discharged"
+      "Discharged"
     else
       "Waiting Room"
     end
@@ -696,17 +698,26 @@ class Patient < ApplicationRecord
         raise NotDischargeable, "Patient is not ready for checkout."
       end
 
+      previous_location = display_location
+      care_pathway_to_complete = active_care_pathway
+
+      # Release any room currently assigned to the patient so it becomes available
+      room = Room.find_by(current_patient: self)
+      room ||= Room.find_by(number: room_number) if room_number.present?
+      room&.release
+
       # Update patient discharge status
       update!(
         discharged: true,
         discharged_at: Time.current,
         discharged_by: performed_by,
-        ready_for_checkout: false # Clear the checkout flag
+        ready_for_checkout: false, # Clear the checkout flag
+        location_status: :discharged
       )
 
       # Mark care pathway as completed
-      if active_care_pathway
-        active_care_pathway.update!(
+      if care_pathway_to_complete
+        care_pathway_to_complete.update!(
           status: :completed,
           completed_at: Time.current,
           completed_by: performed_by
@@ -717,7 +728,7 @@ class Patient < ApplicationRecord
       Event.create!(
         patient: self,
         action: "Patient checked out",
-        details: "Patient checked out and discharged from #{display_location}",
+        details: "Patient checked out and discharged from #{previous_location}",
         performed_by: performed_by,
         time: Time.current,
         category: "administrative"

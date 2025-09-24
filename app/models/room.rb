@@ -23,6 +23,22 @@ class Room < ApplicationRecord
   scope :available_rooms, -> { status_available }
   scope :occupied_rooms, -> { status_occupied }
   
+  def self.reconcile_assignments!
+    includes(:current_patient).find_each do |room|
+      patient = room.current_patient
+
+      if patient.nil?
+        # Room should be fully reset if no patient is attached
+        room.update!(status: :available, esi_level: nil, time_in_room: nil) unless room.status_available?
+        next
+      end
+
+      next if patient.room_number == room.number && !patient.location_discharged? && !patient.discharged?
+
+      room.release
+    end
+  end
+
   # Assign a patient to the room
   def assign_patient(patient)
     transaction do
@@ -54,7 +70,7 @@ class Room < ApplicationRecord
     end
   end
   
-  # Release the room
+  # Release the room so it can be reused right away
   def release
     transaction do
       if current_patient
@@ -63,7 +79,7 @@ class Room < ApplicationRecord
       
       update!(
         current_patient: nil,
-        status: :cleaning,
+        status: :available,
         esi_level: nil,
         time_in_room: nil
       )

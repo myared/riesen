@@ -84,6 +84,7 @@ class DashboardController < ApplicationController
   private
 
   def load_dashboard_stats
+    Room.reconcile_assignments!
     @total_waiting = Patient.waiting.count
     @avg_wait_time = Patient.waiting.average(:wait_time_minutes)&.round || 0
     @rp_utilization = calculate_rp_utilization
