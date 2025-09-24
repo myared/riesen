@@ -13,26 +13,26 @@ class DashboardController < ApplicationController
     session[:current_role] = "rp"
     # Include patients in RP, those waiting for RP room assignment, and those pending transfer to RP (75% through triage)
     # Do NOT include RP-eligible patients still in waiting room (not yet 75% through triage)
-    # Sort by wait time with highest minutes at top
+    # Sort by task priority (red > yellow > green), then by wait time
     @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_results_pending
                        .or(Patient.needs_rp_assignment)
                        .or(Patient.pending_transfer_to_rp)
                        .to_a
-                       .sort_by { |p| -p.wait_time_minutes }
+                       .sort_by { |p| [p.highest_priority_task_status, -p.wait_time_minutes] }
   end
 
   def ed_rn
     # Clear provider role
     session[:current_role] = "ed_rn"
     # Include patients in ED, those waiting for ED room assignment, and those pending transfer to ED
-    # Sort by wait time with highest minutes at top
+    # Sort by task priority (red > yellow > green), then by wait time
     @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_ed_treatment
                        .or(Patient.needs_ed_assignment)
                        .or(Patient.pending_transfer_to_ed)
                        .to_a
-                       .sort_by { |p| -p.wait_time_minutes }
+                       .sort_by { |p| [p.highest_priority_task_status, -p.wait_time_minutes] }
   end
 
   def charge_rn
@@ -71,10 +71,12 @@ class DashboardController < ApplicationController
     session[:current_role] = "provider"
 
     # Show all patients in RP (Results Pending) or ED RN (ED Room/Treatment)
+    # Sort by task priority (red > yellow > green), then by arrival time
     @patients = Patient.includes(:vitals, :events, :care_pathways)
                        .in_results_pending
                        .or(Patient.in_ed_treatment)
-                       .by_arrival_time
+                       .to_a
+                       .sort_by { |p| [p.highest_priority_task_status, p.wait_time_minutes] }
   end
 
   private

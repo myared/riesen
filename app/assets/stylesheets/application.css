@@ -745,8 +745,8 @@ button {
 }
 
 .simplified-tasks .task-indicator {
-  width: 8px;
-  height: 8px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   flex-shrink: 0;
   margin-right: 8px;

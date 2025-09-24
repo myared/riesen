@@ -413,6 +413,16 @@ class Patient < ApplicationRecord
     tasks.sort_by { |t| [status_priority(t[:status]), -t[:elapsed_time]] }.first(limit)
   end
 
+  def highest_priority_task_status
+    # Get the highest priority task status for sorting purposes
+    # Returns 0 for red, 1 for yellow, 2 for green, 3 for no tasks
+    tasks = top_pending_tasks(100) # Get all tasks to find the highest priority
+    return 3 if tasks.empty?
+
+    # Find the highest priority status
+    tasks.map { |t| status_priority(t[:status]) }.min
+  end
+
   # Override setters to clear cache when relevant attributes change
   def arrival_time=(value)
     @longest_wait_timer = nil if value != arrival_time
