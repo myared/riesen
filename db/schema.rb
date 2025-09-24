@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_09_24_000935) do
+ActiveRecord::Schema[8.0].define(version: 2025_09_24_060951) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -48,6 +48,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_24_000935) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "started", default: false
+    t.datetime "started_at"
+    t.string "started_by"
     t.index ["achieved"], name: "index_care_pathway_clinical_endpoints_on_achieved"
     t.index ["care_pathway_id"], name: "index_care_pathway_clinical_endpoints_on_care_pathway_id"
   end
@@ -90,6 +93,9 @@ ActiveRecord::Schema[8.0].define(version: 2025_09_24_000935) do
     t.text "notes"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "ordered", default: false
+    t.datetime "ordered_at"
+    t.string "ordered_by"
     t.index ["care_pathway_id"], name: "index_care_pathway_procedures_on_care_pathway_id"
     t.index ["completed"], name: "index_care_pathway_procedures_on_completed"
   end

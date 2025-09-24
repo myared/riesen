@@ -31,8 +31,10 @@ Rails.application.routes.draw do
         post 'add_order', to: 'care_pathways#add_order'
         post 'update_order_status/:order_id', to: 'care_pathways#update_order_status', as: :update_order_status
         post 'add_procedure', to: 'care_pathways#add_procedure'
+        post 'advance_procedure/:procedure_id', to: 'care_pathways#advance_procedure', as: :advance_procedure
         post 'complete_procedure/:procedure_id', to: 'care_pathways#complete_procedure', as: :complete_procedure
         post 'add_clinical_endpoint', to: 'care_pathways#add_clinical_endpoint'
+        post 'advance_endpoint/:endpoint_id', to: 'care_pathways#advance_endpoint', as: :advance_endpoint
         post 'achieve_endpoint/:endpoint_id', to: 'care_pathways#achieve_endpoint', as: :achieve_endpoint
         post 'discharge', to: 'care_pathways#discharge'
         post 'checkout', to: 'care_pathways#checkout'

@@ -401,15 +401,47 @@
                               <div class="procedure-meta">
                                 Completed by <%= procedure.completed_by %> at <%= procedure.completed_at&.in_time_zone&.strftime("%l:%M %p PST") %>
                               </div>
+                            <% elsif procedure.ordered? %>
+                              <div class="procedure-meta">
+                                Ordered by <%= procedure.ordered_by %> at <%= procedure.ordered_at&.in_time_zone&.strftime("%l:%M %p PST") %>
+                              </div>
+                            <% end %>
+                          </div>
+                          <div class="procedure-status-tracker">
+                            <% if procedure.completed? %>
+                              <div class="status-step completed">
+                                <div class="status-step-content">Ordered</div>
+                              </div>
+                              <div class="status-connector completed"></div>
+                              <div class="status-step completed">
+                                <div class="status-step-content">Completed</div>
+                              </div>
+                            <% elsif procedure.ordered? %>
+                              <div class="status-step completed">
+                                <div class="status-step-content">Ordered</div>
+                              </div>
+                              <div class="status-connector"></div>
+                              <div class="status-step current timer-green">
+                                <div class="status-step-content">Completed</div>
+                                <div class="timer-indicator timer-green">
+                                  <span class="timer-value" data-start-time="<%= procedure.ordered_at&.iso8601 %>" data-timer-type="procedure"></span>
+                                </div>
+                              </div>
+                            <% else %>
+                              <div class="status-step current timer-green">
+                                <div class="status-step-content">Ordered</div>
+                              </div>
+                              <div class="status-connector"></div>
+                              <div class="status-step">
+                                <div class="status-step-content">Completed</div>
+                              </div>
                             <% end %>
                           </div>
                           <% unless procedure.completed? %>
-                            <button class="btn btn-sm btn-complete"
-                                    onclick="completeProcedure(<%= @patient.id %>, <%= @care_pathway.id %>, <%= procedure.id %>)">
-                              Mark Complete
+                            <button class="btn btn-sm btn-advance"
+                                    onclick="advanceProcedure(<%= @patient.id %>, <%= @care_pathway.id %>, <%= procedure.id %>)">
+                              Advance →
                             </button>
-                          <% else %>
-                            <span class="status-badge completed">✓ Complete</span>
                           <% end %>
                         </div>
                       <% end %>
@@ -432,15 +464,47 @@
                               <div class="endpoint-meta">
                                 Achieved by <%= endpoint.achieved_by %> at <%= endpoint.achieved_at&.in_time_zone&.strftime("%l:%M %p PST") %>
                               </div>
+                            <% elsif endpoint.started? %>
+                              <div class="endpoint-meta">
+                                Started by <%= endpoint.started_by %> at <%= endpoint.started_at&.in_time_zone&.strftime("%l:%M %p PST") %>
+                              </div>
+                            <% end %>
+                          </div>
+                          <div class="endpoint-status-tracker">
+                            <% if endpoint.achieved? %>
+                              <div class="status-step completed">
+                                <div class="status-step-content">Started</div>
+                              </div>
+                              <div class="status-connector completed"></div>
+                              <div class="status-step completed">
+                                <div class="status-step-content">Achieved</div>
+                              </div>
+                            <% elsif endpoint.started? %>
+                              <div class="status-step completed">
+                                <div class="status-step-content">Started</div>
+                              </div>
+                              <div class="status-connector"></div>
+                              <div class="status-step current timer-green">
+                                <div class="status-step-content">Achieved</div>
+                                <div class="timer-indicator timer-green">
+                                  <span class="timer-value" data-start-time="<%= endpoint.started_at&.iso8601 %>" data-timer-type="endpoint"></span>
+                                </div>
+                              </div>
+                            <% else %>
+                              <div class="status-step current timer-green">
+                                <div class="status-step-content">Started</div>
+                              </div>
+                              <div class="status-connector"></div>
+                              <div class="status-step">
+                                <div class="status-step-content">Achieved</div>
+                              </div>
                             <% end %>
                           </div>
                           <% unless endpoint.achieved? %>
-                            <button class="btn btn-sm btn-achieve"
-                                    onclick="achieveEndpoint(<%= @patient.id %>, <%= @care_pathway.id %>, <%= endpoint.id %>)">
-                              Mark Achieved
+                            <button class="btn btn-sm btn-advance"
+                                    onclick="advanceEndpoint(<%= @patient.id %>, <%= @care_pathway.id %>, <%= endpoint.id %>)">
+                              Advance →
                             </button>
-                          <% else %>
-                            <span class="status-badge achieved">✓ Achieved</span>
                           <% end %>
                         </div>
                       <% end %>
@@ -529,7 +593,7 @@
                   + Add Procedure
                 </button>
               </div>
-              
+
               <% if @procedures.any? %>
                 <div class="procedures-list">
                   <% @procedures.each do |procedure| %>
@@ -544,15 +608,47 @@
                           <div class="procedure-meta">
                             Completed by <%= procedure.completed_by %> at <%= procedure.completed_at&.in_time_zone&.strftime("%l:%M %p PST") %>
                           </div>
+                        <% elsif procedure.ordered? %>
+                          <div class="procedure-meta">
+                            Ordered by <%= procedure.ordered_by %> at <%= procedure.ordered_at&.in_time_zone&.strftime("%l:%M %p PST") %>
+                          </div>
+                        <% end %>
+                      </div>
+                      <div class="procedure-status-tracker">
+                        <% if procedure.completed? %>
+                          <div class="status-step completed">
+                            <div class="status-step-content">Ordered</div>
+                          </div>
+                          <div class="status-connector completed"></div>
+                          <div class="status-step completed">
+                            <div class="status-step-content">Completed</div>
+                          </div>
+                        <% elsif procedure.ordered? %>
+                          <div class="status-step completed">
+                            <div class="status-step-content">Ordered</div>
+                          </div>
+                          <div class="status-connector"></div>
+                          <div class="status-step current timer-green">
+                            <div class="status-step-content">Completed</div>
+                            <div class="timer-indicator timer-green">
+                              <span class="timer-value" data-start-time="<%= procedure.ordered_at&.iso8601 %>" data-timer-type="procedure"></span>
+                            </div>
+                          </div>
+                        <% else %>
+                          <div class="status-step current timer-green">
+                            <div class="status-step-content">Ordered</div>
+                          </div>
+                          <div class="status-connector"></div>
+                          <div class="status-step">
+                            <div class="status-step-content">Completed</div>
+                          </div>
                         <% end %>
                       </div>
                       <% unless procedure.completed? %>
-                        <button class="btn btn-sm btn-complete" 
-                                onclick="completeProcedure(<%= @patient.id %>, <%= @care_pathway.id %>, <%= procedure.id %>)">
-                          Mark Complete
+                        <button class="btn btn-sm btn-advance"
+                                onclick="advanceProcedure(<%= @patient.id %>, <%= @care_pathway.id %>, <%= procedure.id %>)">
+                          Advance →
                         </button>
-                      <% else %>
-                        <span class="status-badge completed">✓ Complete</span>
                       <% end %>
                     </div>
                   <% end %>
@@ -570,7 +666,7 @@
                   + Add Goal
                 </button>
               </div>
-              
+
               <% if @clinical_endpoints.any? %>
                 <div class="endpoints-list">
                   <% @clinical_endpoints.each do |endpoint| %>
@@ -583,15 +679,47 @@
                           <div class="endpoint-meta">
                             Achieved by <%= endpoint.achieved_by %> at <%= endpoint.achieved_at&.in_time_zone&.strftime("%l:%M %p PST") %>
                           </div>
+                        <% elsif endpoint.started? %>
+                          <div class="endpoint-meta">
+                            Started by <%= endpoint.started_by %> at <%= endpoint.started_at&.in_time_zone&.strftime("%l:%M %p PST") %>
+                          </div>
+                        <% end %>
+                      </div>
+                      <div class="endpoint-status-tracker">
+                        <% if endpoint.achieved? %>
+                          <div class="status-step completed">
+                            <div class="status-step-content">Started</div>
+                          </div>
+                          <div class="status-connector completed"></div>
+                          <div class="status-step completed">
+                            <div class="status-step-content">Achieved</div>
+                          </div>
+                        <% elsif endpoint.started? %>
+                          <div class="status-step completed">
+                            <div class="status-step-content">Started</div>
+                          </div>
+                          <div class="status-connector"></div>
+                          <div class="status-step current timer-green">
+                            <div class="status-step-content">Achieved</div>
+                            <div class="timer-indicator timer-green">
+                              <span class="timer-value" data-start-time="<%= endpoint.started_at&.iso8601 %>" data-timer-type="endpoint"></span>
+                            </div>
+                          </div>
+                        <% else %>
+                          <div class="status-step current timer-green">
+                            <div class="status-step-content">Started</div>
+                          </div>
+                          <div class="status-connector"></div>
+                          <div class="status-step">
+                            <div class="status-step-content">Achieved</div>
+                          </div>
                         <% end %>
                       </div>
                       <% unless endpoint.achieved? %>
-                        <button class="btn btn-sm btn-achieve" 
-                                onclick="achieveEndpoint(<%= @patient.id %>, <%= @care_pathway.id %>, <%= endpoint.id %>)">
-                          Mark Achieved
+                        <button class="btn btn-sm btn-advance"
+                                onclick="advanceEndpoint(<%= @patient.id %>, <%= @care_pathway.id %>, <%= endpoint.id %>)">
+                          Advance →
                         </button>
-                      <% else %>
-                        <span class="status-badge achieved">✓ Achieved</span>
                       <% end %>
                     </div>
                   <% end %>
@@ -1060,7 +1188,9 @@
     margin-right: 10px;
   }
 
-  .order-status-tracker {
+  .order-status-tracker,
+  .procedure-status-tracker,
+  .endpoint-status-tracker {
     display: flex;
     align-items: center;
     gap: 5px;
@@ -1100,6 +1230,28 @@
     background: #d4edda;
     color: #155724;
     border: 1px solid #c3e6cb;
+  }
+
+  /* Procedure status classes - keep grey backgrounds */
+  .procedure-ordered {
+    background: #f6f8fa;
+    border-color: #e1e4e8;
+  }
+
+  .procedure-completed {
+    background: #f6f8fa;
+    border-color: #e1e4e8;
+  }
+
+  /* Endpoint status classes - keep grey backgrounds */
+  .endpoint-started {
+    background: #f6f8fa;
+    border-color: #e1e4e8;
+  }
+
+  .endpoint-achieved {
+    background: #f6f8fa;
+    border-color: #e1e4e8;
   }
 
   .empty-state {
@@ -1838,40 +1990,50 @@
     form.requestSubmit();
   }
 
-  function completeProcedure(patientId, pathwayId, procedureId) {
+  function advanceProcedure(patientId, pathwayId, procedureId) {
     // Create a form to submit with Turbo
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = `/patients/${patientId}/care_pathways/${pathwayId}/complete_procedure/${procedureId}`;
+    form.action = `/patients/${patientId}/care_pathways/${pathwayId}/advance_procedure/${procedureId}`;
     form.style.display = 'none';
-    
+
     const csrfToken = document.querySelector('[name="csrf-token"]').content;
     const csrfInput = document.createElement('input');
     csrfInput.type = 'hidden';
     csrfInput.name = 'authenticity_token';
     csrfInput.value = csrfToken;
     form.appendChild(csrfInput);
-    
+
+    document.body.appendChild(form);
+    form.requestSubmit();
+  }
+
+  function completeProcedure(patientId, pathwayId, procedureId) {
+    // Legacy support - redirect to advance
+    advanceProcedure(patientId, pathwayId, procedureId);
+  }
+
+  function advanceEndpoint(patientId, pathwayId, endpointId) {
+    // Create a form to submit with Turbo
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/patients/${patientId}/care_pathways/${pathwayId}/advance_endpoint/${endpointId}`;
+    form.style.display = 'none';
+
+    const csrfToken = document.querySelector('[name="csrf-token"]').content;
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'authenticity_token';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+
     document.body.appendChild(form);
     form.requestSubmit();
   }
 
   function achieveEndpoint(patientId, pathwayId, endpointId) {
-    // Create a form to submit with Turbo
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = `/patients/${patientId}/care_pathways/${pathwayId}/achieve_endpoint/${endpointId}`;
-    form.style.display = 'none';
-    
-    const csrfToken = document.querySelector('[name="csrf-token"]').content;
-    const csrfInput = document.createElement('input');
-    csrfInput.type = 'hidden';
-    csrfInput.name = 'authenticity_token';
-    csrfInput.value = csrfToken;
-    form.appendChild(csrfInput);
-    
-    document.body.appendChild(form);
-    form.requestSubmit();
+    // Legacy support - redirect to advance
+    advanceEndpoint(patientId, pathwayId, endpointId);
   }
 
   // Update timers
@@ -1879,6 +2041,7 @@
     document.querySelectorAll('.timer-value').forEach(timer => {
       const startTime = timer.dataset.startTime;
       const orderType = timer.dataset.orderType;
+      const timerType = timer.dataset.timerType;
       if (!startTime) return;
 
       const start = new Date(startTime);
@@ -1899,8 +2062,16 @@
         if (statusStep) statusStep.classList.add(cssClass);
       };
 
-      // Different timing for medications
-      if (orderType === 'medication') {
+      // Different timing based on type
+      if (timerType === 'procedure' || timerType === 'endpoint') {
+        // 20 minute timer for procedures and endpoints
+        if (diffMinutes < 20) {
+          applyTimerClass('timer-green');
+        } else {
+          applyTimerClass('timer-yellow');
+        }
+      } else if (orderType === 'medication') {
+        // Medication timing
         if (diffMinutes <= 5) {
           applyTimerClass('timer-green');
         } else if (diffMinutes <= 10) {

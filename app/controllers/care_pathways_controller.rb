@@ -377,6 +377,11 @@ class CarePathwaysController < ApplicationController
     @care_pathway = @patient.care_pathways.find(params[:id])
     @procedure = @care_pathway.care_pathway_procedures.build(procedure_params)
 
+    # Start procedures as ordered
+    @procedure.ordered = true
+    @procedure.ordered_at = Time.current
+    @procedure.ordered_by = current_user_name
+
     if @procedure.save
       # Log the procedure creation to patient event log
       Event.create!(
@@ -408,17 +413,18 @@ class CarePathwaysController < ApplicationController
     end
   end
 
-  # Complete a procedure
-  def complete_procedure
+  # Advance procedure status (Ordered -> Completed)
+  def advance_procedure
     @care_pathway = @patient.care_pathways.find(params[:id])
     @procedure = @care_pathway.care_pathway_procedures.find(params[:procedure_id])
 
-    if @procedure.complete!(current_user_name)
-      # Log the procedure completion to patient event log
+    if @procedure.advance_status!(current_user_name)
+      action = @procedure.completed? ? "completed" : "ordered"
+      # Log the procedure status change to patient event log
       Event.create!(
         patient: @patient,
-        action: "Procedure completed: #{@procedure.name}",
-        details: "Procedure '#{@procedure.name}' was completed",
+        action: "Procedure #{action}: #{@procedure.name}",
+        details: "Procedure '#{@procedure.name}' was #{action}",
         performed_by: current_user_name,
         time: Time.current,
         category: "clinical"
@@ -430,10 +436,15 @@ class CarePathwaysController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "procedures"), alert: "Failed to complete procedure" }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "procedures"), alert: "Failed to advance procedure" }
         format.json { render json: { success: false }, status: :unprocessable_content }
       end
     end
+  end
+
+  # Complete a procedure (legacy support)
+  def complete_procedure
+    advance_procedure
   end
 
   # Add a clinical endpoint
@@ -447,6 +458,11 @@ class CarePathwaysController < ApplicationController
     end
 
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.build(endpoint_data)
+
+    # Start endpoints as started
+    @endpoint.started = true
+    @endpoint.started_at = Time.current
+    @endpoint.started_by = current_user_name
 
     if @endpoint.save
       # Log the clinical goal creation to patient event log
@@ -479,17 +495,18 @@ class CarePathwaysController < ApplicationController
     end
   end
 
-  # Achieve a clinical endpoint
-  def achieve_endpoint
+  # Advance clinical endpoint status (Started -> Achieved)
+  def advance_endpoint
     @care_pathway = @patient.care_pathways.find(params[:id])
     @endpoint = @care_pathway.care_pathway_clinical_endpoints.find(params[:endpoint_id])
 
-    if @endpoint.achieve!(current_user_name)
-      # Log the clinical goal achievement to patient event log
+    if @endpoint.advance_status!(current_user_name)
+      action = @endpoint.achieved? ? "achieved" : "started"
+      # Log the clinical goal status change to patient event log
       Event.create!(
         patient: @patient,
-        action: "Clinical goal achieved: #{@endpoint.name}",
-        details: "Clinical goal '#{@endpoint.name}' was achieved",
+        action: "Clinical goal #{action}: #{@endpoint.name}",
+        details: "Clinical goal '#{@endpoint.name}' was #{action}",
         performed_by: current_user_name,
         time: Time.current,
         category: "clinical"
@@ -501,10 +518,15 @@ class CarePathwaysController < ApplicationController
       end
     else
       respond_to do |format|
-        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "endpoints"), alert: "Failed to achieve endpoint" }
+        format.html { redirect_to patient_care_pathway_path(@patient, @care_pathway, active_tab: "endpoints"), alert: "Failed to advance endpoint" }
         format.json { render json: { success: false }, status: :unprocessable_content }
       end
     end
+  end
+
+  # Achieve a clinical endpoint (legacy support)
+  def achieve_endpoint
+    advance_endpoint
   end
 
   # Discharge a patient (first step - mark as ready for checkout)
