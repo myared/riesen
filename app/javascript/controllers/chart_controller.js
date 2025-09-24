@@ -1,10 +1,11 @@
 import { Controller } from "@hotwired/stimulus"
-import Chart from "chart.js/auto"
+// Chart.js loaded via CDN, available as global 'Chart'
 
 export default class extends Controller {
   static values = {
     type: String,
-    data: Object
+    data: Object,
+    options: Object
   }
 
   connect() {
@@ -20,48 +21,51 @@ export default class extends Controller {
   initChart() {
     const ctx = this.element.getContext('2d')
 
-    const config = {
-      type: this.typeValue,
-      data: this.dataValue,
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            position: 'top',
-            labels: {
-              padding: 15,
-              usePointStyle: true,
-              font: {
-                size: 12
-              }
-            }
-          },
-          tooltip: {
-            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-            padding: 12,
-            cornerRadius: 4,
-            displayColors: true,
-            callbacks: {
-              label: function(context) {
-                let label = context.dataset.label || '';
-                if (label) {
-                  label += ': ';
-                }
-                if (context.parsed.y !== null) {
-                  label += context.parsed.y.toFixed(1);
-                }
-                return label;
-              }
+    // Merge provided options with defaults
+    const defaultOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: this.typeValue !== 'doughnut',
+          position: 'top',
+          labels: {
+            padding: 10,
+            usePointStyle: true,
+            font: {
+              size: 11,
+              family: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif'
             }
           }
         },
-        scales: this.getScalesConfig(),
-        interaction: {
-          mode: 'index',
-          intersect: false,
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          padding: 10,
+          cornerRadius: 4,
+          displayColors: true,
+          callbacks: {
+            label: function(context) {
+              let label = context.dataset.label || '';
+              if (label) {
+                label += ': ';
+              }
+              if (context.parsed.y !== null) {
+                label += context.parsed.y.toFixed(1);
+              } else if (context.raw !== null) {
+                label += context.raw;
+              }
+              return label;
+            }
+          }
         }
-      }
+      },
+      scales: this.getScalesConfig()
+    }
+
+    const config = {
+      type: this.typeValue,
+      data: this.dataValue,
+      options: this.hasOptionsValue ? { ...defaultOptions, ...this.optionsValue } : defaultOptions
     }
 
     this.chart = new Chart(ctx, config)
@@ -96,6 +100,8 @@ export default class extends Controller {
           }
         }
       }
+    } else if (this.typeValue === 'doughnut') {
+      return {}
     }
     return {}
   }

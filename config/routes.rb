@@ -16,7 +16,6 @@ Rails.application.routes.draw do
 
   # Reports routes
   get 'reports', to: 'reports#index'
-  get 'reports2', to: 'reports#reports2'
   
   resources :patients, only: [:show] do
     member do

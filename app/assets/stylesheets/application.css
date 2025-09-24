@@ -584,16 +584,16 @@ button {
 }
 
 .timing-warning {
-  color: #ffc107;
+  color: #facc15;
 }
 
 .timing-warning .wait-time {
-  color: #ffc107;
+  color: #facc15;
   font-weight: 700;
 }
 
 .timing-warning .progress-bar-fill {
-  background: linear-gradient(90deg, #ffc107 0%, #fd7e14 100%);
+  background: linear-gradient(90deg, #fde047 0%, #facc15 100%);
 }
 
 .timing-critical {
@@ -636,8 +636,8 @@ button {
 }
 
 .timer-yellow {
-  background-color: #fff3cd;
-  border-left: 4px solid #ffc107;
+  background-color: #fef9c3;
+  border-left: 4px solid #facc15;
 }
 
 .timer-red {
@@ -653,7 +653,7 @@ button {
 
 .timer-yellow .task-time,
 .task-time.timer-yellow {
-  color: #856404;
+  color: #854d0e;
   font-weight: 600;
 }
 
@@ -757,7 +757,7 @@ button {
 }
 
 .simplified-tasks .task-indicator-yellow {
-  background-color: #f59e0b;
+  background-color: #facc15;
 }
 
 .simplified-tasks .task-indicator-red {
@@ -782,7 +782,7 @@ button {
 }
 
 .simplified-tasks .task-yellow .task-time {
-  color: #f59e0b;
+  color: #facc15;
 }
 
 .simplified-tasks .task-red .task-time {

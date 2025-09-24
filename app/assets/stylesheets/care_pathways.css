@@ -424,7 +424,7 @@ turbo-frame#care-pathway-modal-container:not(:empty) {
 }
 
 .bed-assignment-form .eligibility-notice.warning .notice-icon {
-  color: #f59e0b;
+  color: #facc15;
 }
 
 /* Emergency Room Pathway Styles */
@@ -720,9 +720,9 @@ turbo-frame#care-pathway-modal-container:not(:empty) {
 }
 
 .orders-list .order-item .order-status-tracker .status-step.current.timer-yellow {
-  background: #fef3c7;
-  color: #b45309;
-  border-color: #fbbf24;
+  background: #fef9c3;
+  color: #a16207;
+  border-color: #fde047;
 }
 
 .orders-list .order-item .order-status-tracker .status-step.current.timer-red {
@@ -1158,12 +1158,12 @@ textarea {
 }
 
 .btn.btn-warning {
-  background: #f59e0b;
+  background: #fde047;
   color: white;
 }
 
 .btn.btn-warning:hover {
-  background: #d97706;
+  background: #facc15;
 }
 
 .btn.btn-sm {
@@ -1337,13 +1337,13 @@ textarea {
 }
 
 .bed-assignment-form .eligibility-notice.warning {
-  background: #fef3c7;
+  background: #fef9c3;
   color: #92400e;
-  border: 1px solid #fde68a;
+  border: 1px solid #fef08a;
 }
 
 .bed-assignment-form .eligibility-notice.warning .notice-icon {
-  color: #f59e0b;
+  color: #facc15;
 }
 
 .bed-assignment-form .form-actions {
