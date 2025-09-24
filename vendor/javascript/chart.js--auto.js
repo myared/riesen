@@ -1,6 +1,6 @@
-import { Chart, registerables } from "./chart.js.js"
+import { Chart, registerables } from "chart.js"
 
 Chart.register(...registerables)
 
-export * from "./chart.js.js"
+export * from "chart.js"
 export default Chart
