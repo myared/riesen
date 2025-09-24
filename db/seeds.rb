@@ -41,12 +41,27 @@ patients_data = [
     wait_time_minutes: 9,
     care_pathway: '0%',
     rp_eligible: false
+  },
+  {
+    first_name: 'Emily',
+    last_name: 'Johnson',
+    age: 32,
+    mrn: '2003',
+    location: 'Waiting Room',
+    provider: nil,
+    chief_complaint: 'Severe abdominal pain, cramping',
+    esi_level: 2,
+    pain_score: 9,
+    arrival_time: Time.current - 2.minutes,
+    wait_time_minutes: 15,
+    care_pathway: '0%',
+    rp_eligible: false
   }
 ]
 
 patients_data.each do |patient_data|
   patient = Patient.create!(patient_data)
-  
+
   # Create initial vitals based on patient
   vitals_data = case patient.first_name
   when 'Marcus'
@@ -71,6 +86,17 @@ patients_data.each do |patient_data|
       weight: 72,
       recorded_at: patient.arrival_time
     }
+  when 'Emily'
+    {
+      heart_rate: 110,
+      blood_pressure_systolic: 145,
+      blood_pressure_diastolic: 95,
+      respiratory_rate: 20,
+      temperature: 99.2,
+      spo2: 98,
+      weight: 65,
+      recorded_at: patient.arrival_time
+    }
   else
     {
       heart_rate: rand(70..95),
@@ -83,9 +109,9 @@ patients_data.each do |patient_data|
       recorded_at: patient.arrival_time
     }
   end
-  
+
   patient.vitals.create!(vitals_data)
-  
+
   # Create initial event
   patient.events.create!(
     action: 'Patient arrived',
