@@ -56,7 +56,9 @@ class DashboardController < ApplicationController
       @rp_utilization = Room.rp_rooms.occupied_rooms.count
       @avg_door_to_provider = calculate_avg_door_to_provider
       @avg_ed_los = calculate_avg_ed_los
-      @longest_wait = Patient.waiting.maximum(:wait_time_minutes) || 0
+      # Calculate longest wait time across all active patients
+      all_active_patients = Patient.active.includes(:care_pathways, :vitals, :events)
+      @longest_wait = all_active_patients.map(&:wait_time_minutes).max || 0
       @lwbs_rate = calculate_lwbs_rate
     else
       # Load staff tasks data

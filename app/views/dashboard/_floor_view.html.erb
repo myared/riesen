@@ -31,20 +31,71 @@
   </div>
 
   <div class="floor-layout">
-    <div class="room-grid-section">
-      <h3>Room Status Grid</h3>
+    <div class="triage-section">
+      <h3>Waiting Room</h3>
+      <div class="triage-grid">
+        <% # Show patients in waiting room or triage %>
+        <% @triage_patients = Patient.in_triage.includes(:care_pathways, :vitals) %>
+        <% if @triage_patients.any? %>
+          <% @triage_patients.each do |patient| %>
+            <%
+              # Determine status class based on patient wait_status
+              patient_class = case patient.wait_status
+                            when :green
+                              'occupied-green'
+                            when :yellow
+                              'occupied-yellow'
+                            when :red
+                              'occupied-red'
+                            else
+                              'occupied'
+                            end
+            %>
+            <div class="room-card <%= patient_class %>">
+              <div class="room-number"><%= patient.display_location %></div>
+              <div class="patient-name"><%= patient.full_name %></div>
+              <div class="room-timer"><%= patient.wait_time_minutes %>m</div>
+            </div>
+          <% end %>
+        <% else %>
+          <% # Show empty triage bays if no patients %>
+          <% (1..6).each do |i| %>
+            <div class="room-card available">
+              <div class="room-number">Triage <%= i %></div>
+            </div>
+          <% end %>
+        <% end %>
+      </div>
+    </div>
+
+    <div class="ed-rooms-section">
+      <h3>ED Rooms</h3>
       <div class="room-grid">
         <% @ed_rooms.each do |room| %>
-          <div class="room-card <%= room.status_available? ? 'available' : 'occupied' %>
-                      <%= room.current_patient&.intake_complete? && room.current_patient&.esi_level ? "esi-#{room.current_patient.esi_level}" : '' %>">
+          <%
+            # Determine room status class based on patient wait_status
+            room_class = if room.status_available?
+                          'available'
+                        elsif room.current_patient
+                          case room.current_patient.wait_status
+                          when :green
+                            'occupied-green'
+                          when :yellow
+                            'occupied-yellow'
+                          when :red
+                            'occupied-red'
+                          else
+                            'occupied'
+                          end
+                        else
+                          'occupied'
+                        end
+          %>
+          <div class="room-card <%= room_class %>">
             <div class="room-number"><%= room.number %></div>
             <% if room.current_patient %>
               <div class="patient-name"><%= room.current_patient.full_name %></div>
-              <% if room.current_patient.intake_complete? %>
-                <div class="esi-tag">ESI-<%= room.current_patient.esi_level %></div>
-              <% else %>
-                <div class="esi-tag" style="opacity: 0.5;">Pending</div>
-              <% end %>
+              <div class="room-timer"><%= room.current_patient.wait_time_minutes %>m</div>
             <% end %>
           </div>
         <% end %>
@@ -55,11 +106,30 @@
       <h3>RP Area</h3>
       <div class="rp-grid">
         <% @rp_rooms.each do |room| %>
-          <div class="room-card rp-room <%= room.status_available? ? 'available' : 'occupied' %>">
+          <%
+            # Determine room status class based on patient wait_status
+            room_class = if room.status_available?
+                          'rp-room available'
+                        elsif room.current_patient
+                          case room.current_patient.wait_status
+                          when :green
+                            'rp-room occupied-green'
+                          when :yellow
+                            'rp-room occupied-yellow'
+                          when :red
+                            'rp-room occupied-red'
+                          else
+                            'rp-room occupied'
+                          end
+                        else
+                          'rp-room occupied'
+                        end
+          %>
+          <div class="room-card <%= room_class %>">
             <div class="room-number"><%= room.number %></div>
             <% if room.current_patient %>
               <div class="patient-name"><%= room.current_patient.full_name %></div>
-              <div class="time-in-room"><%= room.time_in_room || 0 %>m</div>
+              <div class="time-in-room"><%= room.current_patient.wait_time_minutes %>m</div>
             <% end %>
           </div>
         <% end %>
