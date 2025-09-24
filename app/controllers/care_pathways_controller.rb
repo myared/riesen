@@ -438,13 +438,28 @@ class CarePathwaysController < ApplicationController
     end
   end
 
-  # Discharge a patient
+  # Discharge a patient (first step - mark as ready for checkout)
   def discharge
-    @patient.discharge!(performed_by: current_user_name)
+    @patient.mark_ready_for_checkout!(performed_by: current_user_name)
 
     respond_to do |format|
-      format.html { redirect_to dashboard_path_for_role, notice: "Patient successfully discharged" }
-      format.json { render json: { success: true, message: "Patient discharged successfully" } }
+      format.html { redirect_to dashboard_path_for_role, notice: "Patient is ready for checkout" }
+      format.json { render json: { success: true, message: "Patient marked ready for checkout" } }
+    end
+  rescue Patient::NotDischargeable => e
+    respond_to do |format|
+      format.html { redirect_back(fallback_location: root_path, alert: e.message) }
+      format.json { render json: { error: e.message }, status: :unprocessable_content }
+    end
+  end
+
+  # Checkout a patient (second step - complete discharge)
+  def checkout
+    @patient.checkout!(performed_by: current_user_name)
+
+    respond_to do |format|
+      format.html { redirect_to dashboard_path_for_role, notice: "Patient successfully checked out" }
+      format.json { render json: { success: true, message: "Patient checked out successfully" } }
     end
   rescue Patient::NotDischargeable => e
     respond_to do |format|

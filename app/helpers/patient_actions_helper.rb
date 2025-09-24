@@ -8,6 +8,8 @@ module PatientActionsHelper
       room_assignment_button(patient)
     elsif patient.needs_clinical_endpoints?
       add_endpoint_button(patient, referrer)
+    elsif patient.can_be_checked_out?
+      checkout_button(patient)
     elsif patient.can_be_discharged?
       discharge_button(patient)
     else
@@ -19,7 +21,7 @@ module PatientActionsHelper
 
   def patient_at_75_percent_completion?(patient)
     # Check if the triage pathway is at least 75% complete
-    pathway = patient.care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+    pathway = patient.care_pathways.pathway_type_triage.where(status: [ :not_started, :in_progress ]).first
     return false unless pathway
 
     # For a 4-step pathway, 75% means 3 out of 4 steps completed
@@ -31,10 +33,10 @@ module PatientActionsHelper
   end
 
   def room_assignment_button(patient)
-    button_to 'Assign Room',
+    button_to "Assign Room",
               assign_room_patient_path(patient),
               method: :post,
-              class: 'btn-action btn-primary',
+              class: "btn-action btn-primary",
               data: {
                 turbo: false,
                 patient_id: patient.id
@@ -42,28 +44,38 @@ module PatientActionsHelper
   end
 
   def add_endpoint_button(patient, referrer)
-    link_to 'Add Endpoint',
+    link_to "Add Endpoint",
             patient_care_pathway_path(patient, patient.active_care_pathway,
-                                    active_tab: 'endpoints',
+                                    active_tab: "endpoints",
                                     referrer: referrer || controller_name),
-            class: 'btn-action btn-primary',
+            class: "btn-action btn-primary",
             data: { turbo: false }
   end
 
   def discharge_button(patient)
-    button_to 'Discharge',
+    button_to "Discharge",
               discharge_patient_care_pathway_path(patient, patient.active_care_pathway),
               method: :post,
-              class: 'btn-action btn-primary',
+              class: "btn-action btn-primary",
+              data: {
+                turbo: false
+              }
+  end
+
+  def checkout_button(patient)
+    button_to "Check out",
+              checkout_patient_care_pathway_path(patient, patient.active_care_pathway),
+              method: :post,
+              class: "btn-action btn-primary",
               data: {
                 turbo: false,
-                confirm: "Are you sure you want to discharge #{patient.full_name}?"
+                confirm: "Check out #{patient.full_name}?"
               }
   end
 
   def pending_button
-    content_tag :span, 'Pending',
-                class: 'btn-action btn-disabled',
-                title: 'Complete all clinical endpoints to enable discharge'
+    content_tag :span, "Pending",
+                class: "btn-action btn-disabled",
+                title: "Complete all clinical endpoints to enable discharge"
   end
 end

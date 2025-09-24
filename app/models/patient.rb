@@ -3,11 +3,11 @@ class Patient < ApplicationRecord
 
   # ESI Level descriptions
   ESI_DESCRIPTIONS = {
-    1 => 'Resuscitation',
-    2 => 'Emergent',
-    3 => 'Urgent',
-    4 => 'Less Urgent',
-    5 => 'Non-Urgent'
+    1 => "Resuscitation",
+    2 => "Emergent",
+    3 => "Urgent",
+    4 => "Less Urgent",
+    5 => "Non-Urgent"
   }.freeze
 
   # Valid pain score range
@@ -43,10 +43,10 @@ class Patient < ApplicationRecord
   scope :active, -> { where(discharged: false) }
   scope :discharged_patients, -> { where(discharged: true) }
   scope :waiting, -> { location_waiting_room }
-  scope :in_triage, -> { where(location_status: [:waiting_room, :triage, :pending_transfer]) }
-  scope :in_ed, -> { where(location_status: [:ed_room, :treatment]) }
+  scope :in_triage, -> { where(location_status: [ :waiting_room, :triage, :pending_transfer ]) }
+  scope :in_ed, -> { where(location_status: [ :ed_room, :treatment ]) }
   scope :with_provider, -> { where.not(provider: nil) }
-  scope :critical, -> { where(esi_level: [1, 2]) }
+  scope :critical, -> { where(esi_level: [ 1, 2 ]) }
 
   # New scopes for dashboard organization
   scope :by_arrival_time, -> { order(arrival_time: :asc) }
@@ -77,7 +77,7 @@ class Patient < ApplicationRecord
   }
 
   scope :in_ed_treatment, -> {
-    active.where(location_status: [:ed_room, :treatment])
+    active.where(location_status: [ :ed_room, :treatment ])
   }
 
   scope :pending_transfer_to_rp, -> {
@@ -99,18 +99,18 @@ class Patient < ApplicationRecord
   def active_care_pathway
     # Determine the expected pathway type based on location
     expected_type = case location_status
-                   when 'waiting_room', 'triage'
-                     'triage'
-                   when 'needs_room_assignment', 'results_pending', 'ed_room', 'treatment'
-                     'emergency_room'
-                   else
-                     'triage'
-                   end
+    when "waiting_room", "triage"
+                     "triage"
+    when "needs_room_assignment", "results_pending", "ed_room", "treatment"
+                     "emergency_room"
+    else
+                     "triage"
+    end
 
     # Return the most recent active pathway of the expected type
     care_pathways.where(
       pathway_type: expected_type,
-      status: [:not_started, :in_progress]
+      status: [ :not_started, :in_progress ]
     ).order(created_at: :desc).first
   end
 
@@ -137,7 +137,7 @@ class Patient < ApplicationRecord
     end
 
     return 100 if target.zero?
-    [(current_wait / target * 100).round, 100].min
+    [ (current_wait / target * 100).round, 100 ].min
   end
 
   def esi_target_minutes
@@ -209,22 +209,22 @@ class Patient < ApplicationRecord
   def wait_status_class
     case wait_status
     when :green
-      'wait-green'
+      "wait-green"
     when :yellow
-      'wait-yellow'
+      "wait-yellow"
     when :red
-      'wait-red'
+      "wait-red"
     else
-      ''
+      ""
     end
   end
 
   def critical?
-    esi_level.in?([1, 2])
+    esi_level.in?([ 1, 2 ])
   end
 
   def location_needs_room_assignment?
-    location_status == 'needs_room_assignment'
+    location_status == "needs_room_assignment"
   end
 
   # Calculate wait time based on the longest active timer
@@ -254,7 +254,7 @@ class Patient < ApplicationRecord
 
     # Check all active care pathway orders
     care_pathways.each do |pathway|
-      pathway.care_pathway_orders.where.not(status: [:resulted, :administered, :exam_completed]).each do |order|
+      pathway.care_pathway_orders.where.not(status: [ :resulted, :administered, :exam_completed ]).each do |order|
         # Get the appropriate timestamp based on order status
         timestamp = case order.status.to_sym
         when :ordered
@@ -295,9 +295,38 @@ class Patient < ApplicationRecord
   def top_pending_tasks(limit = 4)
     tasks = []
 
+    # Check if patient is at 100% care pathway completion and show Ready for Dispo or Ready for Checkout
+    if active_care_pathway&.progress_percentage == 100
+      if ready_for_checkout?
+        # Patient has been marked ready for checkout after clicking Discharge
+        elapsed_minutes = ready_for_checkout_at ? ((Time.current - ready_for_checkout_at) / 60).round : 0
+        tasks << {
+          name: "Ready for Checkout",
+          type: :ready_for_checkout,
+          elapsed_time: elapsed_minutes,
+          status: calculate_task_status(elapsed_minutes, 20), # 20 minute target
+          care_pathway_id: active_care_pathway.id
+        }
+      else
+        # Patient is at 100% but not yet discharged - show Ready for Dispo
+        # Calculate time since all endpoints were achieved
+        pathway = active_care_pathway
+        last_achieved_time = pathway.care_pathway_clinical_endpoints.maximum(:achieved_at) || Time.current
+        elapsed_minutes = ((Time.current - last_achieved_time) / 60).round
+        tasks << {
+          name: "Ready for Dispo",
+          type: :ready_for_dispo,
+          elapsed_time: elapsed_minutes,
+          status: calculate_task_status(elapsed_minutes, 20), # 20 minute target
+          care_pathway_id: pathway.id
+        }
+      end
+      return tasks # Return early since we only show one task at 100% completion
+    end
+
     # For patients in triage/waiting room, show their current triage step
     if location_waiting_room? || location_triage? || location_pending_transfer? || location_needs_room_assignment?
-      triage_pathway = care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+      triage_pathway = care_pathways.pathway_type_triage.where(status: [ :not_started, :in_progress ]).first
 
       if triage_pathway
         current_step = triage_pathway.current_triage_step
@@ -305,7 +334,7 @@ class Patient < ApplicationRecord
         if current_step
           # Determine elapsed time and target based on step
           case current_step.name
-          when 'Check-In'
+          when "Check-In"
             # Timer starts from arrival time
             if arrival_time
               elapsed_minutes = ((Time.current - arrival_time) / 60).round
@@ -318,9 +347,9 @@ class Patient < ApplicationRecord
                 care_pathway_id: triage_pathway.id
               }
             end
-          when 'Intake'
+          when "Intake"
             # Timer starts from check-in completion
-            check_in_step = triage_pathway.care_pathway_steps.find_by(name: 'Check-In')
+            check_in_step = triage_pathway.care_pathway_steps.find_by(name: "Check-In")
             if check_in_step&.completed_at
               elapsed_minutes = ((Time.current - check_in_step.completed_at) / 60).round
               target_minutes = 10 # 10 minutes for intake
@@ -332,9 +361,9 @@ class Patient < ApplicationRecord
                 care_pathway_id: triage_pathway.id
               }
             end
-          when 'Bed Assignment'
+          when "Bed Assignment"
             # Timer starts from intake completion
-            intake_step = triage_pathway.care_pathway_steps.find_by(name: 'Intake')
+            intake_step = triage_pathway.care_pathway_steps.find_by(name: "Intake")
             if intake_step&.completed_at
               elapsed_minutes = ((Time.current - intake_step.completed_at) / 60).round
               target_minutes = esi_target_minutes # ESI-based target
@@ -346,9 +375,9 @@ class Patient < ApplicationRecord
                 care_pathway_id: triage_pathway.id
               }
             end
-          when 'Pending Transfer'
+          when "Pending Transfer"
             # Timer starts from bed assignment completion
-            bed_assignment_step = triage_pathway.care_pathway_steps.find_by(name: 'Bed Assignment')
+            bed_assignment_step = triage_pathway.care_pathway_steps.find_by(name: "Bed Assignment")
             if bed_assignment_step&.completed_at
               elapsed_minutes = ((Time.current - bed_assignment_step.completed_at) / 60).round
               target_minutes = esi_target_minutes # ESI-based target
@@ -377,7 +406,7 @@ class Patient < ApplicationRecord
 
     # Check all active care pathway orders
     care_pathways.each do |pathway|
-      pathway.care_pathway_orders.where.not(status: [:resulted, :administered, :exam_completed]).each do |order|
+      pathway.care_pathway_orders.where.not(status: [ :resulted, :administered, :exam_completed ]).each do |order|
         # Get the appropriate timestamp based on order status
         timestamp = case order.status.to_sym
         when :ordered
@@ -410,7 +439,7 @@ class Patient < ApplicationRecord
     end
 
     # Sort by status priority (red > yellow > green) then by elapsed time
-    tasks.sort_by { |t| [status_priority(t[:status]), -t[:elapsed_time]] }.first(limit)
+    tasks.sort_by { |t| [ status_priority(t[:status]), -t[:elapsed_time] ] }.first(limit)
   end
 
   def highest_priority_task_status
@@ -445,23 +474,23 @@ class Patient < ApplicationRecord
 
   def check_in_and_intake_complete?
     # Check if the patient has an active triage pathway with both check-in and intake completed
-    pathway = care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+    pathway = care_pathways.pathway_type_triage.where(status: [ :not_started, :in_progress ]).first
     return false unless pathway
 
-    check_in_step = pathway.care_pathway_steps.find_by(name: 'Check-In')
-    intake_step = pathway.care_pathway_steps.find_by(name: 'Intake')
+    check_in_step = pathway.care_pathway_steps.find_by(name: "Check-In")
+    intake_step = pathway.care_pathway_steps.find_by(name: "Intake")
 
     check_in_step&.completed? && intake_step&.completed?
   end
 
   def all_triage_steps_complete?
     # Check if all triage pathway steps are completed (including bed assignment)
-    pathway = care_pathways.pathway_type_triage.where(status: [:not_started, :in_progress]).first
+    pathway = care_pathways.pathway_type_triage.where(status: [ :not_started, :in_progress ]).first
     return false unless pathway
 
-    check_in_step = pathway.care_pathway_steps.find_by(name: 'Check-In')
-    intake_step = pathway.care_pathway_steps.find_by(name: 'Intake')
-    bed_assignment_step = pathway.care_pathway_steps.find_by(name: 'Bed-Assignment')
+    check_in_step = pathway.care_pathway_steps.find_by(name: "Check-In")
+    intake_step = pathway.care_pathway_steps.find_by(name: "Intake")
+    bed_assignment_step = pathway.care_pathway_steps.find_by(name: "Bed-Assignment")
 
     check_in_step&.completed? && intake_step&.completed? && bed_assignment_step&.completed?
   end
@@ -518,32 +547,32 @@ class Patient < ApplicationRecord
   def room_assignment_status_class
     case room_assignment_status
     when :green
-      'timer-green'
+      "timer-green"
     when :yellow
-      'timer-yellow'
+      "timer-yellow"
     when :red
-      'timer-red'
+      "timer-red"
     else
-      ''
+      ""
     end
   end
 
   def display_location
     case location_status
-    when 'waiting_room'
-      'Waiting Room'
-    when 'triage'
-      'Triage'
-    when 'pending_transfer'
-      'Pending Transfer'
-    when 'results_pending'
-      'RP'
-    when 'ed_room', 'treatment'
-      'ED'
-    when 'needs_room_assignment'
-      rp_eligible? ? 'RP' : 'ED'
+    when "waiting_room"
+      "Waiting Room"
+    when "triage"
+      "Triage"
+    when "pending_transfer"
+      "Pending Transfer"
+    when "results_pending"
+      "RP"
+    when "ed_room", "treatment"
+      "ED"
+    when "needs_room_assignment"
+      rp_eligible? ? "RP" : "ED"
     else
-      'Waiting Room'
+      "Waiting Room"
     end
   end
 
@@ -558,11 +587,18 @@ class Patient < ApplicationRecord
     # 1. They have an ER care pathway
     # 2. All clinical endpoints are achieved
     # 3. There is at least one clinical endpoint
+    # 4. They haven't already been marked for checkout
     pathway = active_care_pathway
     return false unless pathway&.pathway_type_emergency_room?
+    return false if ready_for_checkout? # Already in checkout process
 
     endpoints = pathway.care_pathway_clinical_endpoints
     endpoints.any? && endpoints.all?(&:achieved?)
+  end
+
+  def can_be_checked_out?
+    # Patient can be checked out if they're marked ready for checkout
+    ready_for_checkout?
   end
 
   def needs_clinical_endpoints?
@@ -573,19 +609,46 @@ class Patient < ApplicationRecord
     pathway.care_pathway_clinical_endpoints.empty?
   end
 
-  # Discharge the patient with all necessary updates and logging
-  def discharge!(performed_by:)
+  # Mark patient as ready for checkout (first step of discharge)
+  def mark_ready_for_checkout!(performed_by:)
     transaction do
       # Check if patient can be discharged
       unless can_be_discharged?
         raise NotDischargeable, "Patient cannot be discharged. Ensure all clinical endpoints are achieved."
       end
 
+      # Update patient status to ready for checkout
+      update!(
+        ready_for_checkout: true,
+        ready_for_checkout_at: Time.current
+      )
+
+      # Log the event
+      Event.create!(
+        patient: self,
+        action: "Patient ready for checkout",
+        details: "Patient marked as ready for checkout from #{display_location}",
+        performed_by: performed_by,
+        time: Time.current,
+        category: "administrative"
+      )
+    end
+  end
+
+  # Complete the checkout and discharge the patient (second step)
+  def checkout!(performed_by:)
+    transaction do
+      # Check if patient can be checked out
+      unless can_be_checked_out?
+        raise NotDischargeable, "Patient is not ready for checkout."
+      end
+
       # Update patient discharge status
       update!(
         discharged: true,
         discharged_at: Time.current,
-        discharged_by: performed_by
+        discharged_by: performed_by,
+        ready_for_checkout: false # Clear the checkout flag
       )
 
       # Mark care pathway as completed
@@ -600,13 +663,18 @@ class Patient < ApplicationRecord
       # Log the discharge event
       Event.create!(
         patient: self,
-        action: "Patient discharged",
-        details: "Patient discharged from #{display_location}",
+        action: "Patient checked out",
+        details: "Patient checked out and discharged from #{display_location}",
         performed_by: performed_by,
         time: Time.current,
         category: "administrative"
       )
     end
+  end
+
+  # Legacy discharge method - now redirects to the two-step process
+  def discharge!(performed_by:)
+    mark_ready_for_checkout!(performed_by: performed_by)
   end
 
   # Custom exception for discharge failures
