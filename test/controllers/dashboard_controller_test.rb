@@ -60,7 +60,7 @@ class DashboardControllerTest < ActionDispatch::IntegrationTest
     assert_response :success
     assert_select "th", "Patient"
     assert_select "th", "Care Pathway"
-    assert_select "th", "Task List"
+    assert_select "th", "Pending Task List"
     assert_select "th", "RP Eligible"
   end
 

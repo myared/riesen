@@ -696,8 +696,8 @@ class PatientTest < ActiveSupport::TestCase
     assert_equal 1, tasks.length
 
     task = tasks.first
-    assert_equal "Room Assignment", task[:name]
-    assert_equal :room_assignment, task[:type]
+    assert_equal "Bed Assignment", task[:name]
+    assert_equal :bed_assignment, task[:type]
     assert_equal 30, task[:elapsed_time]
     assert_equal pathway.id, task[:care_pathway_id]
   end
@@ -933,9 +933,9 @@ class PatientTest < ActiveSupport::TestCase
     tasks = @patient.top_pending_tasks
     assert_equal 2, tasks.length
 
-    # Should include both room assignment and order tasks
+    # Should include both bed assignment and order tasks
     task_types = tasks.map { |t| t[:type] }
-    assert_includes task_types, :room_assignment
+    assert_includes task_types, :bed_assignment
     assert_includes task_types, :order
   end
 

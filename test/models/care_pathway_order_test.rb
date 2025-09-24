@@ -480,7 +480,7 @@ class CarePathwayOrderTest < ActiveSupport::TestCase
   # Test utility methods
   test "type_icon should return correct icons" do
     assert_equal "🔬", @lab_order.type_icon
-    assert_equal "💊", @medication_order.type_icon
+    assert_equal "💉", @medication_order.type_icon
     assert_equal "📷", @imaging_order.type_icon
   end
 
